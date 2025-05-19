@@ -9,21 +9,27 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
-  // ATENÇÃO: Este componente agora espera que você tenha um arquivo de imagem
-  // chamado "logo.png" (ou o nome que você preferir) dentro da pasta "public"
-  // do seu projeto Next.js.
-  // Exemplo: se seu arquivo é "meu_logo_final.webp", coloque-o em "public/meu_logo_final.webp"
-  // e altere o valor de `logoImagePath` abaixo para "/meu_logo_final.webp".
+  // ATENÇÃO: Verifique os seguintes pontos CRÍTICOS para a imagem do logo aparecer:
+  // 1. O ARQUIVO DA IMAGEM DO LOGO DEVE ESTAR NA PASTA `public` NA RAIZ DO SEU PROJETO.
+  //    (Exemplo: se seu projeto está em `/meu-app/`, a imagem deve estar em `/meu-app/public/`)
+  //
+  // 2. O VALOR DA VARIÁVEL `logoImagePath` ABAIXO DEVE CORRESPONDER EXATAMENTE AO NOME DO SEU ARQUIVO DE IMAGEM
+  //    DENTRO DA PASTA `public`.
+  //    Exemplos:
+  //    - Se o arquivo é `public/logo_da_empresa.png`, então logoImagePath = "/logo_da_empresa.png"
+  //    - Se o arquivo é `public/images/logo.png`, então logoImagePath = "/images/logo.png"
+  //
+  //    O caminho DEVE começar com uma barra `/`.
 
-  const logoImagePath = "/logo.png"; // Caminho relativo à pasta 'public'
+  const logoImagePath = "/logo.png"; // <--- AJUSTE ESTE CAMINHO SE O NOME OU LOCAL DA SUA IMAGEM FOR DIFERENTE!
 
   return (
     <div className={className} style={{ width: `${width}px`, height: `${height}px`, position: 'relative' }}>
       <Image
         src={logoImagePath}
-        alt="ENGEAR Logo"
-        layout="fill" // Ou 'intrinsic', 'fixed', 'responsive' dependendo do comportamento desejado
-        objectFit="contain" // Ou 'cover', 'fill', etc.
+        alt="ENGEAR Logo" // O texto alternativo é importante para acessibilidade.
+        layout="fill" 
+        objectFit="contain" 
         priority // Opcional: Carrega a imagem do logo com prioridade
       />
     </div>
