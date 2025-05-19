@@ -3,7 +3,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, DollarSign, ListChecks, TrendingUp, Printer, CalendarDays, Filter, PlayCircle, CheckCircle, XCircle } from "lucide-react"; // Added PlayCircle, CheckCircle, XCircle
+import { BarChart, DollarSign, ListChecks, TrendingUp, Printer, CalendarDays, Filter, PlayCircle, CheckCircle, XCircle, Banknote } from "lucide-react"; // Added Banknote
 import SalesCharts from "@/components/sales/sales-charts";
 import { useSales } from "@/hooks/use-sales";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"; 
@@ -81,9 +81,7 @@ export default function DashboardPage() {
   const inProgressSalesCount = filteredSales.filter(sale => sale.status === 'EM ANDAMENTO' || sale.status === 'Á INICAR').length;
   const cancelledSalesCount = filteredSales.filter(sale => sale.status === 'CANCELADO').length;
 
-  const totalPaymentsReceived = filteredSales
-    .filter(sale => sale.status === 'FINALIZADO') 
-    .reduce((sum, sale) => sum + sale.payment, 0); // Changed to sum sale.payment
+  const totalPaymentsReceived = filteredSales.reduce((sum, sale) => sum + sale.payment, 0); // Removido o filtro por status
 
 
   const handlePrint = () => {
@@ -121,14 +119,14 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Recebido (Finalizado)</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-500" />
+            <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
+            <Banknote className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
              R$ {totalPaymentsReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">Soma dos pagamentos "FINALIZADO"</p>
+            <p className="text-xs text-muted-foreground">Soma de todos os pagamentos</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -204,3 +202,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -43,9 +43,7 @@ export default function DadosPage() {
   };
 
   const totalSalesValue = filteredSales.reduce((sum, sale) => sum + sale.salesValue, 0);
-  const totalPayments = filteredSales
-    .filter(sale => sale.status === 'FINALIZADO') 
-    .reduce((sum, sale) => sum + sale.payment, 0);
+  const totalPayments = filteredSales.reduce((sum, sale) => sum + sale.payment, 0); // Removido o filtro por status
 
 
   return (
@@ -86,7 +84,7 @@ export default function DadosPage() {
         <CardFooter className="border-t p-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-muted-foreground">
            <p>Total de Registros: <span className="font-semibold text-foreground">{filteredSales.length}</span></p>
            <p>Valor Total em Vendas: <span className="font-semibold text-foreground">R$ {totalSalesValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
-           <p>Total Recebido (Finalizado): <span className="font-semibold text-foreground">R$ {totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+           <p>Total Recebido: <span className="font-semibold text-foreground">R$ {totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
         </CardFooter>
       </Card>
     </div>
