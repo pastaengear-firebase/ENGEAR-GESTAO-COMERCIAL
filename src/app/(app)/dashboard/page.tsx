@@ -13,6 +13,7 @@ import { addDays, format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { ALL_SELLERS_OPTION } from "@/lib/constants";
 
 // A simple DatePickerWithRange - you'd typically have a more robust one
 const SimpleDatePickerWithRange: React.FC<{
@@ -64,7 +65,7 @@ const SimpleDatePickerWithRange: React.FC<{
 
 
 export default function DashboardPage() {
-  const { filteredSales, setFilters, filters } = useSales();
+  const { filteredSales, setFilters, filters, selectedSeller } = useSales();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: filters.startDate || addDays(new Date(), -30),
     to: filters.endDate || new Date(),
@@ -73,6 +74,10 @@ export default function DashboardPage() {
   useEffect(() => {
     setFilters({ startDate: dateRange?.from, endDate: dateRange?.to });
   }, [dateRange, setFilters]);
+
+  const dashboardSubtitle = selectedSeller === ALL_SELLERS_OPTION 
+    ? "Visão geral do desempenho da equipe comercial." 
+    : `Desempenho do vendedor: ${selectedSeller}`;
 
   const totalSalesValue = filteredSales.reduce((sum, sale) => sum + sale.salesValue, 0);
   const totalSalesCount = filteredSales.length;
@@ -96,7 +101,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard de Vendas</h1>
-          <p className="text-muted-foreground">Visão geral do desempenho da equipe comercial.</p>
+          <p className="text-muted-foreground">{dashboardSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
            <SimpleDatePickerWithRange date={dateRange} setDate={setDateRange} />
