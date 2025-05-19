@@ -15,9 +15,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, UserCircle, Moon, Sun } from 'lucide-react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes'; // Needs: npm install next-themes
+import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { EMAIL_RECOVERY_ADDRESS } from '@/lib/constants'; // Importação adicionada
+import { EMAIL_RECOVERY_ADDRESS } from '@/lib/constants';
 
 export default function HeaderContent() {
   const { user, logout } = useAuth();
@@ -33,7 +33,7 @@ export default function HeaderContent() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 w-full border-b bg-white dark:bg-card"> {/* Always white in light, card color in dark */}
       <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/dashboard" className="flex items-center">
           <Logo width={100} height={32} />
@@ -91,7 +91,7 @@ export default function HeaderContent() {
           )}
         </div>
       </div>
-      <div className="md:hidden border-t p-2 flex justify-center">
+      <div className="md:hidden border-t p-2 flex justify-center bg-white dark:bg-card"> {/* Always white in light, card color in dark for mobile selector bar */}
          <SellerSelector />
       </div>
     </header>
