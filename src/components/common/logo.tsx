@@ -27,7 +27,7 @@ const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
   //    VERIFIQUE TAMBÉM AS LETRAS MAIÚSCULAS E MINÚSCULAS NO NOME DO ARQUIVO.
   //    O nome do arquivo é SENSÍVEL A MAIÚSCULAS/MINÚSCULAS em muitos sistemas.
 
-  const logoImagePath = "/logo.png"; // <--- CONFIRMADO PARA USAR "logo.png".
+  const logoImagePath = "/logo.png"; // <--- AJUSTE ESTE CAMINHO SE O NOME/LOCALIZAÇÃO DO SEU ARQUIVO FOR DIFERENTE
 
   return (
     <div className={className ? `${className} bg-white` : "bg-white"} style={{ display: 'inline-block', padding: '5px', borderRadius: '4px' }}>

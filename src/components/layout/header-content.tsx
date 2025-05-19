@@ -33,7 +33,7 @@ export default function HeaderContent() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-white dark:bg-white"> {/* Always white background */}
+    <header className="sticky top-0 z-40 w-full border-b bg-white dark:bg-white">
       <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/dashboard" className="flex items-center">
           <Logo width={100} height={32} />
@@ -91,7 +91,7 @@ export default function HeaderContent() {
           )}
         </div>
       </div>
-      <div className="md:hidden border-t p-2 flex justify-center bg-white dark:bg-white"> {/* Always white background for mobile selector bar */}
+      <div className="md:hidden border-t p-2 flex justify-center bg-white dark:bg-white">
          <SellerSelector />
       </div>
     </header>

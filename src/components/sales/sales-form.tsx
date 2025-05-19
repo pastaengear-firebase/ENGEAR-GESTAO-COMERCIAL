@@ -214,7 +214,13 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
       if (pathname.startsWith('/editar-venda') && editSaleId) {
         router.push('/editar-venda'); // Clear editId, stay on page
       } else {
-        router.push('/dados'); // Default redirect for new sales or edits from other contexts
+        // For new sales on /inserir-venda, stay on the page to allow further entries
+        if (pathname.startsWith('/inserir-venda') && !editSaleId) {
+          // Optionally, keep the user on the /inserir-venda page
+          // router.push('/inserir-venda'); // This would keep them on the page
+        } else {
+            router.push('/dados'); // Default redirect for edits from other contexts or if desired for new sales
+        }
       }
 
     } catch (error) {

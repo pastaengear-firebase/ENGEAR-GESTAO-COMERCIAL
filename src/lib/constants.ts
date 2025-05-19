@@ -1,4 +1,3 @@
-
 export const DEFAULT_LOGIN_CREDENTIALS = {
   username: 'ENGEAR',
   password: '1313',
@@ -28,8 +27,6 @@ export type AreaOption = (typeof AREA_OPTIONS)[number];
 
 export const STATUS_OPTIONS = ["Á INICAR", "EM ANDAMENTO", "FINALIZADO", "CANCELADO"] as const;
 export type StatusOption = (typeof STATUS_OPTIONS)[number];
-
-// PAYMENT_OPTIONS e PaymentOption foram removidos, pois o campo será um valor numérico.
 
 export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState';
 export const LOCAL_STORAGE_SALES_KEY = 'salesAppData';

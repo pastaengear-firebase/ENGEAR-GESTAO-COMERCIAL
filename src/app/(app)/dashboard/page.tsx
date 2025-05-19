@@ -1,4 +1,3 @@
-
 // src/app/(app)/dashboard/page.tsx
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -128,7 +127,7 @@ export default function DashboardPage() {
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Recebido (Geral)</CardTitle>
-            <Banknote className="h-5 w-5 text-green-600" /> {/* Main green for general received */}
+            <Banknote className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -140,7 +139,7 @@ export default function DashboardPage() {
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Recebido (Finalizado)</CardTitle>
-            <FileCheck2 className="h-5 w-5 text-blue-600" /> {/* Different icon and color */}
+            <FileCheck2 className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -222,4 +221,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

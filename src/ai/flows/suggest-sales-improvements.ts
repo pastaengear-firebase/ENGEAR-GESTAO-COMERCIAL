@@ -1,4 +1,3 @@
-
 // Use server directive to ensure this code runs on the server.
 'use server';
 
@@ -12,13 +11,13 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS } from '@/lib/constants'; // PAYMENT_OPTIONS removed
+import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS } from '@/lib/constants';
 
 const SuggestSalesImprovementsInputSchema = z.object({
   date: z.string().describe('The date of the sale (YYYY-MM-DD).'),
   company: z.enum(COMPANY_OPTIONS).describe('The name of the company sold to.'),
   project: z.string().describe('The project name associated with the sale.'),
-  os: z.string().describe('The order sheet number (can be "0000" or empty if not applicable).'), // Descrição atualizada
+  os: z.string().describe('The order sheet number (can be "0000" or empty if not applicable).'),
   area: z.enum(AREA_OPTIONS).describe('The area of the sale (e.g., INST. AC, MANUT. AC).'),
   clientService: z.string().describe('The type of client or service provided.'),
   salesValue: z.number().describe('The monetary value of the sale.'),
@@ -89,4 +88,3 @@ const suggestSalesImprovementsFlow = ai.defineFlow(
     return output;
   }
 );
-

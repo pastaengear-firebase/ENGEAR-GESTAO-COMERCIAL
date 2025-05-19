@@ -1,4 +1,3 @@
-
 // src/contexts/sales-context.tsx
 "use client";
 import type React from 'react';
@@ -36,7 +35,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addSale = useCallback((saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>): Sale => {
     const newSale: Sale = {
-      ...saleData, 
+      ...saleData, // saleData já contém o 'seller' correto do SalesForm
       id: uuidv4(),
       createdAt: Date.now(),
     };
@@ -49,7 +48,14 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSales(prevSales =>
       prevSales.map(sale => {
         if (sale.id === id) {
-          updatedSale = { ...sale, ...saleUpdateData, updatedAt: Date.now() };
+          // Garante que 'seller' não seja sobrescrito para undefined se não estiver em saleUpdateData
+          const currentSeller = sale.seller;
+          updatedSale = { 
+            ...sale, 
+            ...saleUpdateData, 
+            seller: saleUpdateData.seller || currentSeller, // Mantém o vendedor existente se não for fornecido um novo
+            updatedAt: Date.now() 
+          };
           return updatedSale;
         }
         return sale;
@@ -92,6 +98,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .filter(sale => {
         if (!filters.startDate) return true;
+        // Normalize sale date and filter start date to ignore time components
         const saleDate = new Date(sale.date);
         saleDate.setHours(0,0,0,0); 
         const filterStartDate = new Date(filters.startDate);
@@ -100,6 +107,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .filter(sale => {
         if (!filters.endDate) return true;
+        // Normalize sale date and filter end date (set end date to end of day)
         const saleDate = new Date(sale.date);
         saleDate.setHours(0,0,0,0); 
         const filterEndDate = new Date(filters.endDate);

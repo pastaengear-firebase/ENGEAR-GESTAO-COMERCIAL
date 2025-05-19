@@ -1,5 +1,6 @@
-
 import type { Seller, AreaOption, StatusOption, CompanyOption } from './constants';
+import type { ALL_SELLERS_OPTION } from './constants'; // Import específico
+
 
 export interface Sale {
   id: string;
@@ -63,4 +64,3 @@ export type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   isActive?: (pathname: string) => boolean;
 };
-
