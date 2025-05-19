@@ -3,7 +3,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, DollarSign, ListChecks, TrendingUp, Printer, CalendarDays, Filter, PlayCircle, CheckCircle, XCircle, Banknote } from "lucide-react"; // Added Banknote
+import { BarChart, DollarSign, ListChecks, TrendingUp, Printer, CalendarDays, Filter, PlayCircle, CheckCircle, XCircle, Banknote, FileCheck2 } from "lucide-react"; // Added FileCheck2
 import SalesCharts from "@/components/sales/sales-charts";
 import { useSales } from "@/hooks/use-sales";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"; 
@@ -81,7 +81,10 @@ export default function DashboardPage() {
   const inProgressSalesCount = filteredSales.filter(sale => sale.status === 'EM ANDAMENTO' || sale.status === 'Á INICAR').length;
   const cancelledSalesCount = filteredSales.filter(sale => sale.status === 'CANCELADO').length;
 
-  const totalPaymentsReceived = filteredSales.reduce((sum, sale) => sum + sale.payment, 0); // Removido o filtro por status
+  const totalPaymentsAllStatuses = filteredSales.reduce((sum, sale) => sum + sale.payment, 0);
+  const totalPaymentsFinalizado = filteredSales
+    .filter(sale => sale.status === 'FINALIZADO')
+    .reduce((sum, sale) => sum + sale.payment, 0);
 
 
   const handlePrint = () => {
@@ -119,14 +122,26 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-            <Banknote className="h-5 w-5 text-green-500" />
+            <CardTitle className="text-sm font-medium">Total Recebido (Geral)</CardTitle>
+            <Banknote className="h-5 w-5 text-green-600" /> {/* Main green for general received */}
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-             R$ {totalPaymentsReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+             R$ {totalPaymentsAllStatuses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">Soma de todos os pagamentos</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Recebido (Finalizado)</CardTitle>
+            <FileCheck2 className="h-5 w-5 text-blue-600" /> {/* Different icon and color */}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+             R$ {totalPaymentsFinalizado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground">Soma dos pagamentos finalizados</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
