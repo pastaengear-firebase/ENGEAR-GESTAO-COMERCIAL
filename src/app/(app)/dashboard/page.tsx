@@ -1,3 +1,4 @@
+
 // src/app/(app)/dashboard/page.tsx
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -82,7 +83,7 @@ export default function DashboardPage() {
 
   const totalPaymentsReceived = filteredSales
     .filter(sale => sale.status === 'FINALIZADO') 
-    .reduce((sum, sale) => sum + sale.salesValue, 0);
+    .reduce((sum, sale) => sum + sale.payment, 0); // Changed to sum sale.payment
 
 
   const handlePrint = () => {
@@ -127,7 +128,7 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold">
              R$ {totalPaymentsReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">Soma das vendas "FINALIZADO"</p>
+            <p className="text-xs text-muted-foreground">Soma dos pagamentos "FINALIZADO"</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -203,4 +204,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

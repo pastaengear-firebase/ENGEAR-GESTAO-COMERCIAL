@@ -1,5 +1,5 @@
 
-import type { Seller, AreaOption, StatusOption, PaymentOption, CompanyOption } from './constants';
+import type { Seller, AreaOption, StatusOption, CompanyOption } from './constants';
 
 export interface Sale {
   id: string;
@@ -12,7 +12,7 @@ export interface Sale {
   clientService: string;
   salesValue: number;
   status: StatusOption;
-  payment: PaymentOption;
+  payment: number; // Alterado de PaymentOption para number
   createdAt: number; // timestamp
   updatedAt?: number; // timestamp
 }

@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { AREA_OPTIONS, STATUS_OPTIONS, PAYMENT_OPTIONS, COMPANY_OPTIONS } from './constants';
+import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS } from './constants';
 
 export const LoginSchema = z.object({
   username: z.string().min(1, 'Usuário é obrigatório.'),
@@ -17,6 +17,6 @@ export const SalesFormSchema = z.object({
   clientService: z.string().min(1, 'Cliente/Serviço é obrigatório.'),
   salesValue: z.coerce.number().positive('Valor da Venda deve ser positivo.'),
   status: z.enum(STATUS_OPTIONS, { required_error: 'Status é obrigatório.' }),
-  payment: z.enum(PAYMENT_OPTIONS, { required_error: 'Pagamento é obrigatório.' }),
+  payment: z.coerce.number().min(0, 'Valor do Pagamento não pode ser negativo.'), // Alterado para validar um número
 });
 export type SalesFormData = z.infer<typeof SalesFormSchema>;

@@ -1,3 +1,4 @@
+
 // src/components/sales/sales-table.tsx
 "use client";
 import type { Sale } from '@/lib/types';
@@ -64,12 +65,12 @@ export default function SalesTable({ salesData }: SalesTableProps) {
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
     switch (status) {
       case 'FINALIZADO':
-        return 'default'; // default is primary (like 'Ganha')
+        return 'default'; 
       case 'Á INICAR':
       case 'EM ANDAMENTO':
-        return 'secondary'; // (like 'Aberta')
+        return 'secondary'; 
       case 'CANCELADO':
-        return 'destructive'; // (like 'Perdida')
+        return 'destructive'; 
       default:
         return 'outline';
     }
@@ -100,9 +101,9 @@ export default function SalesTable({ salesData }: SalesTableProps) {
             <TableHead>O.S.</TableHead>
             <TableHead>Área</TableHead>
             <TableHead>Cliente/Serviço</TableHead>
-            <TableHead className="text-right">Valor (R$)</TableHead>
+            <TableHead className="text-right">Valor Venda (R$)</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Pagamento</TableHead>
+            <TableHead className="text-right">Pagamento (R$)</TableHead> 
             <TableHead className="text-right print-hide">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -124,7 +125,9 @@ export default function SalesTable({ salesData }: SalesTableProps) {
                   {sale.status}
                 </Badge>
               </TableCell>
-              <TableCell>{sale.payment}</TableCell>
+              <TableCell className="text-right">
+                {sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </TableCell>
               <TableCell className="text-right print-hide">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -206,4 +209,3 @@ export default function SalesTable({ salesData }: SalesTableProps) {
     </>
   );
 }
-

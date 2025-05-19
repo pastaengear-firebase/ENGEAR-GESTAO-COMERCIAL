@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SalesFormSchema, type SalesFormData } from '@/lib/schemas';
-import { AREA_OPTIONS, STATUS_OPTIONS, PAYMENT_OPTIONS, SELLERS, ALL_SELLERS_OPTION, COMPANY_OPTIONS } from '@/lib/constants';
+import { AREA_OPTIONS, STATUS_OPTIONS, SELLERS, ALL_SELLERS_OPTION, COMPANY_OPTIONS } from '@/lib/constants';
 import type { Seller } from '@/lib/constants';
 import { useSales } from '@/hooks/use-sales';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
       clientService: '',
       salesValue: 0,
       status: undefined,
-      payment: undefined,
+      payment: 0, // Default payment value
     },
   });
 
@@ -71,7 +71,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
           clientService: saleToEdit.clientService,
           salesValue: saleToEdit.salesValue,
           status: saleToEdit.status,
-          payment: saleToEdit.payment,
+          payment: saleToEdit.payment, // Load payment value
         });
         setAssignedSeller(saleToEdit.seller);
       } else {
@@ -100,10 +100,10 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
   const fetchSuggestions = async () => {
     const formData = form.getValues();
      // Check if all required enum fields are selected before fetching suggestions
-    if (!formData.company || !formData.area || !formData.status || !formData.payment) {
+    if (!formData.company || !formData.area || !formData.status ) { // Payment is no longer an enum
         toast({
             title: "Campos Incompletos",
-            description: "Por favor, preencha todos os campos obrigatórios (Empresa, Área, Status, Pagamento) antes de verificar com IA.",
+            description: "Por favor, preencha todos os campos obrigatórios (Empresa, Área, Status) antes de verificar com IA.",
             variant: "destructive",
         });
         if (onSuggestionsFetched) {
@@ -124,7 +124,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
           clientService: formData.clientService,
           salesValue: formData.salesValue,
           status: formData.status,
-          payment: formData.payment,
+          payment: formData.payment, // Pass payment as number
         };
         const suggestions = await suggestSalesImprovements(aiInput);
         if (onSuggestionsFetched) {
@@ -153,6 +153,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
       ...data,
       date: format(data.date, 'yyyy-MM-dd'), // Store date as ISO string
       seller: assignedSeller,
+      payment: Number(data.payment) // Ensure payment is a number
     };
 
     try {
@@ -163,7 +164,17 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
         addSale(salePayload);
         toast({ title: "Sucesso!", description: "Nova venda registrada com sucesso." });
       }
-      form.reset();
+      form.reset({ // Reset with default values including payment: 0
+          date: new Date(),
+          company: undefined,
+          project: '',
+          os: '',
+          area: undefined,
+          clientService: '',
+          salesValue: 0,
+          status: undefined,
+          payment: 0,
+      });
       setAssignedSeller(SELLERS.includes(globalSelectedSeller as Seller) ? globalSelectedSeller as Seller : undefined); // Reset seller based on global
       if (onSuggestionsFetched) onSuggestionsFetched(null);
       router.push('/dados'); // Navigate to data view after saving
@@ -386,17 +397,21 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
             name="payment"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Pagamento</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a Forma de Pagamento" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {PAYMENT_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Valor do Pagamento (R$)</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input 
+                      type="number" 
+                      placeholder="0.00" 
+                      className="pl-8" 
+                      {...field} 
+                      disabled={isSubmitting} 
+                      step="0.01"
+                      onChange={e => field.onChange(parseFloat(e.target.value))}
+                    />
+                  </div>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -422,7 +437,17 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
             type="button"
             variant="ghost"
             onClick={() => {
-              form.reset();
+              form.reset({ // Reset with default values including payment: 0
+                date: new Date(),
+                company: undefined,
+                project: '',
+                os: '',
+                area: undefined,
+                clientService: '',
+                salesValue: 0,
+                status: undefined,
+                payment: 0,
+              });
               setAssignedSeller(SELLERS.includes(globalSelectedSeller as Seller) ? globalSelectedSeller as Seller : undefined);
               if (onSuggestionsFetched) onSuggestionsFetched(null);
               if (editSaleId) router.push('/inserir-venda'); // Clear editId from URL

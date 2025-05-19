@@ -29,9 +29,7 @@ export type AreaOption = (typeof AREA_OPTIONS)[number];
 export const STATUS_OPTIONS = ["Á INICAR", "EM ANDAMENTO", "FINALIZADO", "CANCELADO"] as const;
 export type StatusOption = (typeof STATUS_OPTIONS)[number];
 
-export const PAYMENT_OPTIONS = ['À Vista', 'Parcelado', 'Financiado'] as const;
-export type PaymentOption = (typeof PAYMENT_OPTIONS)[number];
+// PAYMENT_OPTIONS e PaymentOption foram removidos, pois o campo será um valor numérico.
 
 export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState';
 export const LOCAL_STORAGE_SALES_KEY = 'salesAppData';
-

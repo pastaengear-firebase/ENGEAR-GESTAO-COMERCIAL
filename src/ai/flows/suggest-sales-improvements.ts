@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS, PAYMENT_OPTIONS } from '@/lib/constants';
+import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS } from '@/lib/constants'; // PAYMENT_OPTIONS removed
 
 const SuggestSalesImprovementsInputSchema = z.object({
   date: z.string().describe('The date of the sale (YYYY-MM-DD).'),
@@ -23,7 +23,7 @@ const SuggestSalesImprovementsInputSchema = z.object({
   clientService: z.string().describe('The type of client or service provided.'),
   salesValue: z.number().describe('The monetary value of the sale.'),
   status: z.enum(STATUS_OPTIONS).describe('The current status of the sale (e.g., Á INICAR, EM ANDAMENTO, FINALIZADO, CANCELADO).'),
-  payment: z.enum(PAYMENT_OPTIONS).describe('The payment terms for the sale.'),
+  payment: z.number().describe('The payment value related to the sale, in BRL.'), // Changed from z.enum to z.number
 });
 export type SuggestSalesImprovementsInput = z.infer<typeof SuggestSalesImprovementsInputSchema>;
 
@@ -58,14 +58,15 @@ const prompt = ai.definePrompt({
   - OS: {{{os}}}
   - Area: {{{area}}}
   - Client/Service: {{{clientService}}}
-  - Sales Value: {{{salesValue}}}
+  - Sales Value: R$ {{{salesValue}}}
   - Status: {{{status}}}
-  - Payment: {{{payment}}}
+  - Payment Value: R$ {{{payment}}}
 
   Provide a list of suggestions, including the field to improve, the suggested improvement, and the reason for the suggestion.
   Be specific about which field the suggestion applies to.
-  If a value seems unusually low or high (e.g. salesValue), point it out.
+  If a value seems unusually low or high (e.g. salesValue, payment), point it out.
   If a combination of fields seems unlikely (e.g. a very high sales value for a small project), suggest reviewing it.
+  If the payment value seems inconsistent with the sales value (e.g., much higher or significantly lower without clear reason), suggest reviewing it.
   Ensure dates are logical (e.g., not in the distant future or past unless justified).
 
   Format your output as a JSON array of objects, where each object has the keys 'field', 'suggestion', and 'reason'.
@@ -87,4 +88,3 @@ const suggestSalesImprovementsFlow = ai.defineFlow(
     return output;
   }
 );
-
