@@ -1,9 +1,34 @@
 // src/app/login/page.tsx
+"use client";
 import LoginForm from '@/components/auth/login-form';
 import Logo from '@/components/common/logo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
+  const { isAuthenticated, loading } = useAuth(); // Use loading state from useAuth
+  const router = useRouter();
+
+  useEffect(() => {
+    // Only redirect if not loading and isAuthenticated is true
+    if (!loading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthenticated, loading, router]);
+
+  // Optional: Show a loading indicator or null while auth state is resolving
+  // to prevent brief flash of login form if already authenticated.
+  if (loading || (!loading && isAuthenticated)) {
+     return (
+      <div className="flex h-screen items-center justify-center bg-secondary">
+        {/* You can put a loader here if you want */}
+        <p className="text-muted-foreground">Verificando autenticação...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
       <div className="mb-8">

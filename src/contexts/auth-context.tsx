@@ -3,7 +3,7 @@
 import type React from 'react';
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DEFAULT_LOGIN_CREDENTIALS, LOCAL_STORAGE_AUTH_KEY } from '@/lib/constants';
+import { LOCAL_STORAGE_AUTH_KEY } from '@/lib/constants';
 import type { AuthState, AuthContextType, User } from '@/lib/types';
 
 const initialState: AuthState = {
@@ -12,6 +12,8 @@ const initialState: AuthState = {
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(initialState);
@@ -25,34 +27,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedAuth: AuthState = JSON.parse(storedAuth);
         if (parsedAuth.isAuthenticated && parsedAuth.user) {
           setAuthState(parsedAuth);
+          // Sync cookie with localStorage state
+          document.cookie = `isAuthenticated=true; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
+        } else {
+          // Invalid or unauthenticated state in localStorage
+          document.cookie = 'isAuthenticated=false; path=/; max-age=0';
         }
+      } else {
+        // No auth state in localStorage, ensure cookie reflects this
+        document.cookie = 'isAuthenticated=false; path=/; max-age=0';
       }
     } catch (error) {
       console.error("Failed to load auth state from localStorage", error);
       localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
+      // Ensure cookie is cleared on error
+      document.cookie = 'isAuthenticated=false; path=/; max-age=0';
     }
     setLoading(false);
   }, []);
 
   const login = useCallback((username: string) => {
-    // In a real app, you'd verify credentials against a backend.
-    // Here, we just set the user if credentials match the default.
-    // The actual check for credentials should happen in the login form.
     const user: User = { username };
     const newAuthState: AuthState = { isAuthenticated: true, user };
     setAuthState(newAuthState);
     localStorage.setItem(LOCAL_STORAGE_AUTH_KEY, JSON.stringify(newAuthState));
+    // Set cookie for middleware
+    document.cookie = `isAuthenticated=true; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
     router.push('/dashboard');
   }, [router]);
 
   const logout = useCallback(() => {
     setAuthState(initialState);
     localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
+    // Clear cookie for middleware
+    document.cookie = 'isAuthenticated=false; path=/; max-age=0'; // Expire immediately
     router.push('/login');
   }, [router]);
 
   if (loading) {
-    // You can return a loading spinner here if needed
     return <div className="flex h-screen items-center justify-center"><p>Loading authentication...</p></div>;
   }
 
