@@ -1,3 +1,4 @@
+
 // src/components/sales/sales-form.tsx
 "use client";
 import type React from 'react';
@@ -5,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SalesFormSchema, type SalesFormData } from '@/lib/schemas';
-import { AREA_OPTIONS, STATUS_OPTIONS, PAYMENT_OPTIONS, SELLERS, ALL_SELLERS_OPTION } from '@/lib/constants';
+import { AREA_OPTIONS, STATUS_OPTIONS, PAYMENT_OPTIONS, SELLERS, ALL_SELLERS_OPTION, COMPANY_OPTIONS } from '@/lib/constants';
 import type { Seller } from '@/lib/constants';
 import { useSales } from '@/hooks/use-sales';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
     resolver: zodResolver(SalesFormSchema),
     defaultValues: {
       date: new Date(),
-      company: '',
+      company: undefined,
       project: '',
       os: '',
       area: undefined,
@@ -98,6 +99,19 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
 
   const fetchSuggestions = async () => {
     const formData = form.getValues();
+     // Check if all required enum fields are selected before fetching suggestions
+    if (!formData.company || !formData.area || !formData.status || !formData.payment) {
+        toast({
+            title: "Campos Incompletos",
+            description: "Por favor, preencha todos os campos obrigatórios (Empresa, Área, Status, Pagamento) antes de verificar com IA.",
+            variant: "destructive",
+        });
+        if (onSuggestionsFetched) {
+          onSuggestionsFetched(null);
+        }
+        return;
+    }
+
     if (Object.values(formData).some(val => val !== '' && val !== 0 && !(val instanceof Date && isNaN(val.getTime())))) {
       setIsFetchingSuggestions(true);
       try {
@@ -106,11 +120,11 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
           company: formData.company,
           project: formData.project,
           os: formData.os,
-          area: formData.area || '',
+          area: formData.area,
           clientService: formData.clientService,
           salesValue: formData.salesValue,
-          status: formData.status || '',
-          payment: formData.payment || '',
+          status: formData.status,
+          payment: formData.payment,
         };
         const suggestions = await suggestSalesImprovements(aiInput);
         if (onSuggestionsFetched) {
@@ -212,13 +226,13 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
              <FormField
               control={form.control}
               name="seller" // This field is not in SalesFormSchema, used for UI only
-              render={({ field }) => (
+              render={({ field }) => ( // field is not directly used for Select's value/onChange here
                 <FormItem>
                   <FormLabel>Vendedor</FormLabel>
                   <Select 
                     onValueChange={(value: Seller) => setAssignedSeller(value)} 
                     value={assignedSeller}
-                    disabled={isSubmitting || (!!editSaleId && !!getSaleById(editSaleId)?.seller)} // Disable if editing and seller already set
+                    disabled={isSubmitting || (!!editSaleId && !!getSaleById(editSaleId)?.seller)}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -235,16 +249,30 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
             />
           )}
 
-
           <FormField
             control={form.control}
             name="company"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Empresa</FormLabel>
-                <FormControl>
-                  <Input placeholder="Nome da Empresa Cliente" {...field} disabled={isSubmitting} />
-                </FormControl>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value} 
+                  disabled={isSubmitting}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a Empresa" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {COMPANY_OPTIONS.map(option => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -322,7 +350,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched }: SalesF
                 <FormControl>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="number" placeholder="0.00" className="pl-8" {...field} disabled={isSubmitting} step="0.01" />
+                    <Input type="number" placeholder="0.00" className="pl-8" {...field} disabled={isSubmitting} step="0.01" 
+                      onChange={e => field.onChange(parseFloat(e.target.value))}
+                    />
                   </div>
                 </FormControl>
                 <FormMessage />

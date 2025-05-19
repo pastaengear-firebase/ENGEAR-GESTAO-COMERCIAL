@@ -1,3 +1,4 @@
+
 // Use server directive to ensure this code runs on the server.
 'use server';
 
@@ -11,17 +12,18 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS, PAYMENT_OPTIONS } from '@/lib/constants';
 
 const SuggestSalesImprovementsInputSchema = z.object({
   date: z.string().describe('The date of the sale (YYYY-MM-DD).'),
-  company: z.string().describe('The name of the company sold to.'),
+  company: z.enum(COMPANY_OPTIONS).describe('The name of the company sold to.'),
   project: z.string().describe('The project name associated with the sale.'),
   os: z.string().describe('The order sheet number.'),
-  area: z.string().describe('The area of the sale (e.g., North, South, East, West).'),
+  area: z.enum(AREA_OPTIONS).describe('The area of the sale (e.g., North, South, East, West).'),
   clientService: z.string().describe('The type of client or service provided.'),
   salesValue: z.number().describe('The monetary value of the sale.'),
-  status: z.string().describe('The current status of the sale (e.g., Open, Won, Lost).'),
-  payment: z.string().describe('The payment terms for the sale.'),
+  status: z.enum(STATUS_OPTIONS).describe('The current status of the sale (e.g., Open, Won, Lost).'),
+  payment: z.enum(PAYMENT_OPTIONS).describe('The payment terms for the sale.'),
 });
 export type SuggestSalesImprovementsInput = z.infer<typeof SuggestSalesImprovementsInputSchema>;
 
@@ -61,8 +63,13 @@ const prompt = ai.definePrompt({
   - Payment: {{{payment}}}
 
   Provide a list of suggestions, including the field to improve, the suggested improvement, and the reason for the suggestion.
+  Be specific about which field the suggestion applies to.
+  If a value seems unusually low or high (e.g. salesValue), point it out.
+  If a combination of fields seems unlikely (e.g. a very high sales value for a small project), suggest reviewing it.
+  Ensure dates are logical (e.g., not in the distant future or past unless justified).
 
   Format your output as a JSON array of objects, where each object has the keys 'field', 'suggestion', and 'reason'.
+  If no specific suggestions are found, return an empty array for suggestions.
   `,
 });
 
@@ -74,6 +81,9 @@ const suggestSalesImprovementsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output || !output.suggestions) {
+      return { suggestions: [] }; // Ensure a valid empty array if AI returns nothing
+    }
+    return output;
   }
 );

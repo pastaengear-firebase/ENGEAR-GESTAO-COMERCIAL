@@ -1,10 +1,11 @@
-import type { Seller, AreaOption, StatusOption, PaymentOption } from './constants';
+
+import type { Seller, AreaOption, StatusOption, PaymentOption, CompanyOption } from './constants';
 
 export interface Sale {
   id: string;
   seller: Seller;
   date: string; // ISO string
-  company: string;
+  company: CompanyOption;
   project: string;
   os: string;
   area: AreaOption;
@@ -62,4 +63,3 @@ export type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   isActive?: (pathname: string) => boolean;
 };
-
