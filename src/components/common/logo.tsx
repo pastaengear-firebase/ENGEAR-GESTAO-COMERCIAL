@@ -9,19 +9,26 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
-  // ATENÇÃO: Verifique os seguintes pontos CRÍTICOS para a imagem do logo aparecer:
-  // 1. O ARQUIVO DA IMAGEM DO LOGO DEVE ESTAR NA PASTA `public` NA RAIZ DO SEU PROJETO.
-  //    (Exemplo: se seu projeto está em `/meu-app/`, a imagem deve estar em `/meu-app/public/`)
+  // ATENÇÃO CRÍTICA - POR FAVOR, LEIA E AJUSTE:
   //
-  // 2. O VALOR DA VARIÁVEL `logoImagePath` ABAIXO DEVE CORRESPONDER EXATAMENTE AO NOME DO SEU ARQUIVO DE IMAGEM
-  //    DENTRO DA PASTA `public`.
-  //    Exemplos:
-  //    - Se o arquivo é `public/logo_da_empresa.png`, então logoImagePath = "/logo_da_empresa.png"
-  //    - Se o arquivo é `public/images/logo.png`, então logoImagePath = "/images/logo.png"
+  // 1. LOCALIZAÇÃO DO ARQUIVO:
+  //    O arquivo da sua imagem do logo (ex: `meu_logo.png`) DEVE estar na pasta `public`.
+  //    Esta pasta `public` PRECISA estar na RAIZ do seu projeto (junto com `src`, `package.json`).
   //
-  //    O caminho DEVE começar com uma barra `/`.
+  // 2. CAMINHO DA IMAGEM ABAIXO:
+  //    A variável `logoImagePath` DEVE corresponder EXATAMENTE ao nome e caminho do seu arquivo
+  //    dentro da pasta `public`. O caminho DEVE começar com uma barra `/`.
+  //
+  //    EXEMPLOS DE AJUSTE:
+  //    - Se seu arquivo é `public/logo_engear.png`, então:
+  //      const logoImagePath = "/logo_engear.png";
+  //
+  //    - Se seu arquivo é `public/images/logo_final.svg`, então:
+  //      const logoImagePath = "/images/logo_final.svg";
+  //
+  //    Certifique-se de que a extensão do arquivo (.png, .jpg, .svg, etc.) está correta.
 
-  const logoImagePath = "/logo.png"; // <--- AJUSTE ESTE CAMINHO SE O NOME OU LOCAL DA SUA IMAGEM FOR DIFERENTE!
+  const logoImagePath = "/logo.png"; // <--- AJUSTE ESTA LINHA CUIDADOSAMENTE!
 
   return (
     <div className={className} style={{ width: `${width}px`, height: `${height}px`, position: 'relative' }}>
@@ -30,7 +37,8 @@ const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
         alt="ENGEAR Logo" // O texto alternativo é importante para acessibilidade.
         layout="fill" 
         objectFit="contain" 
-        priority // Opcional: Carrega a imagem do logo com prioridade
+        priority // Carrega a imagem do logo com prioridade
+        unoptimized={logoImagePath.endsWith('.svg')} // Adicionar se for SVG para evitar otimização desnecessária
       />
     </div>
   );
