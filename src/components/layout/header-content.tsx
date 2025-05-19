@@ -17,6 +17,7 @@ import { LogOut, UserCircle, Moon, Sun } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes'; // Needs: npm install next-themes
 import { useEffect, useState } from 'react';
+import { EMAIL_RECOVERY_ADDRESS } from '@/lib/constants'; // Importação adicionada
 
 export default function HeaderContent() {
   const { user, logout } = useAuth();
