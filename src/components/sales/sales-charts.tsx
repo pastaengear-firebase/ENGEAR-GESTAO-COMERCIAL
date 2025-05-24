@@ -312,3 +312,4 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
     </div>
   );
 }
+
