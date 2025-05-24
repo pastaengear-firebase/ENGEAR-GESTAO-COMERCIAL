@@ -14,30 +14,28 @@ const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
   // 1. PASTA 'public' OBRIGATÓRIA NA RAIZ DO PROJETO:
   //    Para que o Next.js encontre imagens estáticas como o seu logo,
   //    DEVE existir uma pasta chamada 'public' na RAIZ do seu projeto.
-  //    A raiz do projeto é onde ficam arquivos como 'package.json' e a pasta 'src'.
-  //
-  //    Se a pasta 'public' NÃO EXISTE na raiz do seu projeto (como confirmado pela sua imagem),
-  //    VOCÊ PRECISA CRIÁ-LA MANUALMENTE USANDO AS FERRAMENTAS DO SEU AMBIENTE (Firebase Studio).
+  //    A imagem que você enviou mostra que a pasta 'public' FOI CRIADA CORRETAMENTE na raiz. Ótimo!
   //
   // 2. LOCALIZAÇÃO DO ARQUIVO DA IMAGEM DO LOGO:
-  //    O arquivo da sua imagem do logo (agora definido como `NEWLOGO.jpg`)
+  //    O arquivo da sua imagem do logo (agora definido como `NEWLOGO.JPG`)
   //    DEVE estar DENTRO desta pasta `public`.
-  //    Caminho esperado: `public/NEWLOGO.jpg`
+  //    Caminho esperado: `public/NEWLOGO.JPG`
+  //
+  //    O CONTEÚDO QUE VOCÊ MOSTROU NO EDITOR DE TEXTO (./NEWLOGO.JPG)
+  //    NÃO É COMO SE ADICIONA A IMAGEM. VOCÊ PRECISA FAZER UPLOAD
+  //    DO ARQUIVO DE IMAGEM REAL (NEWLOGO.JPG) PARA DENTRO DA PASTA 'public'.
+  //    O arquivo de texto que contém "./NEWLOGO.JPG" deve ser excluído.
   //
   // 3. CAMINHO DA IMAGEM ABAIXO:
-  //    A variável `logoImagePath` foi definida para "/NEWLOGO.jpg".
-  //    Isso significa que o Next.js procurará por `NEWLOGO.jpg` diretamente
+  //    A variável `logoImagePath` foi definida para "/NEWLOGO.JPG".
+  //    Isso significa que o Next.js procurará por `NEWLOGO.JPG` diretamente
   //    dentro da pasta `public`.
   //
-  //    Se o seu arquivo real na pasta `public` tiver um nome ou extensão diferente
-  //    (ex: "newlogo.png", "Newlogo.jpg", "NEWLOGO.jpeg"), você DEVE ajustar
-  //    a linha abaixo para corresponder.
-  //
-  //    Certifique-se de que a extensão do arquivo (.jpg, .png, .svg, etc.) está correta.
-  //    VERIFIQUE TAMBÉM AS LETRAS MAIÚSCULAS E MINÚSCULAS NO NOME DO ARQUIVO.
-  //    O nome do arquivo é SENSÍVEL A MAIÚSCULAS/MINÚSCULAS em muitos sistemas.
+  //    Certifique-se de que a extensão do arquivo (.JPG, .jpg, .png, etc.) está correta
+  //    e que o nome do arquivo corresponde exatamente (sensível a maiúsculas/minúsculas).
+  //    Com base na sua imagem do editor, estou usando "NEWLOGO.JPG".
 
-  const logoImagePath = "/NEWLOGO.jpg"; // <--- ESTE CAMINHO ESPERA QUE 'NEWLOGO.jpg' ESTEJA EM 'public/NEWLOGO.jpg'
+  const logoImagePath = "/NEWLOGO.JPG"; // <--- ATUALIZADO PARA .JPG (maiúsculo como na sua imagem)
 
   return (
     <div className={className ? `${className} bg-white` : "bg-white"} style={{ display: 'inline-block', padding: '5px', borderRadius: '4px' }}>
@@ -45,10 +43,10 @@ const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
         <Image
           src={logoImagePath}
           alt="ENGEAR Logo" // O texto alternativo é importante para acessibilidade.
-          layout="fill"
-          objectFit="contain"
+          fill // Use a propriedade fill em vez de layout="fill"
+          style={{ objectFit: "contain" }} // objectFit substitui a funcionalidade de layout="fill" objectFit="contain"
           priority // Carrega a imagem do logo com prioridade
-          unoptimized={true} // Adicionado para evitar otimização e corrigir erro 400
+          unoptimized={true} // Adicionado para evitar otimização e corrigir erro 400/500 se a imagem for problemática
         />
       </div>
     </div>
