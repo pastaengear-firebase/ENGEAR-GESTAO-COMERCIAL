@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith('/faturamento'),
   },
   {
-    title: 'Configurações', // Novo item
+    title: 'Configurações',
     href: '/configuracoes',
     icon: Settings,
     isActive: (pathname) => pathname.startsWith('/configuracoes'),
@@ -51,7 +51,10 @@ export default function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r bg-sidebar text-sidebar-foreground shadow-lg md:flex">
+    <aside className={cn(
+      "fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r text-sidebar-foreground shadow-lg md:flex",
+      "bg-sidebar sidebar-bg-pattern" // Applied bg-sidebar for base white and sidebar-bg-pattern for the pattern
+    )}>
       <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-6 bg-white dark:bg-white">
         <Logo />
       </div>

@@ -1,3 +1,4 @@
+
 // src/app/(app)/layout.tsx
 import type React from 'react';
 import SidebarNav from '@/components/layout/sidebar-nav';
@@ -7,9 +8,9 @@ import HeaderContent from '@/components/layout/header-content';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     // ThemeProvider foi removido daqui
-    <div className="flex min-h-screen flex-col bg-secondary/50">
+    <div className="flex min-h-screen flex-col"> {/* Removed bg-secondary/50 from here */}
       <SidebarNav />
-      <div className="flex flex-1 flex-col md:pl-64">
+      <div className="flex flex-1 flex-col md:pl-64 page-bg-pattern"> {/* Added page-bg-pattern */}
         <HeaderContent />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-full"> {/* Ensure content can be full width */}

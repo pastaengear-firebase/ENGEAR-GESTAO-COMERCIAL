@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -55,6 +56,12 @@ body {
     --sidebar-accent-foreground: 0 0% 15%;  /* Dark Gray for hover text */
     --sidebar-border: 0 0% 85%; /* Light Gray border */
     --sidebar-ring: 43 88% 63%;        /* Golden Yellow ring */
+
+    /* Geometric Pattern SVGs */
+    /* Stroke color for light backgrounds: Tailwind gray-200 (#e5e7eb) */
+    --pattern-light-svg: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20 H10 V10 H30 V20 H40 M10 30 H30' fill='none' stroke='%23e5e7eb' stroke-width='1.5' stroke-linecap='square'/%3E%3C/svg%3E");
+    /* Stroke color for dark backgrounds: Tailwind gray-600 (#4B5563) which is lighter than very dark bg */
+    --pattern-dark-svg: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20 H10 V10 H30 V20 H40 M10 30 H30' fill='none' stroke='%234B5563' stroke-width='1.5' stroke-linecap='square'/%3E%3C/svg%3E");
   }
 
   .dark {
@@ -124,5 +131,21 @@ body {
   }
   input[type="number"] {
     -moz-appearance: textfield; /* Firefox */
+  }
+
+  /* Classes for applying geometric patterns */
+  .page-bg-pattern {
+    background-image: var(--pattern-light-svg);
+    background-size: 40px 40px; /* Adjust size for desired density */
+    background-repeat: repeat;
+  }
+  .dark .page-bg-pattern {
+    background-image: var(--pattern-dark-svg);
+  }
+
+  .sidebar-bg-pattern {
+    background-image: var(--pattern-light-svg); /* Sidebar is always white, so use light pattern */
+    background-size: 40px 40px; /* Adjust size for desired density */
+    background-repeat: repeat;
   }
 }
