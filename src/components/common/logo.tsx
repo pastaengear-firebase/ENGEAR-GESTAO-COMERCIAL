@@ -12,22 +12,19 @@ const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
   // ATENÇÃO CRÍTICA - POR FAVOR, LEIA E AJUSTE SE NECESSÁRIO:
   //
   // 1. LOCALIZAÇÃO DO ARQUIVO:
-  //    O arquivo da sua imagem do logo (ex: `logo.png`) DEVE estar na pasta `public`.
+  //    O arquivo da sua imagem do logo (agora definido como `NEWLOGO.jpg`) DEVE estar na pasta `public`.
   //    Esta pasta `public` PRECISA estar na RAIZ do seu projeto (junto com `src`, `package.json`).
   //
   // 2. CAMINHO DA IMAGEM ABAIXO:
-  //    A variável `logoImagePath` DEVE corresponder EXATAMENTE ao nome e caminho do seu arquivo
-  //    dentro da pasta `public`. O caminho DEVE começar com uma barra `/`.
+  //    A variável `logoImagePath` foi definida para "/NEWLOGO.jpg".
+  //    Se o seu arquivo real na pasta `public` tiver um nome ou extensão diferente
+  //    (ex: "newlogo.png", "Newlogo.jpg"), você DEVE ajustar a linha abaixo para corresponder.
   //
-  //    Eu configurei como "/logo.png". Se o seu arquivo se chama, por exemplo, `minha_logo_engear.jpg`,
-  //    você DEVE mudar a linha abaixo para:
-  //    const logoImagePath = "/minha_logo_engear.jpg";
-  //
-  //    Certifique-se de que a extensão do arquivo (.png, .jpg, .svg, etc.) está correta.
+  //    Certifique-se de que a extensão do arquivo (.jpg, .png, .svg, etc.) está correta.
   //    VERIFIQUE TAMBÉM AS LETRAS MAIÚSCULAS E MINÚSCULAS NO NOME DO ARQUIVO.
   //    O nome do arquivo é SENSÍVEL A MAIÚSCULAS/MINÚSCULAS em muitos sistemas.
 
-  const logoImagePath = "/logo.png"; // <--- AJUSTE ESTE CAMINHO SE O NOME/LOCALIZAÇÃO DO SEU ARQUIVO FOR DIFERENTE
+  const logoImagePath = "/NEWLOGO.jpg"; // <--- CAMINHO ATUALIZADO PARA O NOVO ARQUIVO
 
   return (
     <div className={className ? `${className} bg-white` : "bg-white"} style={{ display: 'inline-block', padding: '5px', borderRadius: '4px' }}>
