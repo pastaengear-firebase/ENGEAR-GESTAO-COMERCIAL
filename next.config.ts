@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    unoptimized: true, // Desabilita a otimização de imagens do Next.js globalmente
   },
 };
 
