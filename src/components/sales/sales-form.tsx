@@ -1,3 +1,4 @@
+
 // src/components/sales/sales-form.tsx
 "use client";
 import type React from 'react';
@@ -8,16 +9,17 @@ import { SalesFormSchema, type SalesFormData } from '@/lib/schemas';
 import { AREA_OPTIONS, STATUS_OPTIONS, SELLERS, ALL_SELLERS_OPTION, COMPANY_OPTIONS } from '@/lib/constants';
 import type { Seller } from '@/lib/constants';
 import { useSales } from '@/hooks/use-sales';
+import { useSettings } from '@/hooks/use-settings'; // Importar useSettings
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CalendarIcon, DollarSign, Save, RotateCcw, Sparkles, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { suggestSalesImprovements, type SuggestSalesImprovementsInput, type SuggestSalesImprovementsOutput } from '@/ai/flows/suggest-sales-improvements';
@@ -27,11 +29,12 @@ import type { Sale } from '@/lib/types';
 interface SalesFormProps {
   onFormChange?: (data: Partial<SalesFormData>) => void;
   onSuggestionsFetched?: (suggestions: SuggestSalesImprovementsOutput | null) => void;
-  showReadOnlyAlert?: boolean; // Prop to control alert display from parent page
+  showReadOnlyAlert?: boolean;
 }
 
 export default function SalesForm({ onFormChange, onSuggestionsFetched, showReadOnlyAlert }: SalesFormProps) {
   const { addSale, getSaleById, updateSale, selectedSeller: globalSelectedSeller } = useSales();
+  const { settings: appSettings, loadingSettings } = useSettings(); // Obter configurações
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,7 +43,6 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-  
   const [displayedSeller, setDisplayedSeller] = useState<Seller | typeof ALL_SELLERS_OPTION | undefined>(undefined);
 
   const isEffectivelyReadOnly = globalSelectedSeller === ALL_SELLERS_OPTION;
@@ -54,11 +56,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
       os: '',
       area: undefined,
       clientService: '',
-      salesValue: undefined, // Changed from 0 to undefined
+      salesValue: undefined,
       status: undefined,
-      payment: undefined,    // Changed from 0 to undefined
-      // seller field in form data is not directly used for saving,
-      // actual seller comes from globalSelectedSeller or saleToEdit.seller
+      payment: undefined,
     },
   });
 
@@ -80,10 +80,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         setDisplayedSeller(saleToEdit.seller);
       } else {
         toast({ title: "Erro", description: "Venda não encontrada para edição.", variant: "destructive" });
-        router.push(pathname);
+        router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
       }
     } else {
-      // New sale
       form.reset({
         date: new Date(),
         company: undefined,
@@ -91,18 +90,17 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         os: '',
         area: undefined,
         clientService: '',
-        salesValue: undefined, // Changed from 0 to undefined
+        salesValue: undefined,
         status: undefined,
-        payment: undefined,    // Changed from 0 to undefined
+        payment: undefined,
       });
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
       } else {
-        setDisplayedSeller(ALL_SELLERS_OPTION); 
+        setDisplayedSeller(ALL_SELLERS_OPTION);
       }
     }
   }, [editSaleId, getSaleById, form, toast, router, globalSelectedSeller, pathname]);
-
 
   const handleDataChange = () => {
     if (onFormChange) {
@@ -112,62 +110,78 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
 
   const fetchSuggestions = async () => {
     const formData = form.getValues();
-    if (!formData.company || !formData.area || !formData.status ) {
-        toast({
-            title: "Campos Incompletos",
-            description: "Por favor, preencha todos os campos obrigatórios (Empresa, Área, Status) antes de verificar com IA.",
-            variant: "destructive",
-        });
-        if (onSuggestionsFetched) {
-          onSuggestionsFetched(null);
-        }
-        return;
+    if (!formData.company || !formData.area || !formData.status) {
+      toast({
+        title: "Campos Incompletos",
+        description: "Por favor, preencha todos os campos obrigatórios (Empresa, Área, Status) antes de verificar com IA.",
+        variant: "destructive",
+      });
+      if (onSuggestionsFetched) onSuggestionsFetched(null);
+      return;
     }
-    const relevantFieldsFilled = Object.entries(formData).some(([key, value]) => {
-        if (key === 'date' && value instanceof Date && !isNaN(value.getTime())) return true;
-        if (typeof value === 'string' && value.trim() !== '') return true;
-        if (typeof value === 'number' && value !== 0 && !isNaN(value)) return true; // Ensure it's not NaN
-        if (['company', 'area', 'status'].includes(key) && value !== undefined) return true;
-        return false;
-    });
 
-    if (relevantFieldsFilled) {
-      setIsFetchingSuggestions(true);
-      try {
-        const aiInput: SuggestSalesImprovementsInput = {
-          date: format(formData.date, 'yyyy-MM-dd'),
-          company: formData.company!,
-          project: formData.project,
-          os: formData.os,
-          area: formData.area!,
-          clientService: formData.clientService,
-          salesValue: Number(formData.salesValue) || 0, // Ensure number, default to 0 if NaN
-          status: formData.status!,
-          payment: Number(formData.payment) || 0,     // Ensure number, default to 0 if NaN
-        };
-        const suggestions = await suggestSalesImprovements(aiInput);
-        if (onSuggestionsFetched) {
-          onSuggestionsFetched(suggestions);
-        }
-      } catch (error) {
-        console.error("Error fetching AI suggestions:", error);
-        toast({ title: "Erro IA", description: "Não foi possível buscar sugestões.", variant: "destructive" });
-        if (onSuggestionsFetched) {
-          onSuggestionsFetched(null);
-        }
-      } finally {
-        setIsFetchingSuggestions(false);
-      }
-    } else {
-         toast({
-            title: "Dados Insuficientes para IA",
-            description: "Preencha mais campos para obter sugestões da IA.",
-            variant: "default",
-        });
-        if (onSuggestionsFetched) {
-          onSuggestionsFetched(null);
-        }
+    setIsFetchingSuggestions(true);
+    try {
+      const aiInput: SuggestSalesImprovementsInput = {
+        date: format(formData.date, 'yyyy-MM-dd'),
+        company: formData.company!,
+        project: formData.project,
+        os: formData.os,
+        area: formData.area!,
+        clientService: formData.clientService,
+        salesValue: Number(formData.salesValue) || 0,
+        status: formData.status!,
+        payment: Number(formData.payment) || 0,
+      };
+      const suggestions = await suggestSalesImprovements(aiInput);
+      if (onSuggestionsFetched) onSuggestionsFetched(suggestions);
+    } catch (error) {
+      console.error("Error fetching AI suggestions:", error);
+      toast({ title: "Erro IA", description: "Não foi possível buscar sugestões.", variant: "destructive" });
+      if (onSuggestionsFetched) onSuggestionsFetched(null);
+    } finally {
+      setIsFetchingSuggestions(false);
     }
+  };
+
+  const triggerEmailNotification = (sale: Sale) => {
+    if (loadingSettings || !appSettings.enableEmailNotifications || appSettings.notificationEmails.length === 0) {
+      return;
+    }
+
+    const recipients = appSettings.notificationEmails.join(',');
+    const subject = `Nova Venda Registrada: ${sale.project} (OS: ${sale.os || 'N/A'})`;
+    const appBaseUrl = window.location.origin;
+    const saleEditLink = `${appBaseUrl}/editar-venda?editId=${sale.id}`;
+
+    const body = `
+Uma nova venda foi registrada no sistema:
+
+Detalhes da Venda:
+--------------------------------------------------
+ID da Venda: ${sale.id}
+Data: ${format(parseISO(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
+Vendedor: ${sale.seller}
+Empresa: ${sale.company}
+Projeto: ${sale.project}
+O.S.: ${sale.os || 'Não informado'}
+Área: ${sale.area}
+Cliente/Serviço: ${sale.clientService}
+Valor da Venda: ${sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+Status: ${sale.status}
+Pagamento Registrado: ${sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+--------------------------------------------------
+
+Acesse a aplicação: ${appBaseUrl}/dashboard
+Visualize ou edite esta venda: ${saleEditLink}
+
+Atenciosamente,
+Sistema de Controle de Vendas ENGEAR
+    `;
+
+    const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+    toast({ title: "Preparando E-mail", description: "Seu cliente de e-mail foi aberto para enviar a notificação." });
   };
 
   const onSubmit = async (data: SalesFormData) => {
@@ -179,11 +193,11 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
     let sellerForPayload: Seller;
     if (editSaleId) {
       const saleToEdit = getSaleById(editSaleId);
-      if (!saleToEdit) { 
+      if (!saleToEdit) {
         toast({ title: "Erro", description: "Venda original não encontrada.", variant: "destructive" });
         return;
       }
-      sellerForPayload = saleToEdit.seller; 
+      sellerForPayload = saleToEdit.seller;
     } else {
       if (!SELLERS.includes(globalSelectedSeller as Seller)) {
         toast({ title: "Erro de Validação", description: "Selecione SERGIO ou RODRIGO no seletor global para registrar uma nova venda.", variant: "destructive" });
@@ -193,35 +207,38 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
     }
 
     setIsSubmitting(true);
-    
+
     const salePayload: Omit<Sale, 'id' | 'createdAt' | 'updatedAt'> = {
       ...data,
       date: format(data.date, 'yyyy-MM-dd'),
       seller: sellerForPayload,
-      // Ensure salesValue and payment are numbers, defaulting to 0 if they became NaN or undefined
       salesValue: Number(data.salesValue) || 0,
       payment: Number(data.payment) || 0,
     };
 
     try {
       if (editSaleId) {
-        updateSale(editSaleId, salePayload);
-        toast({ title: "Sucesso!", description: "Venda atualizada com sucesso." });
+        const updatedSale = updateSale(editSaleId, salePayload);
+        if (updatedSale) {
+          toast({ title: "Sucesso!", description: "Venda atualizada com sucesso." });
+          // Não dispara e-mail para atualizações, apenas para novas vendas
+        }
       } else {
-        addSale(salePayload);
+        const newSale = addSale(salePayload);
         toast({ title: "Sucesso!", description: "Nova venda registrada com sucesso." });
+        triggerEmailNotification(newSale); // Disparar notificação para nova venda
       }
-      
-      form.reset({ // Reset to blank for new sales
-          date: new Date(),
-          company: undefined,
-          project: '',
-          os: '',
-          area: undefined,
-          clientService: '',
-          salesValue: undefined,
-          status: undefined,
-          payment: undefined,
+
+      form.reset({
+        date: new Date(),
+        company: undefined,
+        project: '',
+        os: '',
+        area: undefined,
+        clientService: '',
+        salesValue: undefined,
+        status: undefined,
+        payment: undefined,
       });
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
@@ -229,9 +246,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         setDisplayedSeller(ALL_SELLERS_OPTION);
       }
       if (onSuggestionsFetched) onSuggestionsFetched(null);
-      
+
       if (pathname.startsWith('/editar-venda') && editSaleId) {
-        router.push('/editar-venda'); 
+        router.push('/editar-venda');
       } else if (pathname.startsWith('/inserir-venda') && !editSaleId) {
         // Stay on page
       } else {
@@ -250,7 +267,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" onChange={handleDataChange}>
         {showReadOnlyAlert && isEffectivelyReadOnly && (
-           <Alert variant="default" className="bg-amber-50 border-amber-300 text-amber-700">
+          <Alert variant="default" className="bg-amber-50 border-amber-300 text-amber-700">
             <Info className="h-4 w-4 !text-amber-600" />
             <AlertTitle>Modo Somente Leitura</AlertTitle>
             <AlertDescription>
@@ -319,7 +336,6 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
               {editSaleId ? "Vendedor original da venda (não pode ser alterado)." : "Para nova venda, use o seletor no cabeçalho."}
             </FormDescription>
           </FormItem>
-
 
           <FormField
             control={form.control}
@@ -422,14 +438,13 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
                 <FormControl>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input 
-                      type="number" 
-                      placeholder="0,00" 
-                      className="pl-8" 
-                      {...field} 
-                      value={field.value === undefined || field.value === null || isNaN(Number(field.value)) ? '' : field.value}
+                    <Input
+                      type="number"
+                      placeholder="0,00"
+                      className="pl-8"
+                      value={field.value === undefined || isNaN(Number(field.value)) ? '' : field.value}
                       onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                      disabled={isEffectivelyReadOnly || isSubmitting} 
+                      disabled={isEffectivelyReadOnly || isSubmitting}
                       step="0.01"
                     />
                   </div>
@@ -473,8 +488,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
                       type="number"
                       placeholder="0,00"
                       className="pl-8"
-                      {...field}
-                      value={field.value === undefined || field.value === null || isNaN(Number(field.value)) ? '' : field.value}
+                      value={field.value === undefined || isNaN(Number(field.value)) ? '' : field.value}
                       onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
                       disabled={isEffectivelyReadOnly || isSubmitting}
                       step="0.01"
@@ -507,17 +521,17 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
             variant="ghost"
             onClick={() => {
               const targetPath = pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda';
-              router.push(targetPath); // This will trigger the useEffect to reset the form to its "new sale" state or clear editId
+              router.push(targetPath);
               if (onSuggestionsFetched) onSuggestionsFetched(null);
             }}
-            disabled={isSubmitting} 
+            disabled={isSubmitting}
             className="w-full sm:w-auto"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Limpar / Cancelar Edição
           </Button>
           <Button type="submit"
-            disabled={isEffectivelyReadOnly || isSubmitting }
+            disabled={isEffectivelyReadOnly || isSubmitting}
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white">
             <Save className="mr-2 h-4 w-4" />
             {isSubmitting ? 'Salvando...' : (editSaleId ? 'Atualizar Venda' : 'Salvar Venda')}

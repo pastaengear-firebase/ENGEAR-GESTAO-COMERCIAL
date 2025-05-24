@@ -41,19 +41,19 @@ export type AuthContextType = AuthState & {
 
 export type SalesFilters = {
   searchTerm?: string;
-  selectedYear?: number | 'all'; // 'all' ou um ano específico
+  selectedYear?: number | 'all';
 };
 
 export type SalesContextType = {
-  sales: Sale[]; // Todas as vendas, não filtradas por data/ano globalmente aqui
-  filteredSales: Sale[]; // Vendas filtradas por vendedor, termo de busca E ano selecionado globalmente
+  sales: Sale[];
+  filteredSales: Sale[];
   selectedSeller: Seller | typeof ALL_SELLERS_OPTION;
   setSelectedSeller: (seller: Seller | typeof ALL_SELLERS_OPTION) => void;
   addSale: (saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>) => Sale;
   updateSale: (id: string, saleData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => Sale | undefined;
   deleteSale: (id: string) => void;
   getSaleById: (id: string) => Sale | undefined;
-  setFilters: (filters: Partial<SalesFilters>) => void; // Permitir atualização parcial dos filtros
+  setFilters: (filters: Partial<SalesFilters>) => void;
   filters: SalesFilters;
   loading: boolean;
 };
@@ -63,4 +63,16 @@ export type NavItem = {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   isActive?: (pathname: string) => boolean;
+};
+
+// Tipos para Configurações
+export interface AppSettings {
+  enableEmailNotifications: boolean;
+  notificationEmails: string[];
+}
+
+export type SettingsContextType = {
+  settings: AppSettings;
+  updateSettings: (newSettings: Partial<AppSettings>) => void;
+  loadingSettings: boolean;
 };

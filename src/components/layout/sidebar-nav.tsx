@@ -1,10 +1,11 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings } from 'lucide-react'; // Added Receipt
+import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings } from 'lucide-react';
 import Logo from '@/components/common/logo';
 
 const navItems: NavItem[] = [
@@ -33,17 +34,17 @@ const navItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith('/editar-venda'),
   },
   {
-    title: 'Faturamento', // Alterado de FATURAMENTO para Faturamento
+    title: 'Faturamento',
     href: '/faturamento',
     icon: Receipt,
     isActive: (pathname) => pathname.startsWith('/faturamento'),
   },
-  // {
-  //   title: 'Configurações',
-  //   href: '/configuracoes',
-  //   icon: Settings,
-  //   isActive: (pathname) => pathname.startsWith('/configuracoes'),
-  // },
+  {
+    title: 'Configurações', // Novo item
+    href: '/configuracoes',
+    icon: Settings,
+    isActive: (pathname) => pathname.startsWith('/configuracoes'),
+  },
 ];
 
 export default function SidebarNav() {
@@ -51,10 +52,8 @@ export default function SidebarNav() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r bg-sidebar text-sidebar-foreground shadow-lg md:flex">
-      <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-6">
-        {/* Use a white/light version of logo for dark sidebar */}
-        {/* This will be handled by CSS variables if Logo uses fill="currentColor" or similar */}
-        <Logo /> 
+      <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-6 bg-white dark:bg-white">
+        <Logo />
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map((item) => (

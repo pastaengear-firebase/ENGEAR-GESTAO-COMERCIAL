@@ -1,3 +1,4 @@
+
 export const DEFAULT_LOGIN_CREDENTIALS = {
   username: 'ENGEAR',
   password: '1313',
@@ -30,3 +31,4 @@ export type StatusOption = (typeof STATUS_OPTIONS)[number];
 
 export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState';
 export const LOCAL_STORAGE_SALES_KEY = 'salesAppData';
+export const LOCAL_STORAGE_SETTINGS_KEY = 'salesAppSettings'; // Nova constante
