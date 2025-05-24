@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, FilePlus, Database, FileEdit, Settings } from 'lucide-react'; // Added FileEdit
+import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings } from 'lucide-react'; // Added Receipt
 import Logo from '@/components/common/logo';
 
 const navItems: NavItem[] = [
@@ -29,8 +29,14 @@ const navItems: NavItem[] = [
   {
     title: 'Editar Venda',
     href: '/editar-venda',
-    icon: FileEdit, // New icon for the new page
+    icon: FileEdit,
     isActive: (pathname) => pathname.startsWith('/editar-venda'),
+  },
+  {
+    title: 'FATURAMENTO',
+    href: '/faturamento',
+    icon: Receipt, // New icon for the new page
+    isActive: (pathname) => pathname.startsWith('/faturamento'),
   },
   // {
   //   title: 'Configurações',
