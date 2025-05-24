@@ -8,7 +8,7 @@ import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/u
 import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AREA_OPTIONS, COMPANY_OPTIONS } from '@/lib/constants'; // Importar COMPANY_OPTIONS
+import { AREA_OPTIONS, COMPANY_OPTIONS, STATUS_OPTIONS } from '@/lib/constants'; // Importar COMPANY_OPTIONS e STATUS_OPTIONS
 
 interface SalesChartsProps {
   salesData: Sale[];
