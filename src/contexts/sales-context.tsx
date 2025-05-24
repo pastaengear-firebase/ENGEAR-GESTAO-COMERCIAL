@@ -9,14 +9,12 @@ import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 /**
  * DADOS INICIAIS PARA O VENDEDOR SERGIO.
- * Estes dados serão carregados se o localStorage para 'salesAppData' estiver VAZIO.
- * Se você já usou a aplicação e tem dados salvos, precisará limpar o localStorage
- * (Ferramentas de Desenvolvedor do Navegador > Application > Local Storage > clique com o botão direito em salesAppData > Delete)
- * para que estes dados iniciais sejam carregados.
+ * Estes dados foram processados a partir do CSV fornecido pelo usuário.
+ * Para que estes dados sejam carregados, o localStorage (chave 'salesAppData') deve estar VAZIO.
  */
 const exampleSalesForSergio: Sale[] = [
   {
-    id: "f8c1e8c7-a4e2-4f03-b7d8-3e9c1b2a7f5e",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-01",
     company: "CLIMAZONE",
@@ -30,7 +28,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-01T00:00:00.000Z").getTime()
   },
   {
-    id: "a2b3e4d5-c6f7-4a8b-9c1d-0e1f2a3b4c5d",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-02",
     company: "ENGEAR",
@@ -44,7 +42,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-02T00:00:00.000Z").getTime()
   },
   {
-    id: "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-02",
     company: "ENGEAR",
@@ -58,7 +56,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-02T00:00:00.000Z").getTime()
   },
   {
-    id: "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8g",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-02",
     company: "CLIMAZONE",
@@ -72,7 +70,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-02T00:00:00.000Z").getTime()
   },
   {
-    id: "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8g9h",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-02",
     company: "CLIMAZONE",
@@ -86,7 +84,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-02T00:00:00.000Z").getTime()
   },
   {
-    id: "f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8g9h0i",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-03",
     company: "ENGEAR",
@@ -100,7 +98,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-03T00:00:00.000Z").getTime()
   },
   {
-    id: "a7b8c9d0-e1f2-4a3b-4c5d-6e7f8g9h0i1j",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-04",
     company: "CLIMAZONE",
@@ -114,7 +112,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-04T00:00:00.000Z").getTime()
   },
   {
-    id: "b8c9d0e1-f2a3-4b4c-5d6e-7f8g9h0i1j2k",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-13",
     company: "ENGEAR",
@@ -128,7 +126,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-13T00:00:00.000Z").getTime()
   },
   {
-    id: "c9d0e1f2-a3b4-4c5d-6e7f-8g9h0i1j2k3l",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -142,7 +140,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "d0e1f2a3-b4c5-4d6e-7f8g-9h0i1j2k3l4m",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -156,7 +154,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "e1f2a3b4-c5d6-4e7f-8g9h-0i1j2k3l4m5n",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -170,7 +168,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "f2a3b4c5-d6e7-4f8g-9h0i-1j2k3l4m5n6o",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -184,7 +182,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "a3b4c5d6-e7f8-4a9b-0i1j-2k3l4m5n6o7p",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -198,7 +196,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "b4c5d6e7-f8a9-4b0c-1j2k-3l4m5n6o7p8q",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -212,7 +210,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "c5d6e7f8-a9b0-4c1d-2k3l-4m5n6o7p8q9r",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "CLIMAZONE",
@@ -226,7 +224,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "d6e7f8a9-b0c1-4d2e-3l4m-5n6o7p8q9r0s",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-16",
     company: "ENGEAR",
@@ -240,7 +238,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-16T00:00:00.000Z").getTime()
   },
   {
-    id: "e7f8a9b0-c1d2-4e3f-4m5n-6o7p8q9r0s1t",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-22",
     company: "CLIMAZONE",
@@ -254,7 +252,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-22T00:00:00.000Z").getTime()
   },
   {
-    id: "f8a9b0c1-d2e3-4f4a-5n6o-7p8q9r0s1t2u",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-22",
     company: "ENGEAR",
@@ -268,7 +266,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-22T00:00:00.000Z").getTime()
   },
   {
-    id: "a9b0c1d2-e3f4-4a5b-6o7p-8q9r0s1t2u3v",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-22",
     company: "CLIMAZONE",
@@ -282,7 +280,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-22T00:00:00.000Z").getTime()
   },
   {
-    id: "b0c1d2e3-f4a5-4b6c-7p8q-9r0s1t2u3v4w",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-29",
     company: "CLIMAZONE",
@@ -296,7 +294,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-29T00:00:00.000Z").getTime()
   },
   {
-    id: "c1d2e3f4-a5b6-4c7d-8q9r-0s1t2u3v4w5x",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-29",
     company: "CLIMAZONE",
@@ -310,7 +308,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-29T00:00:00.000Z").getTime()
   },
   {
-    id: "d2e3f4a5-b6c7-4d8e-9r0s-1t2u3v4w5x6y",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-29",
     company: "ENGEAR",
@@ -324,7 +322,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-29T00:00:00.000Z").getTime()
   },
   {
-    id: "e3f4a5b6-c7d8-4e9f-0s1t-2u3v4w5x6y7z",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-01-29",
     company: "CLIMAZONE",
@@ -338,7 +336,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-01-29T00:00:00.000Z").getTime()
   },
   {
-    id: "f4a5b6c7-d8e9-4f0a-1t2u-3v4w5x6y7z0a",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-02",
     company: "CLIMAZONE",
@@ -352,7 +350,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-02T00:00:00.000Z").getTime()
   },
   {
-    id: "a5b6c7d8-e9f0-4a1b-2u3v-4w5x6y7z0a1b",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-02",
     company: "ENGEAR",
@@ -366,7 +364,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-02T00:00:00.000Z").getTime()
   },
   {
-    id: "b6c7d8e9-f0a1-4b2c-3v4w-5x6y7z0a1b2c",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-02",
     company: "ENGEAR",
@@ -380,7 +378,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-02T00:00:00.000Z").getTime()
   },
   {
-    id: "c7d8e9f0-a1b2-4c3d-4w5x-6y7z0a1b2c3d",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-02",
     company: "CLIMAZONE",
@@ -394,7 +392,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-02T00:00:00.000Z").getTime()
   },
   {
-    id: "d8e9f0a1-b2c3-4d4e-5x6y-7z0a1b2c3d4e",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-03",
     company: "CLIMAZONE",
@@ -408,7 +406,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-03T00:00:00.000Z").getTime()
   },
   {
-    id: "e9f0a1b2-c3d4-4e5f-6y7z-0a1b2c3d4e5f",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-03",
     company: "CLIMAZONE",
@@ -422,7 +420,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-03T00:00:00.000Z").getTime()
   },
   {
-    id: "f0a1b2c3-d4e5-4f6a-7z0a-1b2c3d4e5f6g",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-03",
     company: "CLIMAZONE",
@@ -436,7 +434,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-03T00:00:00.000Z").getTime()
   },
   {
-    id: "a1b2c3d4-e5f6-4a7b-0a1b-2c3d4e5f6g7h",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-10",
     company: "CLIMAZONE",
@@ -450,7 +448,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-10T00:00:00.000Z").getTime()
   },
   {
-    id: "b2c3d4e5-f6a7-4b8c-1b2c-3d4e5f6g7h8i",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-11",
     company: "CLIMAZONE",
@@ -464,7 +462,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-11T00:00:00.000Z").getTime()
   },
   {
-    id: "c3d4e5f6-a7b8-4c9d-2c3d-4e5f6g7h8i9j",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-12",
     company: "ENGEAR",
@@ -478,7 +476,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-12T00:00:00.000Z").getTime()
   },
   {
-    id: "d4e5f6a7-b8c9-4d0e-3d4e-5f6g7h8i9j0k",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-11",
     company: "CLIMAZONE",
@@ -492,7 +490,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-11T00:00:00.000Z").getTime()
   },
   {
-    id: "e5f6a7b8-c9d0-4e1f-4e5f-6g7h8i9j0k1l",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-12",
     company: "CLIMAZONE",
@@ -506,7 +504,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-12T00:00:00.000Z").getTime()
   },
   {
-    id: "f6a7b8c9-d0e1-4f2a-5f6g-7h8i9j0k1l2m",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-13",
     company: "CLIMAZONE",
@@ -520,7 +518,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-13T00:00:00.000Z").getTime()
   },
   {
-    id: "a7b8c9d0-e1f2-4a3b-6g7h-8i9j0k1l2m3n",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-13",
     company: "CLIMAZONE",
@@ -534,7 +532,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-13T00:00:00.000Z").getTime()
   },
   {
-    id: "b8c9d0e1-f2a3-4b4c-7h8i-9j0k1l2m3n4o",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-18",
     company: "CLIMAZONE",
@@ -548,7 +546,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-18T00:00:00.000Z").getTime()
   },
   {
-    id: "c9d0e1f2-a3b4-4c5d-8i9j-0k1l2m3n4o5p",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-19",
     company: "CLIMAZONE",
@@ -562,7 +560,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-19T00:00:00.000Z").getTime()
   },
   {
-    id: "d0e1f2a3-b4c5-4d6e-9j0k-1l2m3n4o5p6q",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-24",
     company: "CLIMAZONE",
@@ -576,7 +574,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-24T00:00:00.000Z").getTime()
   },
   {
-    id: "e1f2a3b4-c5d6-4e7f-0k1l-2m3n4o5p6q7r",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-26",
     company: "ENGEAR",
@@ -590,7 +588,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-26T00:00:00.000Z").getTime()
   },
   {
-    id: "f2a3b4c5-d6e7-4f8g-1l2m-3n4o5p6q7r8s",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-26",
     company: "ENGEAR",
@@ -604,7 +602,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-26T00:00:00.000Z").getTime()
   },
   {
-    id: "a3b4c5d6-e7f8-4a9b-2m3n-4o5p6q7r8s9t",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-26",
     company: "CLIMAZONE",
@@ -618,7 +616,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-26T00:00:00.000Z").getTime()
   },
   {
-    id: "b4c5d6e7-f8a9-4b0c-3n4o-5p6q7r8s9t0u",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-02-26",
     company: "CLIMAZONE",
@@ -632,7 +630,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-02-26T00:00:00.000Z").getTime()
   },
   {
-    id: "c5d6e7f8-a9b0-4c1d-4o5p-6q7r8s9t0u1v",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-03-12",
     company: "CLIMAZONE",
@@ -646,7 +644,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-03-12T00:00:00.000Z").getTime()
   },
   {
-    id: "d6e7f8a9-b0c1-4d2e-5p6q-7r8s9t0u1v2w",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-03-17",
     company: "CLIMAZONE",
@@ -660,7 +658,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-03-17T00:00:00.000Z").getTime()
   },
   {
-    id: "e7f8a9b0-c1d2-4e3f-6q7r-8s9t0u1v2w3x",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-03-17",
     company: "ENGEAR",
@@ -674,7 +672,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-03-17T00:00:00.000Z").getTime()
   },
   {
-    id: "f8a9b0c1-d2e3-4f4a-7r8s-9t0u1v2w3x4y",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-03-18",
     company: "CLIMAZONE",
@@ -688,7 +686,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-03-18T00:00:00.000Z").getTime()
   },
   {
-    id: "a9b0c1d2-e3f4-4a5b-8s9t-0u1v2w3x4y5z",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-03-21",
     company: "ENGEAR",
@@ -702,7 +700,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-03-21T00:00:00.000Z").getTime()
   },
   {
-    id: "b0c1d2e3-f4a5-4b6c-9t0u-1v2w3x4y5z6a",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-03-27",
     company: "ENGEAR",
@@ -716,7 +714,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-03-27T00:00:00.000Z").getTime()
   },
   {
-    id: "c1d2e3f4-a5b6-4c7d-0u1v-2w3x4y5z6a7b",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-04-04",
     company: "CLIMAZONE",
@@ -730,7 +728,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-04-04T00:00:00.000Z").getTime()
   },
   {
-    id: "d2e3f4a5-b6c7-4d8e-1v2w-3x4y5z6a7b8c",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-04-15",
     company: "ENGEAR",
@@ -744,7 +742,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-04-15T00:00:00.000Z").getTime()
   },
   {
-    id: "e3f4a5b6-c7d8-4e9f-2w3x-4y5z6a7b8c9d",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-04-15",
     company: "ENGEAR",
@@ -758,7 +756,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-04-15T00:00:00.000Z").getTime()
   },
   {
-    id: "f4a5b6c7-d8e9-4f0a-3x4y-5z6a7b8c9d0e",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-04-23",
     company: "CLIMAZONE",
@@ -772,7 +770,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-04-23T00:00:00.000Z").getTime()
   },
   {
-    id: "a5b6c7d8-e9f0-4a1b-4y5z-6a7b8c9d0e1f",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-04-25",
     company: "CLIMAZONE",
@@ -786,7 +784,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-04-25T00:00:00.000Z").getTime()
   },
   {
-    id: "b6c7d8e9-f0a1-4b2c-5z6a-7b8c9d0e1f2g",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-05",
     company: "CLIMAZONE",
@@ -800,7 +798,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-05-05T00:00:00.000Z").getTime()
   },
   {
-    id: "c7d8e9f0-a1b2-4c3d-6a7b-8c9d0e1f2g3h",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-07",
     company: "CLIMAZONE",
@@ -814,7 +812,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-05-07T00:00:00.000Z").getTime()
   },
   {
-    id: "d8e9f0a1-b2c3-4d4e-7b8c-9d0e1f2g3h4i",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-07",
     company: "CLIMAZONE",
@@ -828,7 +826,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-05-07T00:00:00.000Z").getTime()
   },
   {
-    id: "e9f0a1b2-c3d4-4e5f-8c9d-0e1f2g3h4i5j",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-12",
     company: "CLIMAZONE",
@@ -842,7 +840,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-05-12T00:00:00.000Z").getTime()
   },
   {
-    id: "f0a1b2c3-d4e5-4f6a-9d0e-1f2g3h4i5j6k",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-13",
     company: "CLIMAZONE",
@@ -856,7 +854,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-05-13T00:00:00.000Z").getTime()
   },
   {
-    id: "a1b2c3d4-e5f6-4a7b-0e1f-2g3h4i5j6k7l",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-21",
     company: "CLIMAZONE",
@@ -870,7 +868,7 @@ const exampleSalesForSergio: Sale[] = [
     createdAt: new Date("2025-05-21T00:00:00.000Z").getTime()
   },
   {
-    id: "b2c3d4e5-f6a7-4b8c-1f2g-3h4i5j6k7l8m",
+    id: uuidv4(),
     seller: "SERGIO",
     date: "2025-05-21",
     company: "CLIMAZONE",
@@ -904,18 +902,19 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         dataToLoad = Array.isArray(parsedSales) ? parsedSales : [];
         // console.log("SalesContext: Loaded data from localStorage", dataToLoad.length);
       } else {
-        // Se não há nada no localStorage, use os dados iniciais de exemplo
-        dataToLoad = Array.isArray(exampleSalesForSergio) ? exampleSalesForSergio : [];
-        // console.log("SalesContext: No data in localStorage, using example data", dataToLoad.length);
+        // Se localStorage está vazio, usa exampleSalesForSergio
+        dataToLoad = Array.isArray(exampleSalesForSergio) ? [...exampleSalesForSergio] : [];
+        console.log(`SalesContext: DEBUG - Loading ${dataToLoad.length} sales from exampleSalesForSergio.`); // Log adicionado
         if (dataToLoad.length > 0) {
           localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify(dataToLoad));
           // console.log("SalesContext: Saved example data to localStorage");
         }
       }
     } catch (error) {
-      console.error("SalesContext: Error during initial data load from localStorage. Falling back to example data.", error);
-      localStorage.removeItem(LOCAL_STORAGE_SALES_KEY); // Limpa localStorage em caso de erro de parse
-      dataToLoad = Array.isArray(exampleSalesForSergio) ? exampleSalesForSergio : []; // Usa os dados de exemplo como fallback
+      console.error("SalesContext: Error during initial data load. Falling back to example data.", error);
+      localStorage.removeItem(LOCAL_STORAGE_SALES_KEY);
+      dataToLoad = Array.isArray(exampleSalesForSergio) ? [...exampleSalesForSergio] : [];
+       console.log(`SalesContext: DEBUG - Loading ${dataToLoad.length} sales from exampleSalesForSergio after error.`); // Log adicionado
       if (dataToLoad.length > 0) {
         try {
           localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify(dataToLoad));
@@ -931,13 +930,17 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []); // A dependência vazia [] garante que isso rode apenas uma vez na montagem.
 
-  // Este useEffect persiste as alterações no estado 'sales' para o localStorage.
-  // Ele só executa se 'loading' for false, para evitar salvar um estado inicial vazio
-  // ou incompleto durante o carregamento inicial.
   useEffect(() => {
-    if (!loading) {
+    if (!loading && sales.length > 0) { 
       // console.log("SalesContext: Persisting sales to localStorage", sales.length);
       localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify(sales));
+    } else if (!loading && sales.length === 0 && localStorage.getItem(LOCAL_STORAGE_SALES_KEY) !== null) {
+      // Se 'sales' está vazio após o carregamento, e localStorage não está vazio,
+      // isso pode indicar que o localStorage foi limpo externamente ou o estado inicial foi vazio.
+      // Neste caso, se quisermos persistir um array vazio, fazemos aqui.
+      // Se exampleSalesForSergio foi a fonte e estava vazio, já foi salvo.
+      // console.log("SalesContext: Persisting empty sales array to localStorage as current state is empty post-load.");
+      // localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify([])); // Comentado para evitar apagar dados de exemplo se exampleSalesForSergio estiver vazio.
     }
   }, [sales, loading]);
 
@@ -956,7 +959,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSales(prevSales =>
       prevSales.map(sale => {
         if (sale.id === id) {
-          const currentSeller = sale.seller; 
+          const currentSeller = sale.seller;
           updatedSale = {
             ...sale,
             ...saleUpdateData,
@@ -1014,9 +1017,9 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       .filter(sale => {
         if (!filters.endDate) return true;
         const saleDate = new Date(sale.date);
-        saleDate.setUTCHours(0,0,0,0); 
+        saleDate.setUTCHours(0,0,0,0);
         const filterEndDate = new Date(filters.endDate);
-        filterEndDate.setUTCHours(23,59,59,999); 
+        filterEndDate.setUTCHours(23,59,59,999);
         return saleDate <= filterEndDate;
       });
   }, [sales, selectedSeller, filters]);
@@ -1041,5 +1044,3 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     </SalesContext.Provider>
   );
 };
-
-    
