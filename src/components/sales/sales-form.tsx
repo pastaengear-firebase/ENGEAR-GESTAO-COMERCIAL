@@ -41,9 +41,6 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   
-  // This state primarily reflects the seller of the sale being edited,
-  // or the globally selected seller if it's a new sale by SERGIO/RODRIGO.
-  // It's mostly for display in the disabled seller field within the form.
   const [displayedSeller, setDisplayedSeller] = useState<Seller | typeof ALL_SELLERS_OPTION | undefined>(undefined);
 
   const isEffectivelyReadOnly = globalSelectedSeller === ALL_SELLERS_OPTION;
@@ -57,9 +54,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
       os: '',
       area: undefined,
       clientService: '',
-      salesValue: 0,
+      salesValue: undefined, // Changed from 0 to undefined
       status: undefined,
-      payment: 0,
+      payment: undefined,    // Changed from 0 to undefined
       // seller field in form data is not directly used for saving,
       // actual seller comes from globalSelectedSeller or saleToEdit.seller
     },
@@ -94,14 +91,14 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         os: '',
         area: undefined,
         clientService: '',
-        salesValue: 0,
+        salesValue: undefined, // Changed from 0 to undefined
         status: undefined,
-        payment: 0,
+        payment: undefined,    // Changed from 0 to undefined
       });
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
       } else {
-        setDisplayedSeller(ALL_SELLERS_OPTION); // Or undefined, to show placeholder
+        setDisplayedSeller(ALL_SELLERS_OPTION); 
       }
     }
   }, [editSaleId, getSaleById, form, toast, router, globalSelectedSeller, pathname]);
@@ -126,11 +123,10 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         }
         return;
     }
-    // ... (rest of fetchSuggestions logic remains same)
     const relevantFieldsFilled = Object.entries(formData).some(([key, value]) => {
         if (key === 'date' && value instanceof Date && !isNaN(value.getTime())) return true;
         if (typeof value === 'string' && value.trim() !== '') return true;
-        if (typeof value === 'number' && value !== 0) return true;
+        if (typeof value === 'number' && value !== 0 && !isNaN(value)) return true; // Ensure it's not NaN
         if (['company', 'area', 'status'].includes(key) && value !== undefined) return true;
         return false;
     });
@@ -145,9 +141,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
           os: formData.os,
           area: formData.area!,
           clientService: formData.clientService,
-          salesValue: formData.salesValue,
+          salesValue: Number(formData.salesValue) || 0, // Ensure number, default to 0 if NaN
           status: formData.status!,
-          payment: formData.payment,
+          payment: Number(formData.payment) || 0,     // Ensure number, default to 0 if NaN
         };
         const suggestions = await suggestSalesImprovements(aiInput);
         if (onSuggestionsFetched) {
@@ -183,11 +179,11 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
     let sellerForPayload: Seller;
     if (editSaleId) {
       const saleToEdit = getSaleById(editSaleId);
-      if (!saleToEdit) { // Should not happen if form is populated
+      if (!saleToEdit) { 
         toast({ title: "Erro", description: "Venda original não encontrada.", variant: "destructive" });
         return;
       }
-      sellerForPayload = saleToEdit.seller; // Seller of an existing sale cannot be changed
+      sellerForPayload = saleToEdit.seller; 
     } else {
       if (!SELLERS.includes(globalSelectedSeller as Seller)) {
         toast({ title: "Erro de Validação", description: "Selecione SERGIO ou RODRIGO no seletor global para registrar uma nova venda.", variant: "destructive" });
@@ -202,7 +198,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
       ...data,
       date: format(data.date, 'yyyy-MM-dd'),
       seller: sellerForPayload,
-      payment: Number(data.payment)
+      // Ensure salesValue and payment are numbers, defaulting to 0 if they became NaN or undefined
+      salesValue: Number(data.salesValue) || 0,
+      payment: Number(data.payment) || 0,
     };
 
     try {
@@ -214,16 +212,16 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         toast({ title: "Sucesso!", description: "Nova venda registrada com sucesso." });
       }
       
-      form.reset({
+      form.reset({ // Reset to blank for new sales
           date: new Date(),
           company: undefined,
           project: '',
           os: '',
           area: undefined,
           clientService: '',
-          salesValue: 0,
+          salesValue: undefined,
           status: undefined,
-          payment: 0,
+          payment: undefined,
       });
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
@@ -424,8 +422,15 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
                 <FormControl>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="number" placeholder="0.00" className="pl-8" {...field} disabled={isEffectivelyReadOnly || isSubmitting} step="0.01"
-                      onChange={e => field.onChange(parseFloat(e.target.value))}
+                    <Input 
+                      type="number" 
+                      placeholder="0,00" 
+                      className="pl-8" 
+                      {...field} 
+                      value={field.value === undefined || field.value === null || isNaN(Number(field.value)) ? '' : field.value}
+                      onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                      disabled={isEffectivelyReadOnly || isSubmitting} 
+                      step="0.01"
                     />
                   </div>
                 </FormControl>
@@ -466,12 +471,13 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="number"
-                      placeholder="0.00"
+                      placeholder="0,00"
                       className="pl-8"
                       {...field}
+                      value={field.value === undefined || field.value === null || isNaN(Number(field.value)) ? '' : field.value}
+                      onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
                       disabled={isEffectivelyReadOnly || isSubmitting}
                       step="0.01"
-                      onChange={e => field.onChange(parseFloat(e.target.value))}
                     />
                   </div>
                 </FormControl>
@@ -501,11 +507,10 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
             variant="ghost"
             onClick={() => {
               const targetPath = pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda';
-              router.push(targetPath);
-              // Form reset and displayedSeller update handled by useEffect when editSaleId changes
+              router.push(targetPath); // This will trigger the useEffect to reset the form to its "new sale" state or clear editId
               if (onSuggestionsFetched) onSuggestionsFetched(null);
             }}
-            disabled={isEffectivelyReadOnly || isSubmitting} // also disable if readonly
+            disabled={isSubmitting} 
             className="w-full sm:w-auto"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
