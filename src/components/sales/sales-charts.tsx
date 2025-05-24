@@ -12,16 +12,25 @@ interface SalesChartsProps {
   salesData: Sale[];
 }
 
+// Updated CHART_COLORS for more distinct status colors
 const CHART_COLORS = {
-  SERGIO: 'hsl(var(--chart-1))', // Typically Maroon
-  RODRIGO: 'hsl(var(--chart-2))', // Typically Golden Yellow
+  SERGIO: 'hsl(var(--chart-1))', // Maroon
+  RODRIGO: 'hsl(var(--chart-2))', // Golden Yellow
   "Á INICAR": 'hsl(var(--chart-3))', // Teal/Green
   "EM ANDAMENTO": 'hsl(var(--chart-4))', // Blue
-  "FINALIZADO": 'hsl(var(--chart-1))', // Maroon (similar to SERGIO, or green for success)
-  "CANCELADO": 'hsl(var(--chart-5))', // Orange (or red for destructive)
-  // Fallback for other statuses if any
+  "FINALIZADO": 'hsl(var(--chart-5))', // Orange (was chart-1, changed for more distinction)
+  "CANCELADO": 'hsl(var(--destructive))', // Destructive color (red) for Cancelled
   default: 'hsl(var(--muted-foreground))'
 };
+
+// Array of colors for the monthly sales chart to cycle through
+const monthlyChartColorsArray = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+];
 
 export default function SalesCharts({ salesData }: SalesChartsProps) {
   const salesBySeller = useMemo(() => {
@@ -63,8 +72,8 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
         const [aMonthStr, aYear] = a.name.split('/');
         const [bMonthStr, bYear] = b.name.split('/');
         const monthNames = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-        const aMonth = monthNames.indexOf(aMonthStr.toLowerCase());
-        const bMonth = monthNames.indexOf(bMonthStr.toLowerCase());
+        const aMonth = monthNames.indexOf(aMonthStr.toLowerCase().replace('.', '')); // remove . from fev.
+        const bMonth = monthNames.indexOf(bMonthStr.toLowerCase().replace('.', '')); // remove . from fev.
         const dateA = new Date(parseInt(`20${aYear}`), aMonth);
         const dateB = new Date(parseInt(`20${bYear}`), bMonth);
         return dateA.getTime() - dateB.getTime();
@@ -72,12 +81,11 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
   }, [salesData]);
 
   const barChartConfig = {
-    totalValue: { label: "Valor Total (R$)", color: "hsl(var(--chart-1))" },
+    totalValue: { label: "Valor Total (R$)" }, // Color will be applied by <Cell>
   } satisfies ChartConfig;
   
   const pieChartConfig = {
     sales: { label: "Vendas" },
-    // Define specific colors for pie chart segments if needed, matching CHART_COLORS
     "Á INICAR": { label: "À Iniciar", color: CHART_COLORS["Á INICAR"] },
     "EM ANDAMENTO": { label: "Em Andamento", color: CHART_COLORS["EM ANDAMENTO"] },
     "FINALIZADO": { label: "Finalizado", color: CHART_COLORS["FINALIZADO"] },
@@ -119,7 +127,7 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                 <Legend />
                 <Bar dataKey="totalValue" name="Valor Total" radius={[4, 4, 0, 0]} >
                    {salesBySeller.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
+                    <Cell key={`cell-seller-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
                   ))}
                 </Bar>
               </BarChart>
@@ -139,7 +147,10 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
               <PieChart>
                 <Tooltip content={<ChartTooltipContent nameKey="name" />} />
                 <Legend 
-                  formatter={(value, entry) => <span style={{ color: CHART_COLORS[entry.payload.name as keyof typeof CHART_COLORS] || CHART_COLORS.default }}>{value}</span>}
+                  formatter={(value, entry) => {
+                     const color = CHART_COLORS[entry.payload.name as keyof typeof CHART_COLORS] || CHART_COLORS.default;
+                     return <span style={{ color }}>{value}</span>;
+                  }}
                 />
                 <Pie
                   data={salesByStatus}
@@ -152,7 +163,7 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                   label={({ name, percent, value }) => `${name} (${value})`}
                 >
                   {salesByStatus.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
+                    <Cell key={`cell-status-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
                   ))}
                 </Pie>
               </PieChart>
@@ -177,7 +188,11 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                   cursor={{ fill: "hsl(var(--muted))" }}
                 />
                 <Legend />
-                <Bar dataKey="totalValue" name="Valor Total Mensal" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="totalValue" name="Valor Total Mensal" radius={[4, 4, 0, 0]}>
+                   {monthlySales.map((entry, index) => (
+                    <Cell key={`cell-month-${index}`} fill={monthlyChartColorsArray[index % monthlyChartColorsArray.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
