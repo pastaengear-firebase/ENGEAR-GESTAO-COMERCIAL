@@ -8,49 +8,55 @@ interface LogoProps {
   height?: number;
 }
 
-const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
-  // ATENÇÃO CRÍTICA - POR FAVOR, LEIA E AJUSTE SE NECESSÁRIO:
-  //
-  // 1. PASTA 'public' OBRIGATÓRIA NA RAIZ DO PROJETO:
-  //    Para que o Next.js encontre imagens estáticas como o seu logo,
-  //    DEVE existir uma pasta chamada 'public' na RAIZ do seu projeto.
-  //    A imagem que você enviou mostra que a pasta 'public' FOI CRIADA CORRETAMENTE na raiz. Ótimo!
-  //
-  // 2. LOCALIZAÇÃO DO ARQUIVO DA IMAGEM DO LOGO:
-  //    O arquivo da sua imagem do logo (agora definido como `NEWLOGO.JPG`)
-  //    DEVE estar DENTRO desta pasta `public`.
-  //    Caminho esperado: `public/NEWLOGO.JPG`
-  //
-  //    O CONTEÚDO QUE VOCÊ MOSTROU NO EDITOR DE TEXTO (./NEWLOGO.JPG)
-  //    NÃO É COMO SE ADICIONA A IMAGEM. VOCÊ PRECISA FAZER UPLOAD
-  //    DO ARQUIVO DE IMAGEM REAL (NEWLOGO.JPG) PARA DENTRO DA PASTA 'public'.
-  //    O arquivo de texto que contém "./NEWLOGO.JPG" deve ser excluído.
-  //
-  // 3. CAMINHO DA IMAGEM ABAIXO:
-  //    A variável `logoImagePath` foi definida para "/NEWLOGO.JPG".
-  //    Isso significa que o Next.js procurará por `NEWLOGO.JPG` diretamente
-  //    dentro da pasta `public`.
-  //
-  //    Certifique-se de que a extensão do arquivo (.JPG, .jpg, .png, etc.) está correta
-  //    e que o nome do arquivo corresponde exatamente (sensível a maiúsculas/minúsculas).
-  //    Com base na sua imagem do editor, estou usando "NEWLOGO.JPG".
+// CRITICAL INSTRUCTIONS FOR THE LOGO TO APPEAR:
+// 1. 'public' FOLDER REQUIRED AT PROJECT ROOT:
+//    For Next.js to find static images like your logo,
+//    there MUST be a folder named 'public' at the ROOT of your project
+//    (same level as 'src', 'package.json', etc.).
+//    YOU HAVE CONFIRMED THIS FOLDER EXISTS.
+//
+// 2. LOGO IMAGE FILE LOCATION:
+//    Your logo image file (e.g., NEWLOGO.JPG)
+//    MUST be INSIDE this 'public' folder.
+//    Expected path: public/NEWLOGO.JPG
+//
+// 3. IMAGE PATH BELOW:
+//    The `logoImagePath` variable is set to "/NEWLOGO.JPG".
+//    This means Next.js will look for NEWLOGO.JPG directly
+//    inside the 'public' folder.
+//
+//    Ensure the file extension (.JPG, .jpg, .png, etc.) is correct
+//    and the filename matches EXACTLY (case-sensitive).
+//    Based on your previous input, I'm using "NEWLOGO.JPG".
 
-  const logoImagePath = "/NEWLOGO.JPG"; // <--- ATUALIZADO PARA .JPG (maiúsculo como na sua imagem)
+const Logo: React.FC<LogoProps> = ({ className, width = 280, height = 80 }) => {
+  const logoImagePath = "/NEWLOGO.JPG"; // <--- CONFIRM THIS MATCHES YOUR FILE in public/
 
   return (
-    <div className={className ? `${className} bg-white` : "bg-white"} style={{ display: 'inline-block', padding: '5px', borderRadius: '4px' }}>
+    <div 
+      className={cn("bg-white", className)} // Added cn for conditional class merging
+      style={{ 
+        display: 'inline-block', 
+        padding: '5px', 
+        borderRadius: '4px' 
+      }}
+    >
       <div style={{ width: `${width}px`, height: `${height}px`, position: 'relative' }}>
         <Image
           src={logoImagePath}
-          alt="ENGEAR Logo" // O texto alternativo é importante para acessibilidade.
-          fill // Use a propriedade fill em vez de layout="fill"
-          style={{ objectFit: "contain" }} // objectFit substitui a funcionalidade de layout="fill" objectFit="contain"
-          priority // Carrega a imagem do logo com prioridade
-          unoptimized={true} // Adicionado para evitar otimização e corrigir erro 400/500 se a imagem for problemática
+          alt="ENGEAR Logo"
+          fill // Use fill for responsive sizing within the parent div
+          style={{ objectFit: "contain" }} // Ensures the image scales correctly without cropping
+          priority // Load the logo image with priority
+          unoptimized={true} // Crucial to avoid Next.js image optimization issues if the image is problematic
         />
       </div>
     </div>
   );
 };
+
+// Helper function for class names, if not already globally available via utils
+// (Assuming cn is available from "@/lib/utils")
+import { cn } from '@/lib/utils'; 
 
 export default Logo;

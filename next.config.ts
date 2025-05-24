@@ -8,17 +8,17 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-    ],
-    unoptimized: true, // Desabilita a otimização de imagens do Next.js globalmente
-  },
+  // images: {
+  //   remotePatterns: [
+  //     {
+  //       protocol: 'https',
+  //       hostname: 'placehold.co',
+  //       port: '',
+  //       pathname: '/**',
+  //     },
+  //   ],
+  //   unoptimized: true, // Desabilita a otimização de imagens do Next.js globalmente
+  // },
 };
 
 export default nextConfig;
