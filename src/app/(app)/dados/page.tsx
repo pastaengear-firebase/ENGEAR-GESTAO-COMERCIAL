@@ -5,7 +5,7 @@ import { useSales } from '@/hooks/use-sales';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Search, RotateCcw } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   Card,
@@ -15,14 +15,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import type { Sale } from '@/lib/types';
 
 export default function DadosPage() {
-  const { filteredSales, setFilters, filters } = useSales();
-  const [searchTerm, setSearchTerm] = useState(filters.searchTerm || '');
+  const { sales, setFilters, filters: globalFilters, selectedSeller } = useSales(); // Usar 'sales' em vez de 'filteredSales'
+  const [searchTerm, setSearchTerm] = useState(globalFilters.searchTerm || '');
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      setFilters({ searchTerm });
+      setFilters({ searchTerm }); // Atualiza o filtro global de searchTerm
     }, 300);
     return () => clearTimeout(debounceTimer);
   }, [searchTerm, setFilters]);
@@ -33,17 +34,37 @@ export default function DadosPage() {
 
   const handleClearSearch = () => {
     setSearchTerm('');
-    setFilters({ searchTerm: '' });
+    setFilters({ searchTerm: '' }); // Limpa o filtro global de searchTerm
   };
   
   const handlePrint = () => {
-    // Specific print styles will be in SalesTable component
     window.print();
   };
 
-  const totalSalesValue = filteredSales.reduce((sum, sale) => sum + sale.salesValue, 0);
-  const totalPayments = filteredSales.reduce((sum, sale) => sum + sale.payment, 0);
+  // Filtragem local para a página Dados, ignorando filtros de data globais
+  const displaySales = useMemo(() => {
+    let filtered = sales;
 
+    // Filtro por vendedor selecionado globalmente
+    if (selectedSeller !== 'EQUIPE COMERCIAL') {
+      filtered = filtered.filter(sale => sale.seller === selectedSeller);
+    }
+
+    // Filtro por termo de busca local
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(sale =>
+        sale.company.toLowerCase().includes(lowerSearchTerm) ||
+        sale.project.toLowerCase().includes(lowerSearchTerm) ||
+        sale.os.toLowerCase().includes(lowerSearchTerm) ||
+        sale.clientService.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    return filtered;
+  }, [sales, selectedSeller, searchTerm]);
+
+  const totalSalesValue = displaySales.reduce((sum, sale) => sum + sale.salesValue, 0);
+  const totalPayments = displaySales.reduce((sum, sale) => sum + sale.payment, 0);
 
   return (
     <div className="space-y-6">
@@ -77,11 +98,11 @@ export default function DadosPage() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0"> {/* Remove padding to allow table to span full width */}
-          <SalesTable salesData={filteredSales} />
+        <CardContent className="p-0">
+          <SalesTable salesData={displaySales} />
         </CardContent>
         <CardFooter className="border-t p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm text-muted-foreground">
-           <p className="flex-1">Total de Registros: <span className="font-semibold text-foreground">{filteredSales.length}</span></p>
+           <p className="flex-1">Total de Registros: <span className="font-semibold text-foreground">{displaySales.length}</span></p>
            <p className="flex-1">Valor Total em Vendas: <span className="font-semibold text-foreground">{totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
            <p className="flex-1">Total Recebido: <span className="font-semibold text-foreground">{totalPayments.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
         </CardFooter>
