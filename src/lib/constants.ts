@@ -32,3 +32,7 @@ export type StatusOption = (typeof STATUS_OPTIONS)[number];
 export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState';
 export const LOCAL_STORAGE_SALES_KEY = 'salesAppData';
 export const LOCAL_STORAGE_SETTINGS_KEY = 'salesAppSettings'; // Nova constante
+
+// Constantes para cookies de autenticação
+export const COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 dias em segundos
+export const EXPIRE_COOKIE_STRING = 'Thu, 01 Jan 1970 00:00:00 GMT'; // Data no passado para expirar cookies
