@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  images: { // Descomentado e configurado
+  images: { 
     remotePatterns: [
       {
         protocol: 'https',
@@ -16,8 +16,14 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      { // Adicionado para permitir imagens do Google Storage
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
-    // unoptimized: true, // Removida a desotimização global por enquanto
+    // unoptimized: true, // Removida a desotimização global
   },
 };
 

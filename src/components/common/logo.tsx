@@ -1,9 +1,4 @@
 // src/components/common/logo.tsx
-// Usando uma imagem de placeholder online temporariamente.
-// O erro 500 foi resolvido ao deletar a pasta /public.
-// Isso indica um problema em como a pasta /public ou seu conteúdo era tratado pelo servidor.
-// Estamos agora testando next/image com uma URL externa para isolar o problema.
-
 import type React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -15,11 +10,12 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className, width = 140, height = 40 }) => {
-  // Usaremos as dimensões fornecidas para o placeholder, ou os padrões.
+  // URL da imagem do logo fornecida pelo usuário
+  const logoImagePath = "https://storage.googleapis.com/ecdt-logo-saida/14f838ca6736777a8b269b79cae43b2b84900eb9dd53c910eef80890010193ea/ENGEAR.webp";
+  const altText = "ENGEAR Logo";
+
   const actualWidth = width || 140;
   const actualHeight = height || 40;
-  const placeholderImageUrl = `https://placehold.co/${actualWidth}x${actualHeight}.png`;
-  const placeholderAiHint = "company logo";
 
   return (
     <div
@@ -28,17 +24,16 @@ const Logo: React.FC<LogoProps> = ({ className, width = 140, height = 40 }) => {
         className
       )}
       style={{ width: `${actualWidth}px`, height: `${actualHeight}px` }}
-      title="ENGEAR Logo Placeholder"
+      title={altText}
     >
       <Image
-        src={placeholderImageUrl}
-        alt="ENGEAR Logo Placeholder"
-        width={actualWidth}
+        src={logoImagePath}
+        alt={altText}
+        width={actualWidth} // Use width e height para aspect ratio inicial
         height={actualHeight}
-        style={{ objectFit: 'contain' }} // Garante que a imagem se ajuste bem
-        data-ai-hint={placeholderAiHint}
-        // Se a imagem de placeholder também causar problemas, podemos adicionar unoptimized={true}
-        // mas o ideal é testar o comportamento padrão do next/image com URLs externas primeiro.
+        style={{ objectFit: 'contain', width: '100%', height: '100%' }} // Faz a imagem preencher o contêiner
+        // unoptimized={true} // Removido para tentar otimização padrão
+        priority // Pode ser útil para LCP (Largest Contentful Paint)
       />
     </div>
   );
