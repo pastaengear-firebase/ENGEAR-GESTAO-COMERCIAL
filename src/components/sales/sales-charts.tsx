@@ -8,7 +8,7 @@ import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/u
 import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AREA_OPTIONS, COMPANY_OPTIONS, STATUS_OPTIONS } from '@/lib/constants'; // Importar COMPANY_OPTIONS e STATUS_OPTIONS
+import { AREA_OPTIONS, COMPANY_OPTIONS, STATUS_OPTIONS } from '@/lib/constants';
 
 interface SalesChartsProps {
   salesData: Sale[];
@@ -19,10 +19,10 @@ const CHART_COLORS = {
   RODRIGO: 'hsl(var(--chart-2))',
   "Á INICAR": 'hsl(var(--chart-3))',
   "EM ANDAMENTO": 'hsl(var(--chart-4))',
-  "FINALIZADO": 'hsl(var(--chart-5))',
-  "CANCELADO": 'hsl(var(--destructive))',
-  ENGEAR: 'hsl(var(--chart-1))', // Reutilizando cores, pode ajustar se necessário
-  CLIMAZONE: 'hsl(var(--chart-2))', // Reutilizando cores
+  "FINALIZADO": 'hsl(var(--chart-5))', // Use chart-5 for "FINALIZADO"
+  "CANCELADO": 'hsl(var(--destructive))', // Use destructive for "CANCELADO"
+  ENGEAR: 'hsl(var(--chart-1))',
+  CLIMAZONE: 'hsl(var(--chart-2))',
   default: 'hsl(var(--muted-foreground))'
 };
 
@@ -32,7 +32,7 @@ const categoryColorsArray = [
   'hsl(var(--chart-3))',
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
-  'hsl(var(--accent))', // Adicionando mais cores se necessário
+  'hsl(var(--accent))',
   'hsl(var(--primary))',
   'hsl(var(--secondary))',
   'hsl(var(--muted))',
@@ -56,7 +56,7 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
     const data = salesData.reduce((acc, sale) => {
       const status = sale.status;
       if (!acc[status]) {
-        acc[status] = { name: status, value: 0 }; // value aqui é a contagem de vendas
+        acc[status] = { name: status, value: 0 };
       }
       acc[status].value += 1;
       return acc;
@@ -95,7 +95,7 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
       acc[area].totalValue += sale.salesValue;
       return acc;
     }, {} as Record<string, { name: string; totalValue: number }>);
-    return Object.values(data).filter(item => item.totalValue > 0); // Apenas áreas com vendas
+    return Object.values(data).filter(item => item.totalValue > 0);
   }, [salesData]);
 
   const salesByCompany = useMemo(() => {
@@ -107,7 +107,7 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
       acc[company].totalValue += sale.salesValue;
       return acc;
     }, {} as Record<string, { name: string; totalValue: number }>);
-    return Object.values(data).filter(item => item.totalValue > 0); // Apenas empresas com vendas
+    return Object.values(data).filter(item => item.totalValue > 0);
   }, [salesData]);
 
 
@@ -173,8 +173,8 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                 />
                 <Legend />
                 <Bar dataKey="totalValue" name="Valor Total" radius={[4, 4, 0, 0]} >
-                   {salesBySeller.map((entry, index) => (
-                    <Cell key={`cell-seller-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
+                   {salesBySeller.map((entry) => (
+                    <Cell key={`cell-seller-${entry.name}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
                   ))}
                 </Bar>
               </BarChart>
@@ -207,10 +207,10 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                   cy="50%"
                   outerRadius={100}
                   labelLine={false}
-                  label={({ name, percent, value }) => `${name} (${value})`}
+                  label={({ name, value }) => `${name} (${value})`}
                 >
-                  {salesByStatus.map((entry, index) => (
-                    <Cell key={`cell-status-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
+                  {salesByStatus.map((entry) => (
+                    <Cell key={`cell-status-${entry.name}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
                   ))}
                 </Pie>
               </PieChart>
@@ -236,8 +236,8 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                 />
                 <Legend />
                 <Bar dataKey="totalValue" name="Valor Total Mensal" radius={[4, 4, 0, 0]}>
-                   {monthlySales.map((entry, index) => (
-                    <Cell key={`cell-month-${index}`} fill={categoryColorsArray[index % categoryColorsArray.length]} />
+                   {monthlySales.map((entry) => (
+                    <Cell key={`cell-month-${entry.name}`} fill={categoryColorsArray[monthlySales.indexOf(entry) % categoryColorsArray.length]} />
                   ))}
                 </Bar>
               </BarChart>
@@ -256,15 +256,15 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={salesByArea} layout="vertical" margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
                 <XAxis type="number" stroke="hsl(var(--foreground))" fontSize={12} tickFormatter={(value) => `R$${value/1000}k`} />
-                <YAxis dataKey="name" type="category" stroke="hsl(var(--foreground))" fontSize={10} width={80} />
+                <YAxis dataKey="name" type="category" stroke="hsl(var(--foreground))" fontSize={10} width={80} interval={0} />
                 <Tooltip
                   content={<ChartTooltipContent />}
                   cursor={{ fill: "hsl(var(--muted))" }}
                 />
                 <Legend />
                 <Bar dataKey="totalValue" name="Valor Total" radius={[0, 4, 4, 0]} >
-                   {salesByArea.map((entry, index) => (
-                    <Cell key={`cell-area-${index}`} fill={categoryColorsArray[index % categoryColorsArray.length]} />
+                   {salesByArea.map((entry) => (
+                    <Cell key={`cell-area-${entry.name}`} fill={categoryColorsArray[salesByArea.indexOf(entry) % categoryColorsArray.length]} />
                   ))}
                 </Bar>
               </BarChart>
@@ -291,16 +291,16 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
                 />
                 <Pie
                   data={salesByCompany}
-                  dataKey="totalValue" // Usar totalValue para o tamanho da fatia
+                  dataKey="totalValue"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
                   labelLine={false}
-                  label={({ name, percent, value }) => `${name}: ${value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${(percent * 100).toFixed(0)}%)`}
+                  label={({ name, value, percent }) => `${name}: ${value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${(percent * 100).toFixed(0)}%)`}
                 >
-                  {salesByCompany.map((entry, index) => (
-                    <Cell key={`cell-company-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
+                  {salesByCompany.map((entry) => (
+                    <Cell key={`cell-company-${entry.name}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
                   ))}
                 </Pie>
               </PieChart>
@@ -312,4 +312,3 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
     </div>
   );
 }
-
