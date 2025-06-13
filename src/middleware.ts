@@ -7,60 +7,34 @@ const PROTECTED_ROUTES_PREFIXES = ['/dashboard', '/inserir-venda', '/dados', '/e
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isAuthenticatedCookie = request.cookies.get('isAuthenticated');
-  const isAuthenticated = isAuthenticatedCookie?.value === 'true';
 
-  // Log current path and authentication status from cookie
-  // console.log(`Middleware: Path: ${pathname}, IsAuthenticatedCookie: ${isAuthenticated}`);
-
-  // User is trying to access a protected route
-  if (PROTECTED_ROUTES_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
-    if (!isAuthenticated) {
-      // console.log(`Middleware: Not authenticated for protected route ${pathname}, redirecting to /login.`);
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirectedFrom', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
+  // Se tentar acessar a página de login ou a raiz, redireciona para o dashboard
+  if (pathname === '/login' || pathname === '/') {
+    // console.log(`Middleware (Login Disabled): Path ${pathname} detected, redirecting to /dashboard.`);
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // User is trying to access the login page
-  if (pathname === '/login') {
-    if (isAuthenticated) {
-      // console.log(`Middleware: Authenticated user trying to access /login, redirecting to /dashboard.`);
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    // If not authenticated, allow access to /login
+  // Para rotas que eram protegidas, permite o acesso direto
+  if (PROTECTED_ROUTES_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+    // console.log(`Middleware (Login Disabled): Accessing formerly protected route ${pathname}. Allowing.`);
     return NextResponse.next();
   }
 
-  // User is trying to access the root page '/'
-  if (pathname === '/') {
-    if (isAuthenticated) {
-      // console.log(`Middleware: Authenticated user accessing root '/', redirecting to /dashboard.`);
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    } else {
-      // console.log(`Middleware: Not authenticated for root path '/', redirecting to /login.`);
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-  }
-
-  // For any other routes not explicitly handled by the above conditions, allow the request.
-  // This assumes that any route not covered is either public or will be handled by page-level logic if necessary.
+  // console.log(`Middleware (Login Disabled): Path ${pathname} not explicitly handled, allowing.`);
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    // Match all protected routes
+    // Match all formerly protected routes
     '/dashboard/:path*',
     '/inserir-venda/:path*',
     '/dados/:path*',
     '/editar-venda/:path*',
     '/faturamento/:path*',
     '/configuracoes/:path*',
-    // Also match /login to handle redirection for authenticated users
+    // Also match /login and / to redirect them
     '/login',
-    // Match the root path '/' for direct routing by middleware
     '/',
   ],
 };
