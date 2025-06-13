@@ -1,3 +1,4 @@
+
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -7,26 +8,44 @@ const PROTECTED_ROUTES_PREFIXES = ['/dashboard', '/inserir-venda', '/dados', '/e
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthenticatedCookie = request.cookies.get('isAuthenticated');
+  const isAuthenticated = isAuthenticatedCookie?.value === 'true';
 
-  // Check if the current path starts with any of the protected route prefixes
-  const isProtectedRoute = PROTECTED_ROUTES_PREFIXES.some(prefix => pathname.startsWith(prefix));
+  // Log current path and authentication status from cookie
+  // console.log(`Middleware: Path: ${pathname}, IsAuthenticatedCookie: ${isAuthenticated}`);
 
-  if (isProtectedRoute) {
-    if (!isAuthenticatedCookie || isAuthenticatedCookie.value !== 'true') {
-      // console.log(`Middleware: Not authenticated for ${pathname}, redirecting to /login.`);
+  // User is trying to access a protected route
+  if (PROTECTED_ROUTES_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+    if (!isAuthenticated) {
+      // console.log(`Middleware: Not authenticated for protected route ${pathname}, redirecting to /login.`);
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirectedFrom', pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
 
-  // Se o usuário estiver autenticado e tentar acessar /login, redirecione para o dashboard
-  if (pathname === '/login' && isAuthenticatedCookie && isAuthenticatedCookie.value === 'true') {
-    // console.log(`Middleware: Authenticated user trying to access /login, redirecting to /dashboard.`);
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // User is trying to access the login page
+  if (pathname === '/login') {
+    if (isAuthenticated) {
+      // console.log(`Middleware: Authenticated user trying to access /login, redirecting to /dashboard.`);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    // If not authenticated, allow access to /login
+    return NextResponse.next();
   }
-  
-  // console.log(`Middleware: Allowing request to ${pathname}. Authenticated: ${isAuthenticatedCookie?.value}`);
+
+  // User is trying to access the root page '/'
+  if (pathname === '/') {
+    if (isAuthenticated) {
+      // console.log(`Middleware: Authenticated user accessing root '/', redirecting to /dashboard.`);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    } else {
+      // console.log(`Middleware: Not authenticated for root path '/', redirecting to /login.`);
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  // For any other routes not explicitly handled by the above conditions, allow the request.
+  // This assumes that any route not covered is either public or will be handled by page-level logic if necessary.
   return NextResponse.next();
 }
 
@@ -41,7 +60,7 @@ export const config = {
     '/configuracoes/:path*',
     // Also match /login to handle redirection for authenticated users
     '/login',
-    // The root path '/' is handled by HomePage, which then decides redirection
+    // Match the root path '/' for direct routing by middleware
     '/',
   ],
 };
