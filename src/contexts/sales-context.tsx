@@ -3,7 +3,7 @@
 "use client";
 import type React from 'react';
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { SELLERS, ALL_SELLERS_OPTION, LOCAL_STORAGE_SALES_KEY, AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS } from '@/lib/constants';
+import { SELLERS, ALL_SELLERS_OPTION, LOCAL_STORAGE_SALES_KEY, AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, LOCAL_STORAGE_SELECTED_SELLER_KEY } from '@/lib/constants';
 import type { Sale, Seller, SalesContextType, SalesFilters } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
@@ -38,8 +38,8 @@ const exampleSalesForSergio: Sale[] = [
   { id: "a1c5b7e3-d9f2-4b8e-9f0a-1c5b7e3d9f31", seller: "SERGIO", date: "2025-01-29", company: "CLIMAZONE", project: "1672", os: "36", area: "AQG", clientService: "MAIA EMPREENDIMENTOS - ANELISE", salesValue: 900, status: "FINALIZADO", payment: 0, createdAt: new Date("2025-01-29T00:00:00.000Z").getTime() },
   { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a24", seller: "SERGIO", date: "2025-02-02", company: "CLIMAZONE", project: "1674", os: "37", area: "GÁS", clientService: "DELTA - EDF. TAI - SÓ M.O. INST. REDE DE GÁS  - P.G.", salesValue: 21000, status: "EM ANDAMENTO", payment: 0, createdAt: new Date("2025-02-02T00:00:00.000Z").getTime() },
   { id: "c5b7e3d9-f2a1-4e8f-a0c1-3d5b7e9f2a25", seller: "SERGIO", date: "2025-02-02", company: "ENGEAR", project: "1675", os: "101", area: "GÁS", clientService: "COND. APHAVILLE - REG. REDE DE GÁS 2X", salesValue: 1000, status: "FINALIZADO", payment: 1000, createdAt: new Date("2025-02-02T00:00:00.000Z").getTime() },
-  { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f32", seller: "SERGIO", date: "2025-02-02", company: "ENGEAR", project: "1676", os: "38", area: "INST. AC", clientService: "ID ENGENHARIA - ENG. DIEGO - REG. SPLITS HMSF", salesValue: 6290, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-02-02T00:00:00.000Z").getTime() },
-  { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a26", seller: "SERGIO", date: "2025-02-02", company: "CLIMAZONE", project: "1677", os: "102", area: "GÁS", clientService: "ID ENGENHARIA - ENG. DIEGO - REALOC. GÁS", salesValue: 7000, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-02-02T00:00:00.000Z").getTime() },
+  { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f32", seller: "SERGIO", date: "2025-02-02", company: "ENGEAR", project: "1676", os: "38", area: "INST. AC", clientService: "ID ENGENHARIA - ENG. DIEGO - REG. SPLITS HMSF", salesValue: 6290, status: "Á INICAR", payment: 0, createdAt: new Date("2025-02-02T00:00:00.000Z").getTime() },
+  { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a26", seller: "SERGIO", date: "2025-02-02", company: "CLIMAZONE", project: "1677", os: "102", area: "GÁS", clientService: "ID ENGENHARIA - ENG. DIEGO - REALOC. GÁS", salesValue: 7000, status: "Á INICAR", payment: 0, createdAt: new Date("2025-02-02T00:00:00.000Z").getTime() },
   { id: "a1c5b7e3-d9f2-4b8e-9f0a-1c5b7e3d9f33", seller: "SERGIO", date: "2025-02-03", company: "CLIMAZONE", project: "1678", os: "39", area: "MANUT. AC", clientService: "CASA NORTE - NATAL RN - MANUT. AC", salesValue: 10000, status: "FINALIZADO", payment: 10000, createdAt: new Date("2025-02-03T00:00:00.000Z").getTime() },
   { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a27", seller: "SERGIO", date: "2025-02-03", company: "CLIMAZONE", project: "1679", os: "41", area: "EXAUST", clientService: "DCT - SINT AC E EXASUTÃO", salesValue: 9000, status: "FINALIZADO", payment: 9000, createdAt: new Date("2025-02-03T00:00:00.000Z").getTime() },
   { id: "c5b7e3d9-f2a1-4e8f-a0c1-3d5b7e9f2a28", seller: "SERGIO", date: "2025-02-03", company: "CLIMAZONE", project: "1680", os: "40", area: "MANUT. AC", clientService: "INTERMARES HALL", salesValue: 10000, status: "FINALIZADO", payment: 10000, createdAt: new Date("2025-02-03T00:00:00.000Z").getTime() },
@@ -58,23 +58,23 @@ const exampleSalesForSergio: Sale[] = [
   { id: "a1c5b7e3-d9f2-4b8e-9f0a-1c5b7e3d9f39", seller: "SERGIO", date: "2025-02-26", company: "CLIMAZONE", project: "1713", os: "", area: "SAS", clientService: "SR. MURILO - ALPHAVILLE - DESINSTALAÇÃO COLETORES", salesValue: 450, status: "EM ANDAMENTO", payment: 0, createdAt: new Date("2025-02-26T00:00:00.000Z").getTime() },
   { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a30", seller: "SERGIO", date: "2025-02-26", company: "CLIMAZONE", project: "1714", os: "112", area: "SAS", clientService: "SR. PEDRO VITOR - ALPHAVILLE 3X COLETOR SOLAR", salesValue: 5800, status: "FINALIZADO", payment: 5800, createdAt: new Date("2025-02-26T00:00:00.000Z").getTime() },
   { id: "c5b7e3d9-f2a1-4e8f-a0c1-3d5b7e9f2a31", seller: "SERGIO", date: "2025-03-12", company: "CLIMAZONE", project: "1721", os: "47", area: "INST. AC", clientService: "IJAI NÁBREGA - INST. K7 36K", salesValue: 2000, status: "CANCELADO", payment: 0, createdAt: new Date("2025-03-12T00:00:00.000Z").getTime() },
-  { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f3a", seller: "SERGIO", date: "2025-03-17", company: "CLIMAZONE", project: "1724", os: "", area: "GÁS", clientService: "RANIERE SARAIVA - REDE DE GÁS", salesValue: 2600, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-03-17T00:00:00.000Z").getTime() },
+  { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f3a", seller: "SERGIO", date: "2025-03-17", company: "CLIMAZONE", project: "1724", os: "", area: "GÁS", clientService: "RANIERE SARAIVA - REDE DE GÁS", salesValue: 2600, status: "Á INICAR", payment: 0, createdAt: new Date("2025-03-17T00:00:00.000Z").getTime() },
   { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a32", seller: "SERGIO", date: "2025-03-17", company: "ENGEAR", project: "1726", os: "", area: "GÁS", clientService: "COND. ALPHAVILLE - REG. VAZAMENTO", salesValue: 1630, status: "FINALIZADO", payment: 1630, createdAt: new Date("2025-03-17T00:00:00.000Z").getTime() },
   { id: "a1c5b7e3-d9f2-4b8e-9f0a-1c5b7e3d9f3b", seller: "SERGIO", date: "2025-03-18", company: "CLIMAZONE", project: "1728", os: "", area: "EXAUST", clientService: "BOSSA DESIGN HOTEL", salesValue: 16000, status: "EM ANDAMENTO", payment: 0, createdAt: new Date("2025-03-18T00:00:00.000Z").getTime() },
   { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a33", seller: "SERGIO", date: "2025-03-21", company: "ENGEAR", project: "1737", os: "", area: "GÁS", clientService: "WANESSA ARRUDA - INST. AQ., KIT E CONVERSÃO", salesValue: 900, status: "FINALIZADO", payment: 900, createdAt: new Date("2025-03-21T00:00:00.000Z").getTime() },
   { id: "c5b7e3d9-f2a1-4e8f-a0c1-3d5b7e9f2a34", seller: "SERGIO", date: "2025-03-27", company: "ENGEAR", project: "1766", os: "132", area: "LOCAÇÃO", clientService: "ENGIE - LOCAÇÃO SUAPE 4 DIARIAS", salesValue: 10000, status: "FINALIZADO", payment: 10000, createdAt: new Date("2025-03-27T00:00:00.000Z").getTime() },
-  { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f3c", seller: "SERGIO", date: "2025-04-04", company: "CLIMAZONE", project: "1757", os: "129", area: "MANUT. AC", clientService: "MAG SHOPPING", salesValue: 0, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-04-04T00:00:00.000Z").getTime() },
+  { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f3c", seller: "SERGIO", date: "2025-04-04", company: "CLIMAZONE", project: "1757", os: "129", area: "MANUT. AC", clientService: "MAG SHOPPING", salesValue: 0, status: "Á INICAR", payment: 0, createdAt: new Date("2025-04-04T00:00:00.000Z").getTime() },
   { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a35", seller: "SERGIO", date: "2025-04-15", company: "ENGEAR", project: "1771", os: "", area: "GÁS", clientService: "SONIVALDO - REDE DE GÁS LAVANDERIA ACQUALIS", salesValue: 5000, status: "EM ANDAMENTO", payment: 0, createdAt: new Date("2025-04-15T00:00:00.000Z").getTime() },
   { id: "a1c5b7e3-d9f2-4b8e-9f0a-1c5b7e3d9f3d", seller: "SERGIO", date: "2025-04-15", company: "ENGEAR", project: "1772", os: "", area: "GÁS", clientService: "EDF. LECADRE - CONST. ATRIOS REG.VAZAMENTO - GARANTIA", salesValue: 0, status: "FINALIZADO", payment: 0, createdAt: new Date("2025-04-15T00:00:00.000Z").getTime() },
-  { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a36", seller: "SERGIO", date: "2025-04-23", company: "CLIMAZONE", project: "1774", os: "", area: "AQG", clientService: "HOTEL ANJOS - SR. MICHAEL", salesValue: 4000, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-04-23T00:00:00.000Z").getTime() },
+  { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a36", seller: "SERGIO", date: "2025-04-23", company: "CLIMAZONE", project: "1774", os: "", area: "AQG", clientService: "HOTEL ANJOS - SR. MICHAEL", salesValue: 4000, status: "Á INICAR", payment: 0, createdAt: new Date("2025-04-23T00:00:00.000Z").getTime() },
   { id: "c5b7e3d9-f2a1-4e8f-a0c1-3d5b7e9f2a37", seller: "SERGIO", date: "2025-04-25", company: "CLIMAZONE", project: "1800", os: "", area: "AQG", clientService: "DR. BERILO PAI - SUBT.  PRESSURIZADORCONTROLADOR", salesValue: 0, status: "FINALIZADO", payment: 0, createdAt: new Date("2025-04-25T00:00:00.000Z").getTime() },
   { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f3e", seller: "SERGIO", date: "2025-05-05", company: "CLIMAZONE", project: "1803", os: "63", area: "AQG", clientService: "SR. ARAKEN - SUBST. COLETOR SOLAR", salesValue: 2707, status: "FINALIZADO", payment: 2707, createdAt: new Date("2025-05-05T00:00:00.000Z").getTime() },
-  { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a38", seller: "SERGIO", date: "2025-05-07", company: "CLIMAZONE", project: "1804", os: "64", area: "INST. AC", clientService: "BENEDITO - INST. VRF SAMSUNG", salesValue: 13000, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-05-07T00:00:00.000Z").getTime() },
+  { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a38", seller: "SERGIO", date: "2025-05-07", company: "CLIMAZONE", project: "1804", os: "64", area: "INST. AC", clientService: "BENEDITO - INST. VRF SAMSUNG", salesValue: 13000, status: "Á INICAR", payment: 0, createdAt: new Date("2025-05-07T00:00:00.000Z").getTime() },
   { id: "a1c5b7e3-d9f2-4b8e-9f0a-1c5b7e3d9f3f", seller: "SERGIO", date: "2025-05-07", company: "CLIMAZONE", project: "1805", os: "138", area: "GÁS", clientService: "MENOR PREÇO - ADICIONAIS GÁS E CI", salesValue: 3215, status: "FINALIZADO", payment: 3215, createdAt: new Date("2025-05-07T00:00:00.000Z").getTime() },
   { id: "e3d9f2a1-c5b7-4e8f-a0c1-3d5b7e9f2a39", seller: "SERGIO", date: "2025-05-12", company: "CLIMAZONE", project: "1813", os: "", area: "GÁS", clientService: "TYH", salesValue: 350, status: "FINALIZADO", payment: 350, createdAt: new Date("2025-05-12T00:00:00.000Z").getTime() },
   { id: "c5b7e3d9-f2a1-4e8f-a0c1-3d5b7e9f2a3a", seller: "SERGIO", date: "2025-05-13", company: "CLIMAZONE", project: "1814", os: "", area: "GÁS", clientService: "MM ENGENHARIA - INST. REGISTROS BLOQUEIO", salesValue: 1900, status: "FINALIZADO", payment: 1900, createdAt: new Date("2025-05-13T00:00:00.000Z").getTime() },
   { id: "d9f2a1c5-b7e3-4b8e-9f0a-1c5b7e3d9f40", seller: "SERGIO", date: "2025-05-21", company: "CLIMAZONE", project: "1822", os: "", area: "AQG", clientService: "DR. REGIS BONFIM - ALPHAVILE SÓ INSTALAÇÃO", salesValue: 390, status: "FINALIZADO", payment: 0, createdAt: new Date("2025-05-21T00:00:00.000Z").getTime() },
-  { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a3b", seller: "SERGIO", date: "2025-05-21", company: "CLIMAZONE", project: "1823", os: "", area: "EXAUST", clientService: "WL MARCOLINO - INST. DUTOS COIFAS E VENTILADORES", salesValue: 10000, status: "Á INICIAR", payment: 0, createdAt: new Date("2025-05-21T00:00:00.000Z").getTime() },
+  { id: "b7e3d9f2-a1c5-4e8f-a0c1-3d5b7e9f2a3b", seller: "SERGIO", date: "2025-05-21", company: "CLIMAZONE", project: "1823", os: "", area: "EXAUST", clientService: "WL MARCOLINO - INST. DUTOS COIFAS E VENTILADORES", salesValue: 10000, status: "Á INICAR", payment: 0, createdAt: new Date("2025-05-21T00:00:00.000Z").getTime() },
 ];
 
 
@@ -86,6 +86,17 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [filters, setFiltersState] = useState<SalesFilters>({ selectedYear: 'all' });
   const [loading, setLoading] = useState(true);
 
+  // Efeito para carregar a preferência do vendedor selecionado do localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedSeller = localStorage.getItem(LOCAL_STORAGE_SELECTED_SELLER_KEY);
+      if (storedSeller && (SELLERS.includes(storedSeller as Seller) || storedSeller === ALL_SELLERS_OPTION)) {
+        setSelectedSellerState(storedSeller as Seller | typeof ALL_SELLERS_OPTION);
+      }
+    }
+  }, []); // Array de dependências vazio: roda uma vez na montagem do cliente
+
+  // Efeito para carregar os dados de vendas
   useEffect(() => {
     setLoading(true);
     let dataToLoad: Sale[] = [];
@@ -97,27 +108,22 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (Array.isArray(parsedSales) && parsedSales.length > 0) {
             dataToLoad = parsedSales;
             loadedFromStorage = true;
-            // console.log(`SalesContext: Loaded ${dataToLoad.length} sales from localStorage.`);
         }
       }
 
       if (!loadedFromStorage) {
         dataToLoad = Array.isArray(exampleSalesForSergio) ? [...exampleSalesForSergio] : [];
-        console.log(`SalesContext: DEBUG - Loading ${dataToLoad.length} sales from exampleSalesForSergio.`);
         if (dataToLoad.length > 0) {
           localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify(dataToLoad));
-          // console.log("SalesContext: Saved example data to localStorage as storage was empty.");
         }
       }
     } catch (error) {
       console.error("SalesContext: Error during initial data load. Falling back to example data.", error);
-      localStorage.removeItem(LOCAL_STORAGE_SALES_KEY); // Clear corrupted data
+      localStorage.removeItem(LOCAL_STORAGE_SALES_KEY); 
       dataToLoad = Array.isArray(exampleSalesForSergio) ? [...exampleSalesForSergio] : [];
-      console.log(`SalesContext: DEBUG - Loading ${dataToLoad.length} sales from exampleSalesForSergio after error.`);
       if (dataToLoad.length > 0) {
         try {
           localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify(dataToLoad));
-          // console.log("SalesContext: Saved example data to localStorage after error.");
         } catch (saveError) {
           console.error("SalesContext: Failed to save example data to localStorage after error", saveError);
         }
@@ -125,13 +131,12 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setSales(dataToLoad.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setLoading(false);
-      // console.log("SalesContext: Initialization complete. Loading set to false. Total sales loaded:", dataToLoad.length);
     }
   }, []);
 
+  // Efeito para persistir vendas no localStorage quando 'sales' ou 'loading' mudam
   useEffect(() => {
-    if (!loading) { // Only persist if not in initial loading phase
-      // console.log("SalesContext: Persisting sales to localStorage. Count:", sales.length);
+    if (!loading) { 
       localStorage.setItem(LOCAL_STORAGE_SALES_KEY, JSON.stringify(sales));
     }
   }, [sales, loading]);
@@ -151,7 +156,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSales(prevSales =>
       prevSales.map(sale => {
         if (sale.id === id) {
-          const currentSeller = sale.seller; // Preserve original seller if not explicitly updated
+          const currentSeller = sale.seller; 
           updatedSale = {
             ...sale,
             ...saleUpdateData,
@@ -176,6 +181,9 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setSelectedSeller = useCallback((seller: Seller | typeof ALL_SELLERS_OPTION) => {
     setSelectedSellerState(seller);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_SELECTED_SELLER_KEY, seller);
+    }
   }, []);
 
   const setFilters = useCallback((newFilters: Partial<SalesFilters>) => {
