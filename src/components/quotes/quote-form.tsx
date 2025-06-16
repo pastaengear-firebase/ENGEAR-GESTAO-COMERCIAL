@@ -56,7 +56,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       proposedValue: undefined,
       status: "Pendente",
       notes: '',
-      followUpDaysOffset: 0, // 'Não agendar' por padrão
+      followUpDaysOffset: 0, 
       sendProposalNotification: false,
     },
   });
@@ -116,7 +116,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
   }, [quoteToEdit, editMode, form, globalSelectedSeller]);
 
   const triggerProposalEmailNotification = (quote: Quote, isUpdate: boolean) => {
-    const recipients = PROPOSAL_NOTIFICATION_EMAILS.join(',');
+    const recipients = PROPOSAL_NOTIFICATION_EMAILS.join(';'); // Alterado para ponto e vírgula
     const action = isUpdate ? 'Atualizada' : 'Registrada';
     const subject = `Proposta Comercial ${action}: ${quote.clientName} / ${quote.description.substring(0,30)}...`;
     const appBaseUrl = window.location.origin;
@@ -208,7 +208,7 @@ Sistema de Controle de Vendas ENGEAR
 
     const quotePayload = {
       ...data,
-      seller: sellerForPayload, // Definido explicitamente aqui
+      seller: sellerForPayload, 
       proposalDate: format(data.proposalDate, 'yyyy-MM-dd'), 
       validityDate: data.validityDate ? format(data.validityDate, 'yyyy-MM-dd') : undefined,
       proposedValue: Number(data.proposedValue) || 0,
