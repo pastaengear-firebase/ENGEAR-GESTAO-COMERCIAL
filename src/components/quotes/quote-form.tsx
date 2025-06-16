@@ -10,6 +10,7 @@ import { AREA_OPTIONS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, COMPANY_
 import type { Seller, FollowUpDaysOptionValue } from '@/lib/constants';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useSales } from '@/hooks/use-sales'; // Para pegar o vendedor global
+import { useSettings } from '@/hooks/use-settings'; // Importar useSettings
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +36,7 @@ interface QuoteFormProps {
 export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert }: QuoteFormProps) {
   const { addQuote, updateQuote } = useQuotes();
   const { selectedSeller: globalSelectedSeller } = useSales();
+  const { settings: appSettings, loadingSettings } = useSettings(); // Usar configurações
   const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,7 +118,12 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
   }, [quoteToEdit, editMode, form, globalSelectedSeller]);
 
   const triggerProposalEmailNotification = (quote: Quote, isUpdate: boolean) => {
-    const recipients = PROPOSAL_NOTIFICATION_EMAILS.join(';'); // Alterado para ponto e vírgula
+    if (loadingSettings || !appSettings.enableProposalEmailNotifications) {
+      console.log("Notificação por e-mail de propostas desabilitada nas configurações.");
+      return;
+    }
+    
+    const recipients = PROPOSAL_NOTIFICATION_EMAILS.join(';');
     const action = isUpdate ? 'Atualizada' : 'Registrada';
     const subject = `Proposta Comercial ${action}: ${quote.clientName} / ${quote.description.substring(0,30)}...`;
     const appBaseUrl = window.location.origin;
@@ -212,6 +219,7 @@ Sistema de Controle de Vendas ENGEAR
       proposalDate: format(data.proposalDate, 'yyyy-MM-dd'), 
       validityDate: data.validityDate ? format(data.validityDate, 'yyyy-MM-dd') : undefined,
       proposedValue: Number(data.proposedValue) || 0,
+      sendProposalNotification: data.sendProposalNotification || false, // Certificar que está incluído
     };
     console.log('Quote payload to be sent to context:', quotePayload);
 
@@ -290,7 +298,11 @@ Sistema de Controle de Vendas ENGEAR
               <FormItem>
                 <FormLabel>Nome do Cliente</FormLabel>
                 <FormControl>
-                  <Input placeholder="Nome completo ou Razão Social" {...field} disabled={isEffectivelyReadOnly || isSubmitting} />
+                  <Input 
+                    placeholder="Nome completo ou Razão Social" 
+                    {...field} 
+                    disabled={isEffectivelyReadOnly || isSubmitting} 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -516,13 +528,16 @@ Sistema de Controle de Vendas ENGEAR
                         <Checkbox
                             checked={field.value}
                             onCheckedChange={field.onChange}
-                            disabled={isEffectivelyReadOnly || isSubmitting}
+                            disabled={isEffectivelyReadOnly || isSubmitting || loadingSettings || !appSettings.enableProposalEmailNotifications}
                         />
                     </FormControl>
                     <div className="space-y-1 leading-none">
                     <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" />Notificar equipe por e-mail?</FormLabel>
                     <FormDescription>
-                        Se marcado, um e-mail com os dados da proposta será preparado para envio.
+                        {loadingSettings ? "Carregando config..." : 
+                          !appSettings.enableProposalEmailNotifications ? "Notificações de proposta desabilitadas em Configurações." :
+                          "Se marcado, um e-mail com os dados da proposta será preparado para envio."
+                        }
                     </FormDescription>
                     </div>
                 </FormItem>

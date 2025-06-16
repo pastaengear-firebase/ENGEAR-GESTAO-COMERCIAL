@@ -67,8 +67,10 @@ export type NavItem = {
 
 // Tipos para Configurações
 export interface AppSettings {
-  enableEmailNotifications: boolean;
-  notificationEmails: string[];
+  enableEmailNotifications: boolean; // Para novas vendas
+  notificationEmails: string[];      // Para novas vendas
+  enableProposalEmailNotifications: boolean; // Para novas propostas
+  // proposalNotificationEmails: string[]; // Se quisermos tornar isso configurável no futuro
 }
 
 export type SettingsContextType = {
@@ -106,3 +108,4 @@ export type QuotesContextType = {
   getQuoteById: (id: string) => Quote | undefined;
   loadingQuotes: boolean;
 };
+

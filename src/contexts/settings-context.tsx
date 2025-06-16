@@ -7,8 +7,10 @@ import { LOCAL_STORAGE_SETTINGS_KEY } from '@/lib/constants';
 import type { AppSettings, SettingsContextType } from '@/lib/types';
 
 const defaultSettings: AppSettings = {
-  enableEmailNotifications: false,
-  notificationEmails: [],
+  enableEmailNotifications: false, // Para novas vendas
+  notificationEmails: [],      // Para novas vendas
+  enableProposalEmailNotifications: false, // Para novas propostas
+  // proposalNotificationEmails: [], // Se for tornar configurável no futuro
 };
 
 export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -23,13 +25,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const storedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
       if (storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
-        // Basic validation to ensure crucial keys exist
-        if (typeof parsedSettings.enableEmailNotifications === 'boolean' && Array.isArray(parsedSettings.notificationEmails)) {
-          setSettings(parsedSettings);
-        } else {
-          setSettings(defaultSettings);
-          localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(defaultSettings));
-        }
+        // Basic validation to ensure crucial keys exist and merge with defaults
+        const validatedSettings: AppSettings = {
+          ...defaultSettings, // Start with defaults
+          enableEmailNotifications: typeof parsedSettings.enableEmailNotifications === 'boolean' ? parsedSettings.enableEmailNotifications : defaultSettings.enableEmailNotifications,
+          notificationEmails: Array.isArray(parsedSettings.notificationEmails) ? parsedSettings.notificationEmails : defaultSettings.notificationEmails,
+          enableProposalEmailNotifications: typeof parsedSettings.enableProposalEmailNotifications === 'boolean' ? parsedSettings.enableProposalEmailNotifications : defaultSettings.enableProposalEmailNotifications,
+        };
+        setSettings(validatedSettings);
       } else {
         localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(defaultSettings));
          setSettings(defaultSettings); // Ensure default settings are applied if nothing is stored
@@ -57,3 +60,4 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     </SettingsContext.Provider>
   );
 };
+
