@@ -34,7 +34,7 @@ interface SalesFormProps {
 
 export default function SalesForm({ onFormChange, onSuggestionsFetched, showReadOnlyAlert }: SalesFormProps) {
   const { addSale, getSaleById, updateSale, selectedSeller: globalSelectedSeller } = useSales();
-  const { settings: appSettings, loadingSettings } = useSettings(); // Obter configurações
+  const { settings: appSettings, loadingSettings } = useSettings(); 
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -50,7 +50,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
   const form = useForm<SalesFormData>({
     resolver: zodResolver(SalesFormSchema),
     defaultValues: {
-      date: new Date(),
+      date: undefined, // Inicializa como undefined para evitar new Date() em SSR
       company: undefined,
       project: '',
       os: '',
@@ -67,7 +67,7 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
       const saleToEdit = getSaleById(editSaleId);
       if (saleToEdit) {
         form.reset({
-          date: new Date(saleToEdit.date),
+          date: parseISO(saleToEdit.date), // Usar parseISO para consistência
           company: saleToEdit.company,
           project: saleToEdit.project,
           os: saleToEdit.os,
@@ -82,9 +82,10 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         toast({ title: "Erro", description: "Venda não encontrada para edição.", variant: "destructive" });
         router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
       }
-    } else {
+    } else if (!editSaleId) {
+      // Reset para novo formulário, SEM a data principal ainda
       form.reset({
-        date: new Date(),
+        date: undefined, // Mantém undefined aqui no reset inicial
         company: undefined,
         project: '',
         os: '',
@@ -94,6 +95,9 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
         status: undefined,
         payment: undefined,
       });
+      // Define a data APENAS NO CLIENTE após a montagem/reset inicial
+      form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
+      
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
       } else {
@@ -110,10 +114,10 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
 
   const fetchSuggestions = async () => {
     const formData = form.getValues();
-    if (!formData.company || !formData.area || !formData.status) {
+    if (!formData.company || !formData.area || !formData.status || !formData.date) { // Adicionado !formData.date
       toast({
         title: "Campos Incompletos",
-        description: "Por favor, preencha todos os campos obrigatórios (Empresa, Área, Status) antes de verificar com IA.",
+        description: "Por favor, preencha todos os campos obrigatórios (Data, Empresa, Área, Status) antes de verificar com IA.",
         variant: "destructive",
       });
       if (onSuggestionsFetched) onSuggestionsFetched(null);
@@ -189,6 +193,10 @@ Sistema de Controle de Vendas ENGEAR
       toast({ title: "Ação Não Permitida", description: "Selecione um vendedor específico (SERGIO ou RODRIGO) para salvar.", variant: "destructive" });
       return;
     }
+    if (!data.date) { // Validação extra para a data, caso o setValue não tenha ocorrido
+        toast({ title: "Erro de Validação", description: "Data da venda é obrigatória.", variant: "destructive" });
+        return;
+    }
 
     let sellerForPayload: Seller;
     if (editSaleId) {
@@ -221,16 +229,16 @@ Sistema de Controle de Vendas ENGEAR
         const updatedSale = updateSale(editSaleId, salePayload);
         if (updatedSale) {
           toast({ title: "Sucesso!", description: "Venda atualizada com sucesso." });
-          // Não dispara e-mail para atualizações, apenas para novas vendas
         }
       } else {
         const newSale = addSale(salePayload);
         toast({ title: "Sucesso!", description: "Nova venda registrada com sucesso." });
-        triggerEmailNotification(newSale); // Disparar notificação para nova venda
+        triggerEmailNotification(newSale); 
       }
 
+      // Reset para novo formulário
       form.reset({
-        date: new Date(),
+        date: undefined, // Reset para undefined
         company: undefined,
         project: '',
         os: '',
@@ -240,6 +248,11 @@ Sistema de Controle de Vendas ENGEAR
         status: undefined,
         payment: undefined,
       });
+      // Redefine a data no cliente para o próximo "novo" formulário
+      if(!editSaleId) {
+        form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
+      }
+
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
       } else {
@@ -305,7 +318,7 @@ Sistema de Controle de Vendas ENGEAR
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value}
+                      selected={field.value || undefined} // field.value pode ser null
                       onSelect={field.onChange}
                       disabled={(date) =>
                         date > new Date() || date < new Date("1900-01-01") || isEffectivelyReadOnly || isSubmitting
@@ -532,8 +545,25 @@ Sistema de Controle de Vendas ENGEAR
             type="button"
             variant="ghost"
             onClick={() => {
-              const targetPath = pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda';
-              router.push(targetPath);
+              const isEditing = !!editSaleId;
+              form.reset({ // Reset para valores vazios
+                date: undefined,
+                company: undefined,
+                project: '',
+                os: '',
+                area: undefined,
+                clientService: '',
+                salesValue: undefined,
+                status: undefined,
+                payment: undefined,
+              });
+              // Redefine a data no cliente para o próximo "novo" formulário se não estiver editando
+              if (!isEditing) {
+                 form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
+              } else {
+                 // Se estava editando, limpar a URL do editId
+                 router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
+              }
               if (onSuggestionsFetched) onSuggestionsFetched(null);
             }}
             disabled={isSubmitting}

@@ -46,7 +46,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
     resolver: zodResolver(QuoteFormSchema),
     defaultValues: {
       clientName: '',
-      proposalDate: new Date(),
+      proposalDate: undefined, // Inicializa como undefined para evitar new Date() em SSR
       validityDate: undefined,
       company: undefined,
       area: undefined,
@@ -73,10 +73,11 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         notes: quoteToEdit.notes || '',
       });
       setDisplayedSeller(quoteToEdit.seller);
-    } else {
-      form.reset({ // Valores padrão para novo formulário
+    } else if (!editMode) {
+      // Reset para novo formulário, SEM a data principal ainda
+      form.reset({
         clientName: '',
-        proposalDate: new Date(),
+        proposalDate: undefined, // Mantém undefined aqui no reset inicial
         validityDate: undefined,
         company: undefined,
         area: undefined,
@@ -86,6 +87,9 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         status: "Pendente",
         notes: '',
       });
+      // Define a data APENAS NO CLIENTE após a montagem/reset inicial
+      form.setValue('proposalDate', new Date(), { shouldValidate: true, shouldDirty: true });
+      
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
       } else {
@@ -102,7 +106,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
 
     let sellerForPayload: Seller;
     if (editMode && quoteToEdit) {
-      sellerForPayload = quoteToEdit.seller; // Vendedor não muda na edição
+      sellerForPayload = quoteToEdit.seller; 
     } else {
       if (!SELLERS.includes(globalSelectedSeller as Seller)) {
         toast({ title: "Erro de Validação", description: "Selecione SERGIO ou RODRIGO no seletor global.", variant: "destructive" });
@@ -125,14 +129,14 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         updateQuote(quoteToEdit.id, quotePayload);
         toast({ title: "Sucesso!", description: "Proposta atualizada com sucesso." });
       } else {
-        // O 'seller' é adicionado dentro da função addQuote baseada no selectedSeller global
         addQuote(quotePayload as Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller'>);
         toast({ title: "Sucesso!", description: "Nova proposta registrada com sucesso." });
       }
 
+      // Reset para novo formulário
       form.reset({
         clientName: '',
-        proposalDate: new Date(),
+        proposalDate: undefined, // Reset para undefined
         validityDate: undefined,
         company: undefined,
         area: undefined,
@@ -142,6 +146,11 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         status: "Pendente",
         notes: '',
       });
+      // Redefine a data no cliente para o próximo "novo" formulário
+      if (!editMode) { // Apenas se não estiver editando, para não sobrescrever uma edição
+        form.setValue('proposalDate', new Date(), { shouldValidate: true, shouldDirty: true });
+      }
+      
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
       } else {
@@ -226,7 +235,12 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus disabled={isEffectivelyReadOnly || isSubmitting} />
+                    <Calendar 
+                        mode="single" 
+                        selected={field.value || undefined} // field.value pode ser null
+                        onSelect={field.onChange} 
+                        initialFocus 
+                        disabled={isEffectivelyReadOnly || isSubmitting} />
                   </PopoverContent>
                 </Popover>
                 <FormMessage />
@@ -254,7 +268,11 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date() || isEffectivelyReadOnly || isSubmitting} />
+                    <Calendar 
+                        mode="single" 
+                        selected={field.value || undefined}
+                        onSelect={field.onChange} 
+                        disabled={(date) => date < new Date() || isEffectivelyReadOnly || isSubmitting} />
                   </PopoverContent>
                 </Popover>
                 <FormMessage />
@@ -387,8 +405,23 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
             type="button"
             variant="ghost"
             onClick={() => {
-              form.reset();
-              if (onFormSubmit && editMode) onFormSubmit(); // Se estiver editando, o cancelamento pode fechar um modal
+              form.reset({ // Reset para valores vazios
+                clientName: '',
+                proposalDate: undefined, 
+                validityDate: undefined,
+                company: undefined,
+                area: undefined,
+                contactSource: undefined,
+                description: '',
+                proposedValue: undefined,
+                status: "Pendente",
+                notes: '',
+              });
+              // Redefine a data no cliente para o próximo "novo" formulário
+              if (!editMode) {
+                 form.setValue('proposalDate', new Date(), { shouldValidate: true, shouldDirty: true });
+              }
+              if (onFormSubmit && editMode) onFormSubmit(); 
             }}
             disabled={isSubmitting}
             className="w-full sm:w-auto"
