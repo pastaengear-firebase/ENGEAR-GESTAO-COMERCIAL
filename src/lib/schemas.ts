@@ -22,7 +22,7 @@ export const SalesFormSchema = z.object({
 });
 export type SalesFormData = z.infer<typeof SalesFormSchema>;
 
-const followUpDaysValues = FOLLOW_UP_DAYS_OPTIONS.map(opt => opt.value) as [number, ...number[]];
+const followUpDaysValues = FOLLOW_UP_DAYS_OPTIONS.map(opt => opt.value) as [0, 5, 10, 15];
 
 export const QuoteFormSchema = z.object({
   clientName: z.string().min(1, 'Nome do cliente é obrigatório.'),
@@ -35,7 +35,13 @@ export const QuoteFormSchema = z.object({
   proposedValue: z.coerce.number().positive('Valor proposto deve ser positivo.'),
   status: z.enum(PROPOSAL_STATUS_OPTIONS, { required_error: 'Status da proposta é obrigatório.'}),
   notes: z.string().optional(),
-  followUpDaysOffset: z.enum(followUpDaysValues.map(String) as [string, ...string[]]).optional().transform(val => val ? parseInt(val, 10) : undefined),
+  followUpDaysOffset: z.number()
+    .refine(val => followUpDaysValues.includes(val as 0|5|10|15), {
+      message: "Selecione uma opção válida para o período de follow-up."
+    })
+    .optional()
+    .default(0), // Garante que 0 (Não agendar) seja o padrão se nada for selecionado
   sendProposalNotification: z.boolean().optional().default(false),
 });
 export type QuoteFormData = z.infer<typeof QuoteFormSchema>;
+

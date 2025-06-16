@@ -63,14 +63,15 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
 
   useEffect(() => {
     if (editMode && quoteToEdit) {
-      let followUpDaysOffset: FollowUpDaysOptionValue = 0;
+      let followUpDaysOffsetValue: FollowUpDaysOptionValue = 0;
       if (quoteToEdit.followUpDate && quoteToEdit.proposalDate) {
         const proposalD = parseISO(quoteToEdit.proposalDate);
         const followUpD = parseISO(quoteToEdit.followUpDate);
         const diffDays = Math.round((followUpD.getTime() - proposalD.getTime()) / (1000 * 60 * 60 * 24));
+        
         const validOffsets = FOLLOW_UP_DAYS_OPTIONS.map(opt => opt.value);
         if (validOffsets.includes(diffDays as FollowUpDaysOptionValue)) {
-            followUpDaysOffset = diffDays as FollowUpDaysOptionValue;
+            followUpDaysOffsetValue = diffDays as FollowUpDaysOptionValue;
         }
       }
 
@@ -85,14 +86,14 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         proposedValue: quoteToEdit.proposedValue,
         status: quoteToEdit.status,
         notes: quoteToEdit.notes || '',
-        followUpDaysOffset: followUpDaysOffset,
+        followUpDaysOffset: followUpDaysOffsetValue,
         sendProposalNotification: quoteToEdit.sendProposalNotification || false,
       });
       setDisplayedSeller(quoteToEdit.seller);
     } else if (!editMode) {
-      form.reset({
+      form.reset({ // Reset inicial com proposalDate undefined
         clientName: '',
-        proposalDate: undefined,
+        proposalDate: undefined, 
         validityDate: undefined,
         company: undefined,
         area: undefined,
@@ -104,6 +105,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         followUpDaysOffset: 0,
         sendProposalNotification: false,
       });
+      // Define a data APENAS NO CLIENTE após a montagem/reset inicial
       form.setValue('proposalDate', new Date(), { shouldValidate: true, shouldDirty: true });
       
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
@@ -119,9 +121,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
     const action = isUpdate ? 'Atualizada' : 'Registrada';
     const subject = `Proposta Comercial ${action}: ${quote.clientName} / ${quote.description.substring(0,30)}...`;
     const appBaseUrl = window.location.origin;
-    // Link para a proposta específica poderia ser /propostas/gerenciar?id=${quote.id} ou algo assim,
-    // mas por enquanto, vamos linkar para a página de gerenciamento.
-    const proposalLink = `${appBaseUrl}/propostas/gerenciar`;
+    const proposalLink = `${appBaseUrl}/propostas/gerenciar`; // Idealmente um link direto para a proposta
 
     const body = `
 Uma proposta comercial foi ${action.toLowerCase()} no sistema:
@@ -155,39 +155,66 @@ Sistema de Controle de Vendas ENGEAR
 
 
   const onSubmit = async (data: QuoteFormData) => {
-    if (isEffectivelyReadOnly) {
-      toast({ title: "Ação Não Permitida", description: "Selecione um vendedor específico (SERGIO ou RODRIGO) para salvar.", variant: "destructive" });
+    console.log('QuoteForm onSubmit triggered. isEffectivelyReadOnly:', isEffectivelyReadOnly, 'globalSelectedSeller:', globalSelectedSeller);
+    console.log('Form values (data from react-hook-form):', data);
+    console.log('Form validation errors (from react-hook-form state):', form.formState.errors);
+
+    if (isEffectivelyReadOnly && !editMode) { // Apenas para novas propostas, edição é controlada no QuoteContext
+       toast({
+        title: "Ação Não Permitida",
+        description: "Selecione um vendedor específico (SERGIO ou RODRIGO) no seletor do cabeçalho para criar uma nova proposta.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false); // Reset isSubmitting
       return;
     }
 
-    let sellerForPayload: Seller;
-    if (editMode && quoteToEdit) {
-      sellerForPayload = quoteToEdit.seller; 
-    } else {
+    // Para novas propostas, precisamos garantir que um vendedor válido esteja selecionado globalmente.
+    // Para edição, o vendedor original da proposta é mantido e não pode ser alterado pelo formulário.
+    if (!editMode) {
       if (!SELLERS.includes(globalSelectedSeller as Seller)) {
-        toast({ title: "Erro de Validação", description: "Selecione SERGIO ou RODRIGO no seletor global.", variant: "destructive" });
+        console.error('Invalid global seller for new quote:', globalSelectedSeller);
+        toast({
+          title: "Erro de Validação do Vendedor",
+          description: "Para criar uma nova proposta, por favor, selecione SERGIO ou RODRIGO no seletor global do cabeçalho.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false); // Reset isSubmitting
         return;
       }
-      sellerForPayload = globalSelectedSeller as Seller;
+    }
+    
+    // Data é obrigatória
+    if (!data.proposalDate) {
+        toast({ title: "Erro de Validação", description: "Data da proposta é obrigatória.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
     }
 
+
     setIsSubmitting(true);
+    console.log('Seller for payload (globalSelectedSeller for new, quoteToEdit.seller for edit):', editMode ? quoteToEdit?.seller : globalSelectedSeller);
 
     const quotePayload = {
       ...data,
-      proposalDate: format(data.proposalDate, 'yyyy-MM-dd'),
+      proposalDate: format(data.proposalDate, 'yyyy-MM-dd'), // Garante que é string yyyy-MM-dd
       validityDate: data.validityDate ? format(data.validityDate, 'yyyy-MM-dd') : undefined,
       proposedValue: Number(data.proposedValue) || 0,
-      // followUpDate será calculado e adicionado pelo context
+      // O 'seller' será definido pelo QuotesContext (usando globalSelectedSeller para novas, ou mantendo o existente para edições)
+      // 'followUpDaysOffset' e 'sendProposalNotification' já estão em 'data'
     };
+    console.log('Quote payload to be sent to context:', quotePayload);
 
     try {
       let savedQuote: Quote | undefined;
       if (editMode && quoteToEdit) {
-        savedQuote = updateQuote(quoteToEdit.id, quotePayload);
+        // No updateQuote, o seller original da proposta é mantido pelo contexto.
+        // O followUpDaysOffset e sendProposalNotification são passados para o contexto.
+        savedQuote = updateQuote(quoteToEdit.id, quotePayload as Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'>> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean });
         toast({ title: "Sucesso!", description: "Proposta atualizada com sucesso." });
       } else {
-        // Passamos o Omit com a adição dos campos que o contexto espera
+        // No addQuote, o contexto usará o globalSelectedSeller.
+        // O followUpDaysOffset e sendProposalNotification são passados para o contexto.
         savedQuote = addQuote(quotePayload as Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean });
         toast({ title: "Sucesso!", description: "Nova proposta registrada com sucesso." });
       }
@@ -225,8 +252,12 @@ Sistema de Controle de Vendas ENGEAR
       }
 
     } catch (error) {
-      console.error("Error saving quote:", error);
-      toast({ title: "Erro ao Salvar", description: (error as Error).message || "Não foi possível salvar a proposta.", variant: "destructive" });
+      console.error("Detailed error saving quote in QuoteForm onSubmit:", error);
+      toast({ 
+        title: "Erro Crítico ao Salvar Proposta", 
+        description: `Ocorreu um erro inesperado: ${(error as Error).message}. Verifique o console para mais detalhes.`, 
+        variant: "destructive" 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -290,7 +321,7 @@ Sistema de Controle de Vendas ENGEAR
                       <Button
                         variant={"outline"}
                         className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
-                        disabled={isEffectivelyReadOnly || isSubmitting}
+                        disabled={(editMode && isEffectivelyReadOnly) || isSubmitting}
                       >
                         {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -303,7 +334,8 @@ Sistema de Controle de Vendas ENGEAR
                         selected={field.value || undefined}
                         onSelect={field.onChange} 
                         initialFocus 
-                        disabled={isEffectivelyReadOnly || isSubmitting} />
+                        disabled={(date) => date > new Date() || (editMode && isEffectivelyReadOnly) || isSubmitting} 
+                    />
                   </PopoverContent>
                 </Popover>
                 <FormMessage />
@@ -457,7 +489,7 @@ Sistema de Controle de Vendas ENGEAR
                     <FormLabel className="flex items-center"><BellRing className="mr-2 h-4 w-4" /> Follow-up</FormLabel>
                     <Select 
                         onValueChange={(value) => field.onChange(parseInt(value,10))} 
-                        value={String(field.value ?? 0)} 
+                        value={String(field.value ?? 0)} // Garante que value seja sempre uma string
                         disabled={isEffectivelyReadOnly || isSubmitting}
                     >
                     <FormControl><SelectTrigger><SelectValue placeholder="Agendar follow-up" /></SelectTrigger></FormControl>
@@ -537,7 +569,7 @@ Sistema de Controle de Vendas ENGEAR
             {editMode ? 'Cancelar Edição' : 'Limpar Formulário'}
           </Button>
           <Button type="submit"
-            disabled={isEffectivelyReadOnly || isSubmitting}
+            disabled={(isEffectivelyReadOnly && !editMode) || isSubmitting} // Para edição, permite salvar mesmo se globalSeller for EQUIPE COMERCIAL
             className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
             <Save className="mr-2 h-4 w-4" />
             {isSubmitting ? 'Salvando...' : (editMode ? 'Atualizar Proposta' : 'Salvar Proposta')}
@@ -547,3 +579,4 @@ Sistema de Controle de Vendas ENGEAR
     </Form>
   );
 }
+
