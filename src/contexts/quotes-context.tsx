@@ -3,7 +3,7 @@
 "use client";
 import type React from 'react';
 import { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { LOCAL_STORAGE_QUOTES_KEY, ALL_SELLERS_OPTION, SELLERS, FOLLOW_UP_DAYS_OPTIONS } from '@/lib/constants';
+import { LOCAL_STORAGE_QUOTES_KEY, ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
 import type { Quote, QuotesContextType, Seller, FollowUpDaysOptionValue } from '@/lib/types';
 import { SalesContext } from './sales-context'; // Para acessar selectedSeller
 import { v4 as uuidv4 } from 'uuid';
@@ -29,7 +29,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (storedQuotes) {
         const parsedQuotes = JSON.parse(storedQuotes);
          if (Array.isArray(parsedQuotes)) {
-            setQuotes(parsedQuotes.sort((a,b) => new Date(b.proposalDate).getTime() - new Date(a.proposalDate).getTime()));
+            setQuotes(parsedQuotes.map(q => ({...q, followUpDone: q.followUpDone || false })).sort((a,b) => new Date(b.proposalDate).getTime() - new Date(a.proposalDate).getTime()));
         } else {
             setQuotes([]); 
         }
@@ -53,7 +53,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const calculateFollowUpDate = (proposalDateStr: string, offsetDays?: FollowUpDaysOptionValue): string | null => {
     if (offsetDays && offsetDays > 0) {
         try {
-            const proposalD = parseISO(proposalDateStr); // proposalDate já é string ISO no payload
+            const proposalD = parseISO(proposalDateStr); 
             return format(addDays(proposalD, offsetDays), 'yyyy-MM-dd');
         } catch(e) {
             console.error("Error calculating followUpDate", e);
@@ -64,7 +64,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addQuote = useCallback((
-    quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }
+    quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpDone'> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }
   ): Quote => {
     if (selectedSeller === ALL_SELLERS_OPTION || !SELLERS.includes(selectedSeller as Seller)) {
       throw new Error("Um vendedor específico (SERGIO ou RODRIGO) deve ser selecionado para adicionar uma proposta.");
@@ -77,10 +77,11 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: uuidv4(),
       seller: selectedSeller as Seller,
       followUpDate: finalFollowUpDate,
+      followUpDone: false, // Default para nova proposta
       sendProposalNotification: quoteData.sendProposalNotification || false,
       createdAt: Date.now(),
     };
-    // Remove o followUpDaysOffset que era só para cálculo
+    
     delete (newQuote as any).followUpDaysOffset;
 
     setQuotes(prevQuotes => [...prevQuotes, newQuote].sort((a,b) => new Date(b.proposalDate).getTime() - new Date(a.proposalDate).getTime()));
@@ -89,19 +90,26 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateQuote = useCallback((
     id: string, 
-    quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'>> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }
+    quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'>> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean, followUpDone?: boolean }
   ): Quote | undefined => {
     let updatedQuote: Quote | undefined;
     setQuotes(prevQuotes =>
       prevQuotes.map(quote => {
         if (quote.id === id) {
           const currentProposalDate = quoteUpdateData.proposalDate || quote.proposalDate;
-          const finalFollowUpDate = calculateFollowUpDate(currentProposalDate, quoteUpdateData.followUpDaysOffset);
+          let finalFollowUpDate = quote.followUpDate; // Mantem o existente por padrão
+          // Recalcula a data de follow-up apenas se followUpDaysOffset for fornecido e diferente do que geraria a data atual
+          // Ou se a data da proposta mudou, é bom recalcular
+          if (quoteUpdateData.followUpDaysOffset !== undefined || quoteUpdateData.proposalDate) {
+             finalFollowUpDate = calculateFollowUpDate(currentProposalDate, quoteUpdateData.followUpDaysOffset);
+          }
+
 
           updatedQuote = {
             ...quote,
             ...quoteUpdateData,
-            followUpDate: finalFollowUpDate !== undefined ? finalFollowUpDate : quote.followUpDate, // Mantém o anterior se não for recalculado
+            followUpDate: finalFollowUpDate,
+            followUpDone: quoteUpdateData.followUpDone !== undefined ? quoteUpdateData.followUpDone : quote.followUpDone,
             sendProposalNotification: quoteUpdateData.sendProposalNotification !== undefined ? quoteUpdateData.sendProposalNotification : quote.sendProposalNotification,
             updatedAt: Date.now()
           };
@@ -122,6 +130,21 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return quotes.find(quote => quote.id === id);
   }, [quotes]);
 
+  const toggleFollowUpDone = useCallback((quoteId: string) => {
+    setQuotes(prevQuotes =>
+      prevQuotes.map(quote => {
+        if (quote.id === quoteId) {
+          return {
+            ...quote,
+            followUpDone: !quote.followUpDone,
+            updatedAt: Date.now(),
+          };
+        }
+        return quote;
+      })
+    );
+  }, []);
+
   return (
     <QuotesContext.Provider
       value={{
@@ -131,6 +154,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateQuote,
         deleteQuote,
         getQuoteById,
+        toggleFollowUpDone,
         loadingQuotes
       }}
     >
@@ -138,3 +162,4 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     </QuotesContext.Provider>
   );
 };
+

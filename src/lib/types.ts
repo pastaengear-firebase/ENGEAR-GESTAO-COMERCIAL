@@ -94,6 +94,7 @@ export interface Quote {
   status: ProposalStatusOption;
   notes?: string; // Opcional
   followUpDate?: string | null; // Data ISO para o follow-up, pode ser null ou undefined
+  followUpDone?: boolean; // Indica se o follow-up foi realizado
   sendProposalNotification?: boolean; // Indica se a notificação deve ser enviada
   createdAt: number; // timestamp
   updatedAt?: number; // timestamp
@@ -102,10 +103,12 @@ export interface Quote {
 export type QuotesContextType = {
   quotes: Quote[];
   selectedSeller: Seller | typeof ALL_SELLERS_OPTION;
-  addQuote: (quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }) => Quote;
-  updateQuote: (id: string, quoteData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'>> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }) => Quote | undefined;
+  addQuote: (quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpDone'> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }) => Quote;
+  updateQuote: (id: string, quoteData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'>> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean, followUpDone?: boolean }) => Quote | undefined;
   deleteQuote: (id: string) => void;
   getQuoteById: (id: string) => Quote | undefined;
+  toggleFollowUpDone: (quoteId: string) => void; // Nova função
   loadingQuotes: boolean;
 };
+
 

@@ -2,6 +2,7 @@
 // src/components/quotes/quotes-table.tsx
 "use client";
 import type { Quote } from '@/lib/types';
+import { useQuotes } from '@/hooks/use-quotes';
 import {
   Table,
   TableBody,
@@ -12,12 +13,15 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit3, Trash2, Eye, BellRing } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Edit3, Trash2, Eye, BellRing, CheckCircle, FileUp } from 'lucide-react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface QuotesTableProps {
   quotesData: Quote[];
@@ -27,6 +31,8 @@ interface QuotesTableProps {
 }
 
 export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActions }: QuotesTableProps) {
+  const { toggleFollowUpDone } = useQuotes();
+  const router = useRouter();
 
   const getStatusBadgeVariant = (status: Quote['status']): React.ComponentProps<typeof Badge>['variant'] => {
     switch (status) {
@@ -44,7 +50,8 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
     }
   };
 
-  const getFollowUpDateClass = (followUpDateStr?: string | null): string => {
+  const getFollowUpDateClass = (followUpDateStr?: string | null, followUpDone?: boolean): string => {
+    if (followUpDone) return "text-green-600"; // Realizado
     if (!followUpDateStr) return "";
     try {
       const followUpD = parseISO(followUpDateStr);
@@ -52,8 +59,12 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
       if (isToday(followUpD)) return "text-blue-600 font-semibold"; // Hoje
       return "text-muted-foreground"; // Futuro
     } catch {
-      return ""; // Data inválida
+      return ""; 
     }
+  };
+
+  const handleConvertToSale = (quoteId: string) => {
+    router.push(`/inserir-venda?fromQuoteId=${quoteId}`);
   };
 
 
@@ -79,7 +90,7 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
             <TableHead>Vendedor</TableHead>
             <TableHead className="text-right">Valor Proposto</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-[120px]">Follow-up</TableHead>
+            <TableHead className="w-[200px]">Follow-up</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -97,12 +108,26 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
                   {quote.status}
                 </Badge>
               </TableCell>
-              <TableCell className={cn("flex items-center", getFollowUpDateClass(quote.followUpDate))}>
+              <TableCell className="space-x-2">
                  {quote.followUpDate ? (
-                    <>
-                        <BellRing className={cn("mr-1 h-3.5 w-3.5", getFollowUpDateClass(quote.followUpDate) === "text-muted-foreground" ? "text-muted-foreground/70" : "")} />
-                        {format(parseISO(quote.followUpDate), 'dd/MM/yy', { locale: ptBR })}
-                    </>
+                    <div className="flex items-center space-x-2">
+                        {quote.followUpDone ? <CheckCircle className="h-4 w-4 text-green-600" /> : <BellRing className={cn("h-4 w-4", getFollowUpDateClass(quote.followUpDate, quote.followUpDone))} />}
+                        <span className={cn(getFollowUpDateClass(quote.followUpDate, quote.followUpDone))}>
+                            {format(parseISO(quote.followUpDate), 'dd/MM/yy', { locale: ptBR })}
+                        </span>
+                        {!disabledActions && (
+                           <div className="flex items-center space-x-1">
+                             <Checkbox
+                                id={`followUpDone-${quote.id}`}
+                                checked={quote.followUpDone}
+                                onCheckedChange={() => toggleFollowUpDone(quote.id)}
+                                disabled={disabledActions}
+                                aria-label="Follow-up realizado"
+                             />
+                             <Label htmlFor={`followUpDone-${quote.id}`} className="text-xs cursor-pointer">Realizado?</Label>
+                           </div>
+                        )}
+                    </div>
                  ) : (
                     <span className="text-xs text-muted-foreground/70 italic">Não agendado</span>
                  )}
@@ -110,7 +135,7 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0" disabled={disabledActions}>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
                       <span className="sr-only">Abrir menu</span>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -119,6 +144,10 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
                     <DropdownMenuItem onClick={() => onEdit(quote)} disabled={disabledActions}>
                       <Edit3 className="mr-2 h-4 w-4" /> Modificar
                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => handleConvertToSale(quote.id)} disabled={disabledActions}>
+                      <FileUp className="mr-2 h-4 w-4" /> Converter em Venda
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => onDelete(quote.id)} className="text-destructive" disabled={disabledActions}>
                       <Trash2 className="mr-2 h-4 w-4" /> Excluir
                     </DropdownMenuItem>
@@ -133,3 +162,4 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
     </ScrollArea>
   );
 }
+

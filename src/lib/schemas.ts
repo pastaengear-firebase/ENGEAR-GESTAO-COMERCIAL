@@ -40,8 +40,10 @@ export const QuoteFormSchema = z.object({
       message: "Selecione uma opção válida para o período de follow-up."
     })
     .optional()
-    .default(0), // Garante que 0 (Não agendar) seja o padrão se nada for selecionado
+    .default(0),
   sendProposalNotification: z.boolean().optional().default(false),
+  followUpDone: z.boolean().optional().default(false), // Novo campo
 });
 export type QuoteFormData = z.infer<typeof QuoteFormSchema>;
+
 

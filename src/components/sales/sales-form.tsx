@@ -9,7 +9,8 @@ import { SalesFormSchema, type SalesFormData } from '@/lib/schemas';
 import { AREA_OPTIONS, STATUS_OPTIONS, SELLERS, ALL_SELLERS_OPTION, COMPANY_OPTIONS } from '@/lib/constants';
 import type { Seller } from '@/lib/constants';
 import { useSales } from '@/hooks/use-sales';
-import { useSettings } from '@/hooks/use-settings'; // Importar useSettings
+import { useQuotes } from '@/hooks/use-quotes'; // Para buscar e atualizar propostas
+import { useSettings } from '@/hooks/use-settings'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,14 +18,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CalendarIcon, DollarSign, Save, RotateCcw, Sparkles, AlertCircle, Info } from 'lucide-react';
+import { CalendarIcon, DollarSign, Save, RotateCcw, Sparkles, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { suggestSalesImprovements, type SuggestSalesImprovementsInput, type SuggestSalesImprovementsOutput } from '@/ai/flows/suggest-sales-improvements';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import type { Sale } from '@/lib/types';
+import type { Sale, Quote } from '@/lib/types';
 
 interface SalesFormProps {
   onFormChange?: (data: Partial<SalesFormData>) => void;
@@ -34,18 +35,22 @@ interface SalesFormProps {
 
 export default function SalesForm({ onFormChange, onSuggestionsFetched, showReadOnlyAlert }: SalesFormProps) {
   const { addSale, getSaleById, updateSale, selectedSeller: globalSelectedSeller } = useSales();
+  const { getQuoteById: getQuoteByIdFromContext, updateQuote: updateQuoteStatus } = useQuotes();
   const { settings: appSettings, loadingSettings } = useSettings(); 
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  
   const editSaleId = searchParams.get('editId');
+  const fromQuoteId = searchParams.get('fromQuoteId');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [displayedSeller, setDisplayedSeller] = useState<Seller | typeof ALL_SELLERS_OPTION | undefined>(undefined);
 
-  const isEffectivelyReadOnly = globalSelectedSeller === ALL_SELLERS_OPTION;
+  const isEffectivelyReadOnly = globalSelectedSeller === ALL_SELLERS_OPTION || (fromQuoteId && displayedSeller && globalSelectedSeller !== displayedSeller);
+
 
   const form = useForm<SalesFormData>({
     resolver: zodResolver(SalesFormSchema),
@@ -63,46 +68,76 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
   });
 
   useEffect(() => {
-    if (editSaleId) {
-      const saleToEdit = getSaleById(editSaleId);
-      if (saleToEdit) {
+    const initializeForm = async () => {
+      if (editSaleId) {
+        const saleToEdit = getSaleById(editSaleId);
+        if (saleToEdit) {
+          form.reset({
+            date: parseISO(saleToEdit.date), 
+            company: saleToEdit.company,
+            project: saleToEdit.project,
+            os: saleToEdit.os,
+            area: saleToEdit.area,
+            clientService: saleToEdit.clientService,
+            salesValue: saleToEdit.salesValue,
+            status: saleToEdit.status,
+            payment: saleToEdit.payment,
+          });
+          setDisplayedSeller(saleToEdit.seller);
+        } else {
+          toast({ title: "Erro", description: "Venda não encontrada para edição.", variant: "destructive" });
+          router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
+        }
+      } else if (fromQuoteId) {
+        const quoteToConvert = getQuoteByIdFromContext(fromQuoteId);
+        if (quoteToConvert) {
+          if (globalSelectedSeller !== quoteToConvert.seller && globalSelectedSeller !== ALL_SELLERS_OPTION) {
+             toast({
+                title: "Aviso de Vendedor",
+                description: `Para converter a proposta de ${quoteToConvert.seller}, selecione ${quoteToConvert.seller} no seletor global. O formulário estará em modo leitura até lá.`,
+                variant: "default",
+                duration: 7000,
+             });
+          }
+          form.reset({
+            date: new Date(), // Data da venda é a data atual
+            company: quoteToConvert.company,
+            project: `${quoteToConvert.clientName} - ${quoteToConvert.description.substring(0,50)}${quoteToConvert.description.length > 50 ? '...' : ''}`,
+            os: '', // OS será preenchido pelo usuário se necessário
+            area: quoteToConvert.area,
+            clientService: quoteToConvert.clientName,
+            salesValue: quoteToConvert.proposedValue,
+            status: "Á INICAR", // Status inicial sugerido para a venda
+            payment: 0, // Pagamento inicial é zero
+          });
+          setDisplayedSeller(quoteToConvert.seller); // Vendedor da venda é o da proposta
+        } else {
+          toast({ title: "Erro", description: "Proposta não encontrada para conversão.", variant: "destructive" });
+          router.push('/inserir-venda'); // Volta para inserir venda normal
+        }
+      } else { // Novo formulário (não edição, não conversão)
         form.reset({
-          date: parseISO(saleToEdit.date), 
-          company: saleToEdit.company,
-          project: saleToEdit.project,
-          os: saleToEdit.os,
-          area: saleToEdit.area,
-          clientService: saleToEdit.clientService,
-          salesValue: saleToEdit.salesValue,
-          status: saleToEdit.status,
-          payment: saleToEdit.payment,
+          date: undefined, 
+          company: undefined,
+          project: '',
+          os: '',
+          area: undefined,
+          clientService: '',
+          salesValue: undefined,
+          status: undefined,
+          payment: undefined,
         });
-        setDisplayedSeller(saleToEdit.seller);
-      } else {
-        toast({ title: "Erro", description: "Venda não encontrada para edição.", variant: "destructive" });
-        router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
+        form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
+        
+        if (SELLERS.includes(globalSelectedSeller as Seller)) {
+          setDisplayedSeller(globalSelectedSeller as Seller);
+        } else {
+          setDisplayedSeller(ALL_SELLERS_OPTION);
+        }
       }
-    } else if (!editSaleId) {
-      form.reset({
-        date: undefined, 
-        company: undefined,
-        project: '',
-        os: '',
-        area: undefined,
-        clientService: '',
-        salesValue: undefined,
-        status: undefined,
-        payment: undefined,
-      });
-      form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
-      
-      if (SELLERS.includes(globalSelectedSeller as Seller)) {
-        setDisplayedSeller(globalSelectedSeller as Seller);
-      } else {
-        setDisplayedSeller(ALL_SELLERS_OPTION);
-      }
-    }
-  }, [editSaleId, getSaleById, form, toast, router, globalSelectedSeller, pathname]);
+    };
+    initializeForm();
+  }, [editSaleId, fromQuoteId, getSaleById, getQuoteByIdFromContext, form, toast, router, globalSelectedSeller, pathname]);
 
   const handleDataChange = () => {
     if (onFormChange) {
@@ -188,7 +223,13 @@ Sistema de Controle de Vendas ENGEAR
 
   const onSubmit = async (data: SalesFormData) => {
     if (isEffectivelyReadOnly) {
-      toast({ title: "Ação Não Permitida", description: "Selecione um vendedor específico (SERGIO ou RODRIGO) para salvar.", variant: "destructive" });
+       let message = "Selecione um vendedor específico (SERGIO ou RODRIGO) para salvar.";
+       if (fromQuoteId && displayedSeller && globalSelectedSeller !== displayedSeller && globalSelectedSeller !== ALL_SELLERS_OPTION) {
+           message = `Para salvar a venda do vendedor ${displayedSeller}, selecione ${displayedSeller} no seletor global.`;
+       } else if (fromQuoteId && globalSelectedSeller === ALL_SELLERS_OPTION) {
+           message = `Para salvar a venda do vendedor ${displayedSeller}, selecione ${displayedSeller} no seletor global.`;
+       }
+      toast({ title: "Ação Não Permitida", description: message, variant: "destructive" });
       return;
     }
     if (!data.date) { 
@@ -197,14 +238,25 @@ Sistema de Controle de Vendas ENGEAR
     }
 
     let sellerForPayload: Seller;
-    if (editSaleId) {
+    if (editSaleId) { // Edição de venda existente
       const saleToEdit = getSaleById(editSaleId);
       if (!saleToEdit) {
         toast({ title: "Erro", description: "Venda original não encontrada.", variant: "destructive" });
         return;
       }
       sellerForPayload = saleToEdit.seller;
-    } else {
+    } else if (fromQuoteId) { // Conversão de proposta
+        const quote = getQuoteByIdFromContext(fromQuoteId);
+        if (!quote) {
+             toast({ title: "Erro", description: "Proposta original não encontrada para conversão.", variant: "destructive" });
+             return;
+        }
+        if (globalSelectedSeller !== quote.seller) {
+            toast({ title: "Ação Não Permitida", description: `Para salvar a venda do vendedor ${quote.seller}, selecione ${quote.seller} no seletor global.`, variant: "destructive" });
+            return;
+        }
+        sellerForPayload = quote.seller;
+    } else { // Nova venda
       if (!SELLERS.includes(globalSelectedSeller as Seller)) {
         toast({ title: "Erro de Validação", description: "Selecione SERGIO ou RODRIGO no seletor global para registrar uma nova venda.", variant: "destructive" });
         return;
@@ -223,6 +275,7 @@ Sistema de Controle de Vendas ENGEAR
     };
 
     try {
+      let newSaleId: string | undefined;
       if (editSaleId) {
         const updatedSale = updateSale(editSaleId, salePayload);
         if (updatedSale) {
@@ -230,8 +283,14 @@ Sistema de Controle de Vendas ENGEAR
         }
       } else {
         const newSale = addSale(salePayload);
+        newSaleId = newSale.id;
         toast({ title: "Sucesso!", description: "Nova venda registrada com sucesso." });
-        triggerEmailNotification(newSale); 
+        triggerEmailNotification(newSale);
+        
+        if (fromQuoteId) {
+            updateQuoteStatus(fromQuoteId, { status: "Aceita" });
+            toast({ title: "Proposta Atualizada", description: "O status da proposta original foi alterado para 'Aceita'." });
+        }
       }
 
       form.reset({
@@ -245,9 +304,11 @@ Sistema de Controle de Vendas ENGEAR
         status: undefined,
         payment: undefined,
       });
-      if(!editSaleId) {
+       // Define a data para hoje apenas se não estiver editando ou vindo de uma cotação
+      if(!editSaleId && !fromQuoteId) {
         form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
       }
+
 
       if (SELLERS.includes(globalSelectedSeller as Seller)) {
         setDisplayedSeller(globalSelectedSeller as Seller);
@@ -256,12 +317,16 @@ Sistema de Controle de Vendas ENGEAR
       }
       if (onSuggestionsFetched) onSuggestionsFetched(null);
 
+      // Lógica de redirecionamento
       if (pathname.startsWith('/editar-venda') && editSaleId) {
-        router.push('/editar-venda');
-      } else if (pathname.startsWith('/inserir-venda') && !editSaleId) {
-        // Stay on page
+        router.push('/editar-venda'); // Volta para a página de busca de edição
+      } else if (pathname.startsWith('/inserir-venda')) {
+        if (fromQuoteId) {
+           router.push('/inserir-venda', { scroll: false }); // Remove query param e fica na página
+        }
+        // Se for inserção normal, permanece na página e o formulário é resetado
       } else {
-        router.push('/dados');
+        router.push('/dados'); // Fallback para página de dados
       }
 
     } catch (error) {
@@ -280,7 +345,12 @@ Sistema de Controle de Vendas ENGEAR
             <Info className="h-4 w-4 !text-amber-600" />
             <AlertTitle>Modo Somente Leitura</AlertTitle>
             <AlertDescription>
-              Para {editSaleId ? 'modificar esta venda' : 'inserir uma nova venda'}, por favor, selecione um vendedor específico (SERGIO ou RODRIGO) no seletor do cabeçalho.
+              { fromQuoteId && displayedSeller && globalSelectedSeller !== displayedSeller && globalSelectedSeller !== ALL_SELLERS_OPTION
+                ? `Para modificar e salvar esta venda (originada da proposta de ${displayedSeller}), por favor, selecione ${displayedSeller} no seletor do cabeçalho.`
+                : editSaleId 
+                  ? `Para modificar esta venda de ${displayedSeller}, por favor, selecione ${displayedSeller} no seletor do cabeçalho.`
+                  : "Para inserir uma nova venda, por favor, selecione um vendedor específico (SERGIO ou RODRIGO) no seletor do cabeçalho."
+              }
             </AlertDescription>
           </Alert>
         )}
@@ -342,7 +412,7 @@ Sistema de Controle de Vendas ENGEAR
               </SelectContent>
             </Select>
             <FormDescription>
-              {editSaleId ? "Vendedor original da venda (não pode ser alterado)." : "Para nova venda, use o seletor no cabeçalho."}
+              {editSaleId ? "Vendedor original da venda." : (fromQuoteId ? `Vendedor da proposta: ${displayedSeller}` : "Definido no cabeçalho.")}
             </FormDescription>
           </FormItem>
 
@@ -541,7 +611,6 @@ Sistema de Controle de Vendas ENGEAR
             type="button"
             variant="ghost"
             onClick={() => {
-              const isEditing = !!editSaleId;
               form.reset({ 
                 date: undefined,
                 company: undefined,
@@ -553,10 +622,13 @@ Sistema de Controle de Vendas ENGEAR
                 status: undefined,
                 payment: undefined,
               });
-              if (!isEditing) {
+              // Reset to default view: new sale with current date
+              if(!editSaleId && !fromQuoteId) {
                  form.setValue('date', new Date(), { shouldValidate: true, shouldDirty: true });
-              } else {
-                 router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
+              } else if (editSaleId) { // If was editing, go back to edit search page
+                 router.push('/editar-venda');
+              } else if (fromQuoteId) { // If was converting, go back to new sale page (clears query param)
+                 router.push('/inserir-venda');
               }
               if (onSuggestionsFetched) onSuggestionsFetched(null);
             }}
@@ -564,7 +636,7 @@ Sistema de Controle de Vendas ENGEAR
             className="w-full sm:w-auto"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
-            Limpar / Cancelar Edição
+            Limpar / Cancelar
           </Button>
           <Button type="submit"
             disabled={isEffectivelyReadOnly || isSubmitting}
@@ -577,3 +649,4 @@ Sistema de Controle de Vendas ENGEAR
     </Form>
   );
 }
+
