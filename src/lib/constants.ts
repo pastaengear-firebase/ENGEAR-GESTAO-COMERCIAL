@@ -58,10 +58,10 @@ export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState';
 export const LOCAL_STORAGE_SALES_KEY = 'salesAppData';
 export const LOCAL_STORAGE_SETTINGS_KEY = 'salesAppSettings';
 export const LOCAL_STORAGE_QUOTES_KEY = 'salesAppQuotesData';
-export const LOCAL_STORAGE_SELECTED_SELLER_KEY = 'salesAppSelectedSeller'; // Nova chave
-export const SESSION_STORAGE_LOGIN_FLAG = 'salesAppJustLoggedIn';
+export const LOCAL_STORAGE_SELECTED_SELLER_KEY = 'salesAppSelectedSeller';
 
 // Constantes para cookies de autenticação
+export const COOKIE_AUTH_FLAG = 'salesAppAuthFlag'; // Cookie para o middleware
 export const COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 dias em segundos
 export const EXPIRE_COOKIE_STRING = 'Thu, 01 Jan 1970 00:00:00 GMT'; // Data no passado para expirar cookies
-
+export const SESSION_STORAGE_LOGIN_FLAG = 'salesAppJustLoggedIn';

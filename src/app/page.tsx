@@ -8,17 +8,13 @@ import { useAuth } from '@/hooks/use-auth';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth(); // AuthContext agora deve retornar isAuthenticated: true, loading: false
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    // console.log(`HomePage (Login Disabled): AuthContext state - loading=${loading}, isAuthenticated=${isAuthenticated}`);
     if (!loading) {
-      if (isAuthenticated) { // Deve ser sempre true com o login desabilitado
-        // console.log("HomePage (Login Disabled): Authenticated (as per disabled login). Redirecting to /dashboard.");
+      if (isAuthenticated) {
         router.replace('/dashboard');
       } else {
-        // Este caso não deve ocorrer com o login desabilitado no AuthContext
-        // console.warn("HomePage (Login Disabled): Not authenticated (UNEXPECTED with disabled login). Redirecting to /login (which should redirect to dashboard).");
         router.replace('/login');
       }
     }

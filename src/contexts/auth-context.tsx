@@ -3,39 +3,68 @@
 "use client";
 import type React from 'react';
 import { createContext, useState, useCallback, useEffect } from 'react';
-import { DEFAULT_LOGIN_CREDENTIALS } from '@/lib/constants';
+import { DEFAULT_LOGIN_CREDENTIALS, LOCAL_STORAGE_AUTH_KEY, COOKIE_AUTH_FLAG, COOKIE_MAX_AGE_SECONDS, EXPIRE_COOKIE_STRING, SESSION_STORAGE_LOGIN_FLAG } from '@/lib/constants';
 import type { AuthState, AuthContextType, User } from '@/lib/types';
 
-// Login está desabilitado. Usuário é sempre 'ENGEAR' e autenticado.
-const defaultAuthenticatedUser: User = { username: DEFAULT_LOGIN_CREDENTIALS.username };
 const initialAuthState: AuthState = {
-  isAuthenticated: true,
-  user: defaultAuthenticatedUser,
+  isAuthenticated: false,
+  user: null,
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
-  // Loading é sempre false pois o login está desabilitado e o estado é fixo.
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // console.log("AuthProvider (Login Disabled): Initializing with default authenticated state.");
-    setAuthState({ isAuthenticated: true, user: defaultAuthenticatedUser });
-    setLoading(false);
+    setLoading(true);
+    try {
+      const storedAuthState = localStorage.getItem(LOCAL_STORAGE_AUTH_KEY);
+      if (storedAuthState) {
+        const parsedState: AuthState = JSON.parse(storedAuthState);
+        if (parsedState.isAuthenticated && parsedState.user) {
+          setAuthState(parsedState);
+        } else {
+          // Limpar estado inválido e cookie se houver
+          localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
+          document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
+          setAuthState(initialAuthState);
+        }
+      } else {
+        // Se não há estado no localStorage, garantir que o cookie também não exista
+        document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
+        setAuthState(initialAuthState);
+      }
+    } catch (error) {
+      console.error("AuthProvider: Error loading auth state from localStorage", error);
+      localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
+      document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
+      setAuthState(initialAuthState);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const login = useCallback(async (username: string, passwordAttempt: string) => {
-    console.warn("AuthProvider (Login Disabled): Login function called, but login is disabled. No action taken.");
-    // Não faz nada, usuário já está "autenticado"
+    if (username === DEFAULT_LOGIN_CREDENTIALS.username && passwordAttempt === DEFAULT_LOGIN_CREDENTIALS.password) {
+      const newAuthenticatedState: AuthState = { isAuthenticated: true, user: { username } };
+      setAuthState(newAuthenticatedState);
+      localStorage.setItem(LOCAL_STORAGE_AUTH_KEY, JSON.stringify(newAuthenticatedState));
+      document.cookie = `${COOKIE_AUTH_FLAG}=true; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
+      sessionStorage.setItem(SESSION_STORAGE_LOGIN_FLAG, 'true'); // Sinaliza um login recente
+      window.location.assign('/dashboard'); // Redireciona após o login
+    } else {
+      throw new Error('Credenciais inválidas.');
+    }
   }, []);
 
   const logout = useCallback(() => {
-    console.warn("AuthProvider (Login Disabled): Logout function called, but login is disabled. No action taken.");
-    // Não faz nada, usuário permanece "autenticado"
-    // Poderia redirecionar para uma página de "login desabilitado" se existisse,
-    // mas como estamos tentando acessar a app, isso não é útil.
+    setAuthState(initialAuthState);
+    localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
+    document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
+    sessionStorage.removeItem(SESSION_STORAGE_LOGIN_FLAG);
+    window.location.assign('/login'); // Redireciona para a página de login
   }, []);
 
   return (
