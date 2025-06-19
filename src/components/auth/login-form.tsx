@@ -1,21 +1,19 @@
+
 // src/components/auth/login-form.tsx
 "use client";
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LoginSchema, type LoginFormData } from '@/lib/schemas';
-// DEFAULT_LOGIN_CREDENTIALS is used by AuthContext, not directly here for comparison
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Not used directly, FormLabel is
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, LogIn } from 'lucide-react';
-// Card imports not needed here, already on login page
 
 export default function LoginForm() {
-  const { login } = useAuth(); // AuthContext's login now handles credentials check
+  const { login } = useAuth(); 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,14 +29,16 @@ export default function LoginForm() {
     setIsLoading(true);
     setError(null);
     try {
-      // login function in AuthContext now throws an error on failure
       await login(data.username, data.password);
-      // Redirection is handled by AuthContext's login via window.location.assign
+      // O redirecionamento é agora tratado pela LoginPage após a atualização do estado de autenticação.
+      // Não precisamos mais de setIsLoading(false) aqui para o caso de sucesso,
+      // pois a página mudará ou re-renderizará.
     } catch (authError: any) {
       setError(authError.message || 'Falha na autenticação.');
-      setIsLoading(false);
+      setIsLoading(false); // Define isLoading como false apenas em caso de erro
     }
-    // setIsLoading(false) is called only on error, success leads to page reload
+    // Se o login for bem-sucedido, isLoading permanece true enquanto a página redireciona/re-renderiza
+    // Se o login falhar, isLoading é definido como false acima.
   };
 
   return (
