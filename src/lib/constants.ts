@@ -65,3 +65,4 @@ export const COOKIE_AUTH_FLAG = 'salesAppAuthFlag'; // Cookie para o middleware
 export const COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 dias em segundos
 export const EXPIRE_COOKIE_STRING = 'Thu, 01 Jan 1970 00:00:00 GMT'; // Data no passado para expirar cookies
 export const SESSION_STORAGE_LOGIN_FLAG = 'salesAppJustLoggedIn';
+
