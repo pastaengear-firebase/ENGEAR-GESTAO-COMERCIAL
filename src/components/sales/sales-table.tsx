@@ -86,8 +86,7 @@ export default function SalesTable({ salesData }: SalesTableProps) {
             <TableHead>Cliente/Serviço</TableHead>
             <TableHead className="text-right">Valor Venda</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="text-right">Pagamento</TableHead> 
-            {/* <TableHead className="text-right print-hide">Ações</TableHead> */} {/* Actions column removed */}
+            <TableHead className="text-right">Pagamento</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -111,7 +110,6 @@ export default function SalesTable({ salesData }: SalesTableProps) {
               <TableCell className="text-right">
                 {sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
-              {/* Action cell removed */}
             </TableRow>
           ))}
         </TableBody>
@@ -158,4 +156,3 @@ export default function SalesTable({ salesData }: SalesTableProps) {
     </>
   );
 }
-
