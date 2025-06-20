@@ -1,38 +1,32 @@
-
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-// COOKIE_AUTH_FLAG não é mais necessário
-// import { COOKIE_AUTH_FLAG } from '@/lib/constants'; 
 
-const PROTECTED_ROUTES_PREFIXES = ['/dashboard', '/inserir-venda', '/dados', '/editar-venda', '/faturamento', '/propostas', '/configuracoes'];
-// const PUBLIC_ROUTES = ['/login']; // /login não existe mais
+// O AccessGuard no lado do cliente cuidará da proteção das rotas internas.
+// O middleware principalmente redireciona para a página de acesso inicial.
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Se o usuário tentar acessar a raiz, redireciona para /dashboard
-  if (pathname === '/' || pathname === '/login') { // Adicionado /login para caso ainda haja links
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Se o usuário tentar acessar a raiz ou a antiga /login, redireciona para /access
+  if (pathname === '/' || pathname === '/login') {
+    return NextResponse.redirect(new URL('/access', request.url));
   }
 
-  // Todas as outras rotas (incluindo as que antes eram protegidas) são permitidas
+  // Permite todas as outras solicitações.
+  // O AccessGuard dentro de (app)/layout.tsx protegerá as rotas da aplicação.
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    // Rotas que o middleware deve interceptar
     '/',
-    '/login', // Mantido para redirecionar caso haja algum acesso direto
-    '/dashboard/:path*',
-    '/inserir-venda/:path*',
-    '/dados/:path*',
-    '/editar-venda/:path*',
-    '/faturamento/:path*',
-    '/propostas/:path*',
-    '/configuracoes/:path*',
-    // Evitar que o middleware rode em rotas de API, assets (_next), etc.
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/login', // Mantido para redirecionar acessos diretos legados
+    // O matcher original: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    // alterado para excluir /access explicitamente da lógica do middleware que poderia
+    // redirecionar se '/' fosse interpretado erroneamente.
+    // As rotas internas como /dashboard são permitidas aqui,
+    // e o AccessGuard cuidará delas.
+    '/((?!api|_next/static|_next/image|favicon.ico|access|_next/data).*)',
   ],
 };

@@ -1,19 +1,15 @@
-
 // src/app/page.tsx
 "use client";
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-// useAuth não é mais necessário aqui para lógica de redirecionamento baseada em auth
-// import { useAuth } from '@/hooks/use-auth'; 
 
 export default function HomePage() {
   const router = useRouter();
-  // const { isAuthenticated, loading } = useAuth(); // Removido
 
   useEffect(() => {
-    // Redireciona diretamente para o dashboard
-    router.replace('/dashboard');
+    // Redireciona diretamente para a página de acesso
+    router.replace('/access');
   }, [router]);
 
   return (
