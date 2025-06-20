@@ -1,10 +1,10 @@
 
 export const DEFAULT_LOGIN_CREDENTIALS = {
   username: 'ENGEAR',
-  password: '1313',
+  password: '1313', // Mantido para referência, não usado para login ativo
 };
 
-export const EMAIL_RECOVERY_ADDRESS = 'pastaengear@gmail.com';
+export const EMAIL_RECOVERY_ADDRESS = 'pastaengear@gmail.com'; // Mantido para referência
 
 export const SELLERS = ['SERGIO', 'RODRIGO'] as const;
 export type Seller = (typeof SELLERS)[number];
@@ -29,7 +29,6 @@ export type AreaOption = (typeof AREA_OPTIONS)[number];
 export const STATUS_OPTIONS = ["Á INICAR", "EM ANDAMENTO", "FINALIZADO", "CANCELADO"] as const;
 export type StatusOption = (typeof STATUS_OPTIONS)[number];
 
-// Novas Constantes para Propostas
 export const PROPOSAL_STATUS_OPTIONS = ["Pendente", "Enviada", "Em Negociação", "Aceita", "Recusada", "Cancelada"] as const;
 export type ProposalStatusOption = (typeof PROPOSAL_STATUS_OPTIONS)[number];
 
@@ -54,15 +53,14 @@ export const PROPOSAL_NOTIFICATION_EMAILS = [
 ] as const;
 
 
-export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState';
+export const LOCAL_STORAGE_AUTH_KEY = 'salesAppAuthState'; // Não mais usado para login/logout
 export const LOCAL_STORAGE_SALES_KEY = 'salesAppData';
 export const LOCAL_STORAGE_SETTINGS_KEY = 'salesAppSettings';
 export const LOCAL_STORAGE_QUOTES_KEY = 'salesAppQuotesData';
 export const LOCAL_STORAGE_SELECTED_SELLER_KEY = 'salesAppSelectedSeller';
 
-// Constantes para cookies de autenticação
-export const COOKIE_AUTH_FLAG = 'salesAppAuthFlag'; // Cookie para o middleware
-export const COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 dias em segundos
-export const EXPIRE_COOKIE_STRING = 'Thu, 01 Jan 1970 00:00:00 GMT'; // Data no passado para expirar cookies
-export const SESSION_STORAGE_LOGIN_FLAG = 'salesAppJustLoggedIn';
-
+// Constantes de login/autenticação não são mais necessárias para o fluxo de acesso
+// export const COOKIE_AUTH_FLAG = 'salesAppAuthFlag';
+// export const COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+// export const EXPIRE_COOKIE_STRING = 'Thu, 01 Jan 1970 00:00:00 GMT';
+// export const SESSION_STORAGE_LOGIN_FLAG = 'salesAppJustLoggedIn';

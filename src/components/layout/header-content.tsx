@@ -13,19 +13,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, UserCircle, Moon, Sun, Menu } from 'lucide-react'; // Adicionado Menu
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // AvatarImage removido pois não é usado
+import { UserCircle, Moon, Sun, Menu } from 'lucide-react'; // LogOut removido
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { EMAIL_RECOVERY_ADDRESS } from '@/lib/constants';
+import { EMAIL_RECOVERY_ADDRESS, DEFAULT_LOGIN_CREDENTIALS } from '@/lib/constants';
 
 interface HeaderContentProps {
   toggleMobileMenu: () => void;
 }
 
 export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth(); // logout removido do useAuth
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -36,8 +36,12 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Usar o nome de usuário padrão se o contexto não fornecer um usuário (improvável com a nova lógica)
+  const displayUser = user || { username: DEFAULT_LOGIN_CREDENTIALS.username };
+
+
   return (
-    <header className="sticky top-0 z-30 w-full border-b bg-white dark:bg-white"> {/* z-index ajustado para ficar abaixo da sidebar mobile */}
+    <header className="sticky top-0 z-30 w-full border-b bg-white dark:bg-white">
       <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center">
           <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="mr-2 md:hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -66,13 +70,13 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
             </Button>
           )}
 
-          {user && (
+          {displayUser && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
                   <Avatar className="h-9 w-9">
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {getInitials(user.username)}
+                      {getInitials(displayUser.username)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -80,17 +84,13 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.username}</p>
+                    <p className="text-sm font-medium leading-none">{displayUser.username}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {EMAIL_RECOVERY_ADDRESS.startsWith('pastaengear') ? 'Administrador' : 'Vendedor'}
+                      {EMAIL_RECOVERY_ADDRESS.startsWith('pastaengear') ? 'Administrador' : 'Usuário'}
                     </p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sair</span>
-                </DropdownMenuItem>
+                {/* DropdownMenuSeparator e DropdownMenuItem de Logout removidos */}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

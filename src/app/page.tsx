@@ -4,21 +4,17 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+// useAuth não é mais necessário aqui para lógica de redirecionamento baseada em auth
+// import { useAuth } from '@/hooks/use-auth'; 
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth();
+  // const { isAuthenticated, loading } = useAuth(); // Removido
 
   useEffect(() => {
-    if (!loading) {
-      if (isAuthenticated) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/login');
-      }
-    }
-  }, [loading, isAuthenticated, router]);
+    // Redireciona diretamente para o dashboard
+    router.replace('/dashboard');
+  }, [router]);
 
   return (
     <div className="flex h-screen items-center justify-center bg-background">

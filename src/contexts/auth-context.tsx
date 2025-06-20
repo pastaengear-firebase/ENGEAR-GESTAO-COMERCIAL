@@ -2,74 +2,34 @@
 // src/contexts/auth-context.tsx
 "use client";
 import type React from 'react';
-import { createContext, useState, useCallback, useEffect } from 'react';
-import { DEFAULT_LOGIN_CREDENTIALS, LOCAL_STORAGE_AUTH_KEY, COOKIE_AUTH_FLAG, COOKIE_MAX_AGE_SECONDS, EXPIRE_COOKIE_STRING, SESSION_STORAGE_LOGIN_FLAG } from '@/lib/constants';
+import { createContext, useState, useEffect } from 'react';
+import { DEFAULT_LOGIN_CREDENTIALS } from '@/lib/constants';
 import type { AuthState, AuthContextType, User } from '@/lib/types';
 
+// Estado inicial agora é sempre autenticado
 const initialAuthState: AuthState = {
-  isAuthenticated: false,
-  user: null,
+  isAuthenticated: true,
+  user: { username: DEFAULT_LOGIN_CREDENTIALS.username }, // Usuário padrão
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Pode ainda ser útil para uma carga inicial de outros dados
 
   useEffect(() => {
-    setLoading(true);
-    try {
-      const storedAuthState = localStorage.getItem(LOCAL_STORAGE_AUTH_KEY);
-      if (storedAuthState) {
-        const parsedState: AuthState = JSON.parse(storedAuthState);
-        if (parsedState.isAuthenticated && parsedState.user) {
-          setAuthState(parsedState);
-        } else {
-          localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
-          document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
-          setAuthState(initialAuthState);
-        }
-      } else {
-        document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
-        setAuthState(initialAuthState);
-      }
-    } catch (error) {
-      console.error("AuthProvider: Error loading auth state from localStorage", error);
-      localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
-      document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
-      setAuthState(initialAuthState);
-    } finally {
-      setLoading(false);
-    }
+    // Simula um tempo de carregamento ou realiza outras verificações iniciais se necessário
+    setLoading(false); 
   }, []);
 
-  const login = useCallback(async (username: string, passwordAttempt: string) => {
-    if (username === DEFAULT_LOGIN_CREDENTIALS.username && passwordAttempt === DEFAULT_LOGIN_CREDENTIALS.password) {
-      const newAuthenticatedState: AuthState = { isAuthenticated: true, user: { username } };
-      
-      setAuthState(newAuthenticatedState);
-      localStorage.setItem(LOCAL_STORAGE_AUTH_KEY, JSON.stringify(newAuthenticatedState));
-      document.cookie = `${COOKIE_AUTH_FLAG}=true; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
-      sessionStorage.setItem(SESSION_STORAGE_LOGIN_FLAG, 'true');
-      window.location.assign('/dashboard'); // Forçar redirecionamento
-    } else {
-      throw new Error('Credenciais inválidas.');
-    }
-  }, []);
-
-  const logout = useCallback(() => {
-    setAuthState(initialAuthState);
-    localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
-    document.cookie = `${COOKIE_AUTH_FLAG}=; path=/; expires=${EXPIRE_COOKIE_STRING}`;
-    sessionStorage.removeItem(SESSION_STORAGE_LOGIN_FLAG);
-    window.location.assign('/login'); 
-  }, []);
+  // Funções login e logout não são mais necessárias para o acesso direto
+  // const login = useCallback(...) => { ... };
+  // const logout = useCallback(...) => { ... };
 
   return (
-    <AuthContext.Provider value={{ ...authState, login, logout, loading }}>
+    <AuthContext.Provider value={{ ...authState, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
-
