@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit3, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, AlertTriangle, CheckCircle, ClipboardList } from 'lucide-react'; // Added ClipboardList
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -143,3 +143,4 @@ export default function PlannerTable({ plannerItems, onEdit, onDelete, disabledA
     </ScrollArea>
   );
 }
+
