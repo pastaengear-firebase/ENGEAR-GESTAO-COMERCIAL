@@ -9,13 +9,13 @@ interface LogoProps {
   height?: number;
 }
 
-const Logo: React.FC<LogoProps> = ({ className, width = 315, height = 90 }) => {
+const Logo: React.FC<LogoProps> = ({ className, width = 840, height = 240 }) => {
   // URL da imagem do logo fornecida pelo usuário
   const logoImagePath = "https://storage.googleapis.com/ecdt-logo-saida/14f838ca6736777a8b269b79cae43b2b84900eb9dd53c910eef80890010193ea/ENGEAR.webp";
   const altText = "ENGEAR Logo";
 
-  const actualWidth = width || 315; // Default width increased by 50%
-  const actualHeight = height || 90; // Default height increased by 50%
+  const actualWidth = width || 840; // Default width increased
+  const actualHeight = height || 240; // Default height increased
 
   return (
     <div
