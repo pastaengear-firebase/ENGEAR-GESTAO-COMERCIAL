@@ -34,7 +34,7 @@ const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
           objectFit: 'contain',
           // Se for responsivo, ocupa 100% da largura do contêiner.
           // Se não, o tamanho é controlado pelos props 'width' e 'height' do Next/Image.
-          width: isResponsive ? '100%' : finalWidth,
+          width: isResponsive ? '100%' : 'auto',
           height: 'auto',
         }}
         priority
