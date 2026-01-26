@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    // unoptimized: true, // Removida a desotimização global
+    unoptimized: true,
   },
   allowedDevOrigins: ['https://6000-firebase-studio-1747639280840.cluster-etsqrqvqyvd4erxx7qq32imrjk.cloudworkstations.dev'],
 };
