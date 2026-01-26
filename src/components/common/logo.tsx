@@ -10,7 +10,7 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
-  const logoImagePath = "https://i.ibb.co/GfWMfMY/novologoe.png"; // URL Corrigida e validada
+  const logoImagePath = "https://i.ibb.co/GfWMfMY/novologoe.png";
   const altText = "ENGEAR Logo";
 
   // Determina se o logo deve ser responsivo (se width/height não forem passados)
@@ -26,6 +26,7 @@ const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
     // O div wrapper. A classe 'className' vinda de fora controlará o tamanho.
     <div className={cn(className)}>
       <Image
+        unoptimized={true}
         src={logoImagePath}
         alt={altText}
         width={finalWidth}
