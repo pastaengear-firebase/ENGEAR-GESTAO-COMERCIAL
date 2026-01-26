@@ -10,7 +10,7 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
-  const logoImagePath = "https://i.ibb.co/GfWMfMY/novologoe.png";
+  const logoImagePath = "https://i.ibb.co/gTrpD8p/novologoe.jpg";
   const altText = "ENGEAR Logo";
 
   // Determina se o logo deve ser responsivo (se width/height não forem passados)
