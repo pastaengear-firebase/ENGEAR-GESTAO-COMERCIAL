@@ -38,6 +38,7 @@ const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
           height: 'auto',
         }}
         priority
+        unoptimized={true}
       />
     </div>
   );
