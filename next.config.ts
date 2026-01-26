@@ -17,18 +17,6 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      { // Adicionado para permitir imagens do Google Storage
-        protocol: 'https',
-        hostname: 'storage.googleapis.com',
-        port: '',
-        pathname: '/**',
-      },
-      { // Adicionado para permitir imagens do i.ibb.co
-        protocol: 'https',
-        hostname: 'i.ibb.co',
-        port: '',
-        pathname: '/**',
-      },
     ],
   },
   allowedDevOrigins: ['https://6000-firebase-studio-1747639280840.cluster-etsqrqvqyvd4erxx7qq32imrjk.cloudworkstations.dev'],
