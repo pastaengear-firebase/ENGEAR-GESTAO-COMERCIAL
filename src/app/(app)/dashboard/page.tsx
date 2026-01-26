@@ -3,7 +3,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, ListChecks, TrendingUp, Printer, CalendarDays, Banknote, BarChart3, Filter, FileText, ListPlus, CalendarCheck2, Percent, FileSignature, ArrowRightLeft } from "lucide-react";
+import { DollarSign, ListChecks, TrendingUp, Printer, Banknote, BarChart3, Filter, FileText, FileSignature, Percent, AlertTriangle, CalendarCheck2 } from "lucide-react";
 import SalesCharts from "@/components/sales/sales-charts";
 import { useSales } from "@/hooks/use-sales";
 import { useQuotes } from "@/hooks/use-quotes"; // Import useQuotes
@@ -12,6 +12,9 @@ import type { Sale, Quote } from '@/lib/types';
 import { ALL_SELLERS_OPTION } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
+import { isBefore, subDays, parseISO } from 'date-fns';
+import Link from "next/link";
+
 
 const calculateWorkingDays = (from: Date, to: Date): number => {
   let count = 0;
@@ -153,6 +156,23 @@ export default function DashboardPage() {
     return "0.00";
   }, [totalProposalsCount, workingDaysInPeriod]);
 
+  // Lógica para Faturamentos Atrasados
+  const pendingBillingSales = useMemo(() => {
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    // Filtro independente do ano selecionado para o alerta ser global
+    return allSales.filter(sale => {
+        try {
+            const saleDate = parseISO(sale.date);
+            const isPendingPayment = sale.payment < sale.salesValue;
+            const isPendingStatus = sale.status === 'Á INICAR' || sale.status === 'EM ANDAMENTO';
+            const isOlderThan30Days = isBefore(saleDate, thirtyDaysAgo);
+            return isPendingPayment && isPendingStatus && isOlderThan30Days;
+        } catch (e) {
+            return false;
+        }
+    });
+  }, [allSales]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -198,6 +218,22 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {/* Card de Alerta de Faturamento Atrasado */}
+        {pendingBillingSales.length > 0 && (
+            <Link href="/faturamento#cobranca" className="xl:col-span-1">
+                <Card className="shadow-lg hover:shadow-xl transition-shadow border-2 border-amber-500 bg-amber-50/80 dark:bg-amber-900/30 animate-pulse-slow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-400">Faturamentos Atrasados</CardTitle>
+                        <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-amber-900 dark:text-amber-300">{pendingBillingSales.length}</div>
+                        <p className="text-xs text-muted-foreground">Vendas com mais de 30 dias pendentes.</p>
+                    </CardContent>
+                </Card>
+            </Link>
+        )}
+
         {/* KPIs de Vendas */}
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -334,6 +370,18 @@ export default function DashboardPage() {
             size: A4 landscape;
             margin: 10mm;
           }
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .8;
+            }
         }
       `}</style>
     </div>
