@@ -36,7 +36,7 @@ export default function AccessPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-background to-background p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="items-center text-center">
-          <Logo className="mb-6" />
+          <Logo className="mb-6 w-full max-w-[300px] p-1" />
           <CardTitle className="text-3xl font-bold tracking-tight text-foreground">
             CONTROLE DE VENDAS
           </CardTitle>

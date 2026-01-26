@@ -9,29 +9,34 @@ interface LogoProps {
   height?: number;
 }
 
-const Logo: React.FC<LogoProps> = ({ className, width = 840, height = 240 }) => {
-  // URL da imagem do logo fornecida pelo usuário
+const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
   const logoImagePath = "https://storage.googleapis.com/ecdt-logo-saida/14f838ca6736777a8b269b79cae43b2b84900eb9dd53c910eef80890010193ea/ENGEAR.webp";
   const altText = "ENGEAR Logo";
 
-  const actualWidth = width || 840; // Default width increased
-  const actualHeight = height || 240; // Default height increased
+  // Determina se o logo deve ser responsivo (se width/height não forem passados)
+  const isResponsive = !width && !height;
+  
+  // Define os valores de width/height para o componente Image.
+  // Para o caso responsivo, usamos valores altos para definir a proporção.
+  // Para o caso de tamanho fixo, usamos os valores passados.
+  const finalWidth = width || 840;
+  const finalHeight = height || 240;
 
   return (
-    <div
-      className={cn(
-        'inline-flex items-center justify-center bg-white p-1', // Fundo branco e padding
-        className
-      )}
-      style={{ width: `${actualWidth}px`, height: `${actualHeight}px` }}
-      title={altText}
-    >
+    // O div wrapper. A classe 'className' vinda de fora controlará o tamanho.
+    <div className={cn('bg-white', className)}>
       <Image
         src={logoImagePath}
         alt={altText}
-        width={actualWidth}
-        height={actualHeight}
-        style={{ objectFit: 'contain', width: '100%', height: '100%' }}
+        width={finalWidth}
+        height={finalHeight}
+        style={{
+          objectFit: 'contain',
+          // Se for responsivo, ocupa 100% da largura do contêiner.
+          // Se não, o tamanho é controlado pelos props 'width' e 'height' do Next/Image.
+          width: isResponsive ? '100%' : finalWidth,
+          height: 'auto',
+        }}
         priority
       />
     </div>
