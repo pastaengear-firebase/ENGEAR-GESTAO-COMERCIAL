@@ -9,8 +9,8 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
-  // Usando o link direto para a imagem JPG com uma tag <img> padrão.
-  const logoImagePath = "https://i.ibb.co/GfWMfMY/novologoe.jpg";
+  // Usando um placeholder porque o link do imgbb não é um link direto para a imagem.
+  const logoImagePath = "https://placehold.co/300x80/ffffff/661923?text=ENGEAR&font=sans";
   const altText = "ENGEAR Logo";
 
   return (
