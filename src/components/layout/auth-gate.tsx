@@ -3,7 +3,6 @@
 
 import { useUser } from '@/firebase';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 const PUBLIC_ROUTES = ['/login', '/signup', '/auth/forgot-password'];
@@ -15,29 +14,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (loading) return; // Wait until user status is resolved
-
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-    const isVerifyRoute = pathname === VERIFY_EMAIL_ROUTE;
-
-    if (user) { // Logged in
-      if (user.emailVerified) { // Verified
-        if (isPublicRoute || isVerifyRoute) {
-          router.replace(HOME_ROUTE);
-        }
-      } else { // Not verified
-        if (!isVerifyRoute) {
-          router.replace(VERIFY_EMAIL_ROUTE);
-        }
-      }
-    } else { // Not logged in
-      if (!isPublicRoute) { 
-         router.replace('/login');
-      }
-    }
-  }, [user, loading, router, pathname]);
-
+  // 1. Se o estado do usuário ainda está carregando, mostre um loader global e não faça mais nada.
+  // Isso impede qualquer decisão baseada em dados incompletos.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -46,35 +24,55 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Determine if we should render children or a loader while a redirect is pending
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
   const isVerifyRoute = pathname === VERIFY_EMAIL_ROUTE;
 
+  // 2. O estado do usuário está definido. Agora, tomamos decisões de roteamento.
+
+  // Cenário: Usuário está logado
   if (user) {
+    // Se o e-mail está verificado, o lugar dele é dentro da aplicação.
     if (user.emailVerified) {
-      // If user is verified but on a public/verify page, show loader while redirecting
-      if (isPublicRoute || isVerifyRoute) return (
-         <div className="flex h-screen w-full items-center justify-center bg-background">
+      // Se ele está em uma página pública ou na de verificação, redirecione para o dashboard.
+      if (isPublicRoute || isVerifyRoute) {
+        router.replace(HOME_ROUTE);
+        // Enquanto o redirecionamento ocorre, mostre o loader para evitar flashes de conteúdo.
+        return (
+          <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-         </div>
-      );
-    } else {
-      // If user is not verified and not on the verify page, show loader while redirecting
-      if (!isVerifyRoute) return (
-         <div className="flex h-screen w-full items-center justify-center bg-background">
+          </div>
+        );
+      }
+    } 
+    // Se o e-mail não está verificado, o único lugar onde ele pode estar é na página de verificação.
+    else {
+      if (!isVerifyRoute) {
+        router.replace(VERIFY_EMAIL_ROUTE);
+        // Enquanto o redirecionamento ocorre, mostre o loader.
+        return (
+          <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-         </div>
+          </div>
+        );
+      }
+    }
+  }
+  // Cenário: Usuário NÃO está logado
+  else {
+    // Se ele tentar acessar qualquer página protegida, redirecione para o login.
+    if (!isPublicRoute) {
+      router.replace('/login');
+       // Enquanto o redirecionamento ocorre, mostre o loader.
+      return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
       );
     }
-  } else {
-    // If user is not logged in and on a protected page, show loader while redirecting
-    if (!isPublicRoute) return (
-       <div className="flex h-screen w-full items-center justify-center bg-background">
-         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-       </div>
-    );
   }
 
-  // If no redirection is needed, render the children for the current route
+  // 3. Se nenhuma das condições acima acionou um redirecionamento, significa que o usuário
+  // está exatamente onde deveria estar (ex: não logado e na página de login).
+  // Só então renderizamos o conteúdo da rota solicitada.
   return <>{children}</>;
 }
