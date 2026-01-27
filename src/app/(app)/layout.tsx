@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import SidebarNav from '@/components/layout/sidebar-nav';
 import HeaderContent from '@/components/layout/header-content';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import { APP_ACCESS_GRANTED_KEY } from '@/lib/constants';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       // If access is granted, allow rendering the children.
       setIsAuthorized(true);
     } else {
-      // If not, redirect to the login page.
+      // If not, redirect to the login page (root).
       router.replace('/');
     }
   }, [router]);
@@ -28,16 +27,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
-  // While not authorized, render a full-screen loader.
-  // This prevents any "flash" of the protected content (children)
-  // because the component returns here before reaching the children.
+  // While not authorized, render nothing.
+  // This prevents any "flash" of the protected content because the component
+  // returns null before the useEffect has a chance to run and confirm authorization.
+  // This is the key fix to the navigation/rendering race condition.
   if (!isAuthorized) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg">Verificando autorização...</p>
-      </div>
-    );
+    return null;
   }
 
   // Only once authorization is confirmed, render the main app layout.
