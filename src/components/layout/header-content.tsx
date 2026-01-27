@@ -13,8 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // AvatarImage removido pois não é usado
-import { UserCircle, Moon, Sun, Menu } from 'lucide-react'; // LogOut removido
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserCircle, Moon, Sun, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ interface HeaderContentProps {
 }
 
 export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) {
-  const { user } = useAuth(); // logout removido do useAuth
+  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -36,7 +36,7 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Usar o nome de usuário padrão se o contexto não fornecer um usuário (improvável com a nova lógica)
+  // Usar o nome de usuário padrão se o contexto não fornecer um usuário
   const displayUser = user || { username: DEFAULT_LOGIN_CREDENTIALS.username };
 
 
@@ -90,7 +90,6 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
                     </p>
                   </div>
                 </DropdownMenuLabel>
-                {/* DropdownMenuSeparator e DropdownMenuItem de Logout removidos */}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

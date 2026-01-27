@@ -1,7 +1,6 @@
 // src/components/sales/sales-table.tsx
 "use client";
 import type { Sale } from '@/lib/types';
-// import { useSales } from '@/hooks/use-sales'; // No longer needed for deleteSale
 import {
   Table,
   TableBody,
@@ -10,41 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-// import { Button } from '@/components/ui/button'; // No longer needed for actions
 import { Badge } from '@/components/ui/badge';
-// import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'; // No longer needed
-// import { MoreHorizontal, Edit3, Trash2 } from 'lucide-react'; // No longer needed for actions
-import { Eye } from 'lucide-react'; // Keep Eye for empty state
-// import { useRouter } from 'next/navigation'; // No longer needed for edit navigation
+import { Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-// import { useToast } from '@/hooks/use-toast'; // No longer needed for delete toast
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-// import {
-//   AlertDialog,
-//   AlertDialogAction,
-//   AlertDialogCancel,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogFooter,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-// } from "@/components/ui/alert-dialog" // No longer needed here
-// import { useState } from 'react'; // No longer needed for dialog state
 
 interface SalesTableProps {
   salesData: Sale[];
 }
 
 export default function SalesTable({ salesData }: SalesTableProps) {
-  // const { deleteSale } = useSales(); // Moved to EditarVendaPage
-  // const router = useRouter(); // Moved to EditarVendaPage
-  // const { toast } = useToast(); // Moved to EditarVendaPage
-  // const [dialogOpen, setDialogOpen] = useState(false); // Moved to EditarVendaPage
-  // const [saleToDelete, setSaleToDelete] = useState<string | null>(null); // Moved to EditarVendaPage
-
-  // Edit and Delete handlers are removed as actions are moved to EditarVendaPage
-
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
     switch (status) {
       case 'FINALIZADO':
@@ -116,7 +91,6 @@ export default function SalesTable({ salesData }: SalesTableProps) {
       </Table>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
-    {/* AlertDialog moved to EditarVendaPage */}
       <style jsx global>{`
         @media print {
           body * {
