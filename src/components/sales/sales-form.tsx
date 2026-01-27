@@ -1,4 +1,3 @@
-
 // src/components/sales/sales-form.tsx
 "use client";
 import type React from 'react';
@@ -18,22 +17,19 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CalendarIcon, DollarSign, Save, RotateCcw, Sparkles, Info } from 'lucide-react';
+import { CalendarIcon, DollarSign, Save, RotateCcw, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { suggestSalesImprovements, type SuggestSalesImprovementsInput, type SuggestSalesImprovementsOutput } from '@/ai/flows/suggest-sales-improvements';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { Sale, Quote } from '@/lib/types';
 
 interface SalesFormProps {
-  onFormChange?: (data: Partial<SalesFormData>) => void;
-  onSuggestionsFetched?: (suggestions: SuggestSalesImprovementsOutput | null) => void;
   showReadOnlyAlert?: boolean;
 }
 
-export default function SalesForm({ onFormChange, onSuggestionsFetched, showReadOnlyAlert }: SalesFormProps) {
+export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
   const { addSale, getSaleById, updateSale, selectedSeller: globalSelectedSeller } = useSales();
   const { getQuoteById: getQuoteByIdFromContext, updateQuote: updateQuoteStatus } = useQuotes();
   const { settings: appSettings, loadingSettings } = useSettings(); 
@@ -46,7 +42,6 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
   const fromQuoteId = searchParams.get('fromQuoteId');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [displayedSeller, setDisplayedSeller] = useState<Seller | typeof ALL_SELLERS_OPTION | undefined>(undefined);
 
   const isEffectivelyReadOnly = globalSelectedSeller === ALL_SELLERS_OPTION || (fromQuoteId && displayedSeller && globalSelectedSeller !== displayedSeller);
@@ -139,47 +134,6 @@ export default function SalesForm({ onFormChange, onSuggestionsFetched, showRead
     initializeForm();
   }, [editSaleId, fromQuoteId, getSaleById, getQuoteByIdFromContext, form, toast, router, globalSelectedSeller, pathname]);
 
-  const handleDataChange = () => {
-    if (onFormChange) {
-      onFormChange(form.getValues());
-    }
-  };
-
-  const fetchSuggestions = async () => {
-    const formData = form.getValues();
-    if (!formData.company || !formData.area || !formData.status || !formData.date) { 
-      toast({
-        title: "Campos Incompletos",
-        description: "Por favor, preencha todos os campos obrigatórios (Data, Empresa, Área, Status) antes de verificar com IA.",
-        variant: "destructive",
-      });
-      if (onSuggestionsFetched) onSuggestionsFetched(null);
-      return;
-    }
-
-    setIsFetchingSuggestions(true);
-    try {
-      const aiInput: SuggestSalesImprovementsInput = {
-        date: format(formData.date, 'yyyy-MM-dd'),
-        company: formData.company!,
-        project: formData.project,
-        os: formData.os,
-        area: formData.area!,
-        clientService: formData.clientService,
-        salesValue: Number(formData.salesValue) || 0,
-        status: formData.status!,
-        payment: Number(formData.payment) || 0,
-      };
-      const suggestions = await suggestSalesImprovements(aiInput);
-      if (onSuggestionsFetched) onSuggestionsFetched(suggestions);
-    } catch (error) {
-      console.error("Error fetching AI suggestions:", error);
-      toast({ title: "Erro IA", description: "Não foi possível buscar sugestões.", variant: "destructive" });
-      if (onSuggestionsFetched) onSuggestionsFetched(null);
-    } finally {
-      setIsFetchingSuggestions(false);
-    }
-  };
 
   const triggerEmailNotification = (sale: Sale) => {
     if (loadingSettings || !appSettings.enableEmailNotifications || appSettings.notificationEmails.length === 0) {
@@ -315,7 +269,6 @@ Sistema de Controle de Vendas ENGEAR
       } else {
         setDisplayedSeller(ALL_SELLERS_OPTION);
       }
-      if (onSuggestionsFetched) onSuggestionsFetched(null);
 
       // Lógica de redirecionamento
       if (pathname.startsWith('/editar-venda') && editSaleId) {
@@ -339,7 +292,7 @@ Sistema de Controle de Vendas ENGEAR
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" onChange={handleDataChange}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {showReadOnlyAlert && isEffectivelyReadOnly && (
           <Alert variant="default" className="bg-amber-50 border-amber-300 text-amber-700">
             <Info className="h-4 w-4 !text-amber-600" />
@@ -595,20 +548,6 @@ Sistema de Controle de Vendas ENGEAR
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button
             type="button"
-            variant="outline"
-            onClick={fetchSuggestions}
-            disabled={isEffectivelyReadOnly || isFetchingSuggestions || isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            {isFetchingSuggestions ? (
-              <Sparkles className="mr-2 h-4 w-4 animate-pulse" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            Verificar com IA
-          </Button>
-          <Button
-            type="button"
             variant="ghost"
             onClick={() => {
               form.reset({ 
@@ -630,7 +569,6 @@ Sistema de Controle de Vendas ENGEAR
               } else if (fromQuoteId) { // If was converting, go back to new sale page (clears query param)
                  router.push('/inserir-venda');
               }
-              if (onSuggestionsFetched) onSuggestionsFetched(null);
             }}
             disabled={isSubmitting}
             className="w-full sm:w-auto"
@@ -649,4 +587,3 @@ Sistema de Controle de Vendas ENGEAR
     </Form>
   );
 }
-
