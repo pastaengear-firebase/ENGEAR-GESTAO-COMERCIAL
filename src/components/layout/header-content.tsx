@@ -45,7 +45,7 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
       toast({ title: "Sucesso", description: "Você foi desconectado com segurança." });
 
       // Force a hard reload to the login page to clear all state.
-      window.location.href = '/login';
+      window.location.href = '/';
     } catch (error) {
       console.error("Logout failed:", error);
       toast({ title: "Erro ao Sair", description: "Não foi possível desconectar. Tente novamente.", variant: "destructive" });

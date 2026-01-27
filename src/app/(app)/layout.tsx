@@ -20,11 +20,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const accessGranted = sessionStorage.getItem(APP_ACCESS_GRANTED_KEY) === 'true';
 
     if (!accessGranted) {
-      // If the password was never entered, redirect to login immediately.
-      router.replace('/login');
+      // If the password was never entered, redirect to the root login page.
+      router.replace('/');
     } else {
       // If the password was entered, trust that and authorize the view.
-      // The Firebase user session will catch up. This prevents the redirect loop.
       setIsAuthorized(true);
     }
   }, [router]);
