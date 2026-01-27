@@ -1,8 +1,6 @@
-
 // src/components/layout/header-content.tsx
 "use client";
 import { useAuth } from '@/hooks/use-auth';
-import Logo from '@/components/common/logo';
 import SellerSelector from '@/components/common/seller-selector';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +13,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { UserCircle, Moon, Sun, Menu } from 'lucide-react';
-import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { EMAIL_RECOVERY_ADDRESS, DEFAULT_LOGIN_CREDENTIALS } from '@/lib/constants';
@@ -48,9 +45,6 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
             <Menu className="h-6 w-6" />
             <span className="sr-only">Abrir menu</span>
           </Button>
-          <Link href="/dashboard" className="flex items-center">
-            <Logo width={100} height={32} />
-          </Link>
         </div>
         
         <div className="flex flex-1 items-center justify-end space-x-2 sm:space-x-4">
