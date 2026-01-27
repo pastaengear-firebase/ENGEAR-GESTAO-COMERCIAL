@@ -21,11 +21,11 @@ export default function RootPage() {
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    // Se um usuário já tiver acesso, redirecione-o para o dashboard
+    // If a user already has access, redirect them to the dashboard
     if (sessionStorage.getItem(APP_ACCESS_GRANTED_KEY) === 'true') {
       router.replace('/dashboard');
     } else {
-      // Caso contrário, pare de verificar e mostre o formulário de login
+      // Otherwise, stop verifying and show the login form
       setIsVerifying(false);
     }
   }, [router]);
@@ -55,9 +55,9 @@ export default function RootPage() {
     }
 
     try {
-      // Garante uma sessão anônima do Firebase para operações de banco de dados
+      // Ensures an anonymous Firebase session for database operations
       await signInAnonymously(auth);
-      // Concede acesso para esta sessão do navegador
+      // Grant access for this browser session
       sessionStorage.setItem(APP_ACCESS_GRANTED_KEY, 'true');
 
       toast({
@@ -65,11 +65,11 @@ export default function RootPage() {
         description: "Bem-vindo ao sistema de controle de vendas.",
       });
 
-      // Redireciona para o dashboard após o sucesso
+      // Redirect to the dashboard upon success
       router.replace('/dashboard');
     } catch (error) {
       console.error("Erro no login anônimo:", error);
-      sessionStorage.removeItem(APP_ACCESS_GRANTED_KEY); // Limpa em caso de falha
+      sessionStorage.removeItem(APP_ACCESS_GRANTED_KEY); // Clean up on failure
       toast({
         title: "Erro de Conexão",
         description: "Não foi possível estabelecer uma sessão segura. Tente novamente.",
@@ -79,7 +79,7 @@ export default function RootPage() {
     }
   };
   
-  // Mostra um loader enquanto verifica a sessão para evitar um "flash" do formulário de login
+  // Show a loader while verifying the session to prevent a "flash" of the login form
   if (isVerifying) {
      return (
         <div className="flex h-screen items-center justify-center bg-background">
@@ -88,7 +88,7 @@ export default function RootPage() {
      );
   }
 
-  // Renderiza a página de login
+  // Render the login page
   return (
     <div className="flex h-screen w-full items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="w-full max-w-sm space-y-8 rounded-xl bg-white dark:bg-gray-800 p-8 shadow-lg text-center">

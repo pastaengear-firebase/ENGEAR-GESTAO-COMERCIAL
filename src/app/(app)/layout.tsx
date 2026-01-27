@@ -15,17 +15,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    // Esta verificação é a única fonte de verdade para autorização.
+    // This check is the single source of truth for authorization.
     const accessGranted = sessionStorage.getItem(APP_ACCESS_GRANTED_KEY) === 'true';
 
     if (!accessGranted) {
-      // Se a senha nunca foi inserida, redireciona para a página de login (a raiz).
+      // If the password was never entered, redirect to the login page (the root).
       router.replace('/');
     } else {
-      // Se a senha foi inserida, autoriza a visualização.
+      // If the password was entered, authorize the view.
       setIsAuthorized(true);
     }
-    // Marca a verificação como concluída.
+    // Mark verification as complete.
     setIsVerifying(false);
   }, [router]);
 
@@ -38,8 +38,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setIsMobileMenuOpen(false);
   };
 
-  // Enquanto verifica a autorização, exibe um loader em tela cheia.
-  // Isso impede que o conteúdo protegido apareça brevemente antes do redirecionamento.
+  // While verifying authorization, display a full-screen loader.
+  // This prevents protected content from flashing briefly before redirection.
   if (isVerifying) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -49,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Se a verificação terminou e o usuário está autorizado, renderiza a aplicação.
+  // If verification is done and the user is authorized, render the application.
   if (isAuthorized) {
     return (
         <div className="flex min-h-screen flex-col">
@@ -66,8 +66,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Se a verificação terminou e o usuário não está autorizado,
-  // exibe o loader enquanto o redirecionamento (iniciado no useEffect) acontece.
+  // If verification is done and the user is not authorized,
+  // show the loader while the redirection (initiated in useEffect) happens.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
