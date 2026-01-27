@@ -14,8 +14,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // 1. Se o estado do usuário ainda está carregando, mostre um loader global e não faça mais nada.
-  // Isso impede qualquer decisão baseada em dados incompletos.
+  // 1. Show a global loader while auth state is being determined.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -27,42 +26,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
   const isVerifyRoute = pathname === VERIFY_EMAIL_ROUTE;
 
-  // 2. O estado do usuário está definido. Agora, tomamos decisões de roteamento.
-
-  // Cenário: Usuário está logado
-  if (user) {
-    // Se o e-mail está verificado, o lugar dele é dentro da aplicação.
-    if (user.emailVerified) {
-      // Se ele está em uma página pública ou na de verificação, redirecione para o dashboard.
-      if (isPublicRoute || isVerifyRoute) {
-        router.replace(HOME_ROUTE);
-        // Enquanto o redirecionamento ocorre, mostre o loader para evitar flashes de conteúdo.
-        return (
-          <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          </div>
-        );
-      }
-    } 
-    // Se o e-mail não está verificado, o único lugar onde ele pode estar é na página de verificação.
-    else {
-      if (!isVerifyRoute) {
-        router.replace(VERIFY_EMAIL_ROUTE);
-        // Enquanto o redirecionamento ocorre, mostre o loader.
-        return (
-          <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          </div>
-        );
-      }
-    }
-  }
-  // Cenário: Usuário NÃO está logado
-  else {
-    // Se ele tentar acessar qualquer página protegida, redirecione para o login.
+  // 2. Handle routing for Anonymous users (no user logged in).
+  if (!user) {
+    // If the user is not logged in, they can only be on public routes.
+    // Any other route should redirect to login.
     if (!isPublicRoute) {
       router.replace('/login');
-       // Enquanto o redirecionamento ocorre, mostre o loader.
+      // Show loader during redirect to prevent content flash.
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -70,9 +40,40 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       );
     }
   }
+  
+  // 3. Handle routing for Logged-in users.
+  if (user) {
+    // 3a. User is logged in and their email is verified.
+    if (user.emailVerified) {
+      // If they are on a public page or the verification page, they should be
+      // redirected to the main application (dashboard).
+      if (isPublicRoute || isVerifyRoute) {
+        router.replace(HOME_ROUTE);
+        // Show loader during redirect.
+        return (
+          <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        );
+      }
+    } 
+    // 3b. User is logged in but email is NOT verified.
+    else {
+      // Their one and only allowed page is the verification page.
+      // If they are on any other page, redirect them there.
+      if (!isVerifyRoute) {
+        router.replace(VERIFY_EMAIL_ROUTE);
+        // Show loader during redirect.
+        return (
+          <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        );
+      }
+    }
+  }
 
-  // 3. Se nenhuma das condições acima acionou um redirecionamento, significa que o usuário
-  // está exatamente onde deveria estar (ex: não logado e na página de login).
-  // Só então renderizamos o conteúdo da rota solicitada.
+  // 4. If no redirect was triggered, the user is on the correct page for their state.
+  // Render the requested page content.
   return <>{children}</>;
 }
