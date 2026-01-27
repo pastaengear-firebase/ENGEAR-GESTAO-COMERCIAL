@@ -1,13 +1,12 @@
 // src/firebase/config.ts
 
-// IMPORTANT: REPLACE WITH YOUR FIREBASE PROJECT CONFIG
-// Go to your Firebase project console:
-// Project settings > General > Your apps > Web app > Firebase SDK snippet > Config
+// This configuration was provided by the user to connect to their Firebase project.
 export const firebaseConfig = {
-  apiKey: "REPLACE_WITH_YOUR_API_KEY",
-  authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
+  apiKey: "AIzaSyDEp4s4w3f5H-PlCZDmyBpnxvTCrjpw73w",
+  authDomain: "controle-vendas-engearv5.firebaseapp.com",
   projectId: "controle-vendas-engearv5",
-  storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
-  appId: "REPLACE_WITH_YOUR_APP_ID"
+  storageBucket: "controle-vendas-engearv5.firebasestorage.app",
+  messagingSenderId: "73786943290",
+  appId: "1:73786943290:web:8583a6c0c389d950061203",
+  measurementId: "G-WZ5GQ4GZ6D"
 };
