@@ -11,9 +11,12 @@ import { APP_ACCESS_GRANTED_KEY } from '@/lib/constants';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { loading: userLoading } = useUser();
   const router = useRouter();
+  // This state is the single source of truth for authorization.
   const [isAuthorized, setIsAuthorized] = useState(false);
+  // We still get user and its loading state for other parts of the UI,
+  // but it's no longer part of the primary authorization gate.
+  const { loading: userLoading } = useUser();
 
   useEffect(() => {
     // This check must run on the client after hydration.
@@ -38,8 +41,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setIsMobileMenuOpen(false);
   };
 
-  // While checking authorization or waiting for Firebase user, show a loader.
-  // This prevents content flashing if the user is unauthorized.
+  // While checking authorization OR waiting for Firebase user data, show a loader.
+  // This prevents content from flashing if the user is unauthorized and provides a smoother experience.
   if (!isAuthorized || userLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">

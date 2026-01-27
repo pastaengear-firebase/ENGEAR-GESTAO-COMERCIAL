@@ -19,6 +19,7 @@ export default function RootPage() {
   const { toast } = useToast();
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // This state prevents the login form from flashing if the user is already logged in.
   const [isVerifying, setIsVerifying] = useState(true);
 
   // This effect acts as the main gatekeeper.
