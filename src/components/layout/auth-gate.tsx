@@ -5,13 +5,11 @@ import { useUser } from '@/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import type React from 'react';
-import { useEffect, useState } from 'react';
 
 const PUBLIC_ROUTES = ['/login', '/signup', '/auth/forgot-password'];
 const VERIFY_EMAIL_ROUTE = '/auth/verify-email';
 const HOME_ROUTE = '/dashboard';
 
-// A full-screen loader to prevent any content flashing.
 const GlobalLoader = () => (
   <div className="flex h-screen w-full items-center justify-center bg-background">
     <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -22,63 +20,53 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useUser();
   const router = useRouter();
   const pathname = usePathname();
-  // isRouting state helps prevent rendering children during a redirect.
-  const [isRouting, setIsRouting] = useState(true); 
 
-  useEffect(() => {
-    // If Firebase auth is still loading, we don't know the user's state yet.
-    // Keep showing the loader and wait.
-    if (authLoading) {
-      setIsRouting(true); // Keep showing loader
-      return;
-    }
-
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-    const isVerifyRoute = pathname === VERIFY_EMAIL_ROUTE;
-    let targetRoute: string | null = null;
-
-    if (!user) {
-      // STATE: User is not logged in.
-      // If they are not on a public route, redirect them to login.
-      if (!isPublicRoute) {
-        targetRoute = '/login';
-      }
-    } else {
-      // STATE: User is logged in.
-      if (!user.emailVerified) {
-        // SUB-STATE: User's email is not verified.
-        // If they are not on the verification page, redirect them there.
-        if (!isVerifyRoute) {
-          targetRoute = VERIFY_EMAIL_ROUTE;
-        }
-      } else {
-        // SUB-STATE: User is fully authenticated and verified.
-        // If they are on a public route or the verification page,
-        // they should be redirected to the main app dashboard.
-        if (isPublicRoute || isVerifyRoute) {
-          targetRoute = HOME_ROUTE;
-        }
-      }
-    }
-
-    if (targetRoute && pathname !== targetRoute) {
-      // A redirect is necessary.
-      setIsRouting(true); // Ensure loader stays visible during redirect.
-      router.replace(targetRoute);
-    } else {
-      // No redirect is needed, the user is on the correct page.
-      // We can stop routing and show the page content.
-      setIsRouting(false);
-    }
-  }, [authLoading, user, pathname, router]);
-
-  // While auth is loading or a redirect is in progress, show the global loader.
-  // This is the core fix: we don't render `children` until we are certain
-  // the user is on the correct page.
-  if (isRouting) {
+  // 1. Enquanto a autenticação está carregando, sempre mostre o loader.
+  // Isso impede que qualquer conteúdo filho seja renderizado até que o estado do usuário seja conhecido.
+  if (authLoading) {
     return <GlobalLoader />;
   }
 
-  // Auth is resolved, no redirect is needed. Render the actual page content.
-  return <>{children}</>;
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isVerifyRoute = pathname === VERIFY_EMAIL_ROUTE;
+
+  // 2. Lógica para usuários não autenticados.
+  if (!user) {
+    if (isPublicRoute) {
+      // O usuário não está logado e está em uma página pública. Isso está correto.
+      return <>{children}</>;
+    } else {
+      // O usuário não está logado e está tentando acessar uma página protegida.
+      // Redirecione para o login e mostre o loader até que o redirecionamento seja concluído.
+      router.replace('/login');
+      return <GlobalLoader />;
+    }
+  }
+
+  // 3. Lógica para usuários autenticados mas não verificados.
+  if (!user.emailVerified) {
+    if (isVerifyRoute) {
+      // O usuário está na página de verificação. Isso está correto.
+      return <>{children}</>;
+    } else {
+      // O usuário está em outro lugar. Redirecione para a página de verificação.
+      router.replace(VERIFY_EMAIL_ROUTE);
+      return <GlobalLoader />;
+    }
+  }
+
+  // 4. Lógica para usuários totalmente autenticados e verificados.
+  if (user.emailVerified) {
+    if (isPublicRoute || isVerifyRoute) {
+      // O usuário está em uma página pública/de verificação, mas deveria estar no dashboard.
+      router.replace(HOME_ROUTE);
+      return <GlobalLoader />;
+    } else {
+      // O usuário está em uma página protegida do aplicativo. Isso está correto.
+      return <>{children}</>;
+    }
+  }
+
+  // Loader de fallback, idealmente não deve ser alcançado.
+  return <GlobalLoader />;
 }
