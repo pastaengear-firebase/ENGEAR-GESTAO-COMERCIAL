@@ -73,13 +73,13 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
       />
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r text-sidebar-foreground shadow-lg",
+        "fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r text-sidebar-foreground shadow-lg",
         "bg-sidebar",
         "transition-transform duration-300 ease-in-out md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="relative flex h-[72px] items-center justify-center border-b border-sidebar-border bg-white dark:bg-white">
-          <Logo className="h-full w-full p-3" />
+        <div className="relative flex items-center justify-center border-b border-sidebar-border bg-white dark:bg-white">
+          <Logo className="w-full" />
           <Button variant="ghost" size="icon" onClick={closeMobileMenu} className="absolute right-4 top-1/2 -translate-y-1/2 md:hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
             <X className="h-6 w-6" />
             <span className="sr-only">Fechar menu</span>
@@ -92,7 +92,7 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
               href={item.href}
               onClick={closeMobileMenu} // Close menu on link click for mobile
               className={cn(
-                'group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+                'group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 item.isActive && item.isActive(pathname)
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
                   : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',

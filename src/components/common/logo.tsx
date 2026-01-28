@@ -20,7 +20,7 @@ const Logo: React.FC<LogoProps> = ({ className, width, height }) => {
       <img
         src={logoImagePath}
         alt={altText}
-        className="object-contain w-full h-full"
+        className="block w-full h-auto"
       />
     </div>
   );
