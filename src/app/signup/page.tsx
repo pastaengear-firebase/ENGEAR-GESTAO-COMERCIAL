@@ -89,7 +89,8 @@ export default function SignUpPage() {
         description,
         variant: "destructive",
       });
-      setIsLoading(false);
+    } finally {
+        setIsLoading(false);
     }
   };
 

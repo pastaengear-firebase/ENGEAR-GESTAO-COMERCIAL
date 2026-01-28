@@ -39,25 +39,23 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // O AuthGate cuidará do redirecionamento com base no estado do usuário (verificado ou não).
-      // Apenas fornecemos feedback ao usuário aqui.
+      // The AuthGate will handle redirection based on user state.
+      // We just provide user feedback here.
       if (!userCredential.user.emailVerified) {
         toast({
           title: "Verificação de E-mail Pendente",
           description: "Por favor, verifique seu e-mail antes de fazer login. Redirecionando...",
           variant: "destructive",
         });
-        // O AuthGate forçará o redirecionamento para /auth/verify-email
+        // AuthGate will force the redirect to /auth/verify-email
       } else {
         toast({
           title: "Login bem-sucedido!",
           description: "Redirecionando para o dashboard...",
         });
-        // O AuthGate forçará o redirecionamento para /dashboard
+        // AuthGate will force the redirect to /dashboard
       }
-      // O router.replace aqui é uma otimização, mas o AuthGate é a fonte da verdade.
-      router.replace('/dashboard');
-
+      
     } catch (error: any) {
       console.error("Erro no login:", error);
       let description = "Ocorreu um erro. Tente novamente.";
