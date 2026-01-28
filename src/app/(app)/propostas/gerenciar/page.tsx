@@ -1,4 +1,3 @@
-
 // src/app/(app)/propostas/gerenciar/page.tsx
 "use client";
 import { useState } from 'react';
@@ -14,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, FileText, PlusCircle, RotateCcw, Info } from 'lucide-react'; 
+import { Search, FileText, PlusCircle, RotateCcw, Info, Printer } from 'lucide-react'; 
 import { useToast } from '@/hooks/use-toast';
 import type { Quote } from '@/lib/types';
 
@@ -82,6 +81,10 @@ export default function GerenciarPropostasPage() {
     setShowEditModal(false);
     setEditingQuote(null);
   }
+  
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <div className="space-y-6">
@@ -94,11 +97,17 @@ export default function GerenciarPropostasPage() {
             Visualize, busque, edite ou exclua propostas existentes.
           </p>
         </div>
-        <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
-          <Link href="/propostas/nova">
-            <PlusCircle className="mr-2 h-4 w-4" /> Nova Proposta
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2 print-hide">
+            <Button onClick={handlePrint} variant="outline" size="icon">
+                <Printer className="h-4 w-4" />
+                <span className="sr-only">Imprimir Tabela</span>
+            </Button>
+            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/propostas/nova">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Nova Proposta
+                </Link>
+            </Button>
+        </div>
       </div>
 
       {isReadOnly && (
@@ -112,8 +121,8 @@ export default function GerenciarPropostasPage() {
         </Alert>
       )}
 
-      <Card className="shadow-lg">
-        <CardHeader>
+      <Card className="shadow-lg" id="propostas-printable-area">
+        <CardHeader className="print-hide">
           <CardTitle>Buscar Propostas</CardTitle>
           <CardDescription>Digite o nome do cliente, descrição, área ou valor para filtrar.</CardDescription>
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
@@ -143,7 +152,7 @@ export default function GerenciarPropostasPage() {
             />
           )}
         </CardContent>
-         <CardFooter className="border-t p-4 text-sm text-muted-foreground">
+         <CardFooter className="border-t p-4 text-sm text-muted-foreground print-hide">
             Total de Propostas Encontradas: <span className="font-semibold text-foreground">{managementFilteredQuotes.length}</span>
         </CardFooter>
       </Card>
@@ -187,6 +196,42 @@ export default function GerenciarPropostasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+       <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #propostas-printable-area, #propostas-printable-area * {
+            visibility: visible;
+          }
+          #propostas-printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            font-size: 8pt;
+          }
+          .print-hide {
+            display: none !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          th, td {
+            border: 1px solid #ccc !important;
+            padding: 4px !important;
+            white-space: normal !important;
+            word-break: break-word;
+          }
+          .max-w-\\[200px\\] { max-width: 100px !important; }
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
+        }
+      `}</style>
     </div>
   );
 }
