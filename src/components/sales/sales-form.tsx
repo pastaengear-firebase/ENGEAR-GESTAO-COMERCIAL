@@ -151,7 +151,13 @@ export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
     }
 
     const recipients = appSettings.notificationEmails.join(',');
-    const subject = `NOVA VENDA - ${sale.company}, ${sale.project}, OS ${sale.os || 'N/A'}, ${sale.clientService}, ${sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+    
+    // Truncate long strings for the subject to avoid overly long mailto links
+    const subjectProject = sale.project.length > 25 ? `${sale.project.substring(0, 22)}...` : sale.project;
+    const subjectClient = sale.clientService.length > 25 ? `${sale.clientService.substring(0, 22)}...` : sale.clientService;
+    const subjectValue = sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    
+    const subject = `NOVA VENDA - ${sale.company}, ${subjectProject}, OS ${sale.os || 'N/A'}, ${subjectClient}, ${subjectValue}`;
     const appBaseUrl = window.location.origin;
     const saleEditLink = `${appBaseUrl}/editar-venda?editId=${sale.id}`;
 
