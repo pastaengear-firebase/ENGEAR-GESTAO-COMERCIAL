@@ -5,7 +5,8 @@ import { useState } from 'react';
 import SidebarNav from '@/components/layout/sidebar-nav';
 import HeaderContent from '@/components/layout/header-content';
 
-// This layout is now purely structural and assumes authentication has been handled by AuthGate.
+// Este layout agora é puramente estrutural e não contém mais nenhuma lógica de autenticação.
+// A proteção da rota é garantida pelo AuthGate no layout raiz.
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

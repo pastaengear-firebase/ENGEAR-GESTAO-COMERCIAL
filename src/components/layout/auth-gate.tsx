@@ -24,34 +24,37 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [isRouting, setIsRouting] = useState(false);
 
   useEffect(() => {
+    // Não faça nada até que o estado de autenticação do Firebase seja resolvido.
     if (authLoading) return;
 
+    let targetRoute: string | null = null;
     const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
     const isVerifyRoute = pathname === VERIFY_EMAIL_ROUTE;
 
-    let shouldRedirect = false;
-    let targetRoute = '';
-
-    if (!user) { // Not logged in
+    if (!user) {
+      // Estado: Não Logado
+      // Se não estiver em uma rota pública, redirecione para o login.
       if (!isPublicRoute) {
-        shouldRedirect = true;
         targetRoute = '/login';
       }
-    } else { // Logged in
-      if (!user.emailVerified) { // Not verified
+    } else {
+      // Estado: Logado
+      if (!user.emailVerified) {
+        // Estado: Logado, mas não verificado
+        // Se não estiver na página de verificação, redirecione para ela.
         if (!isVerifyRoute) {
-          shouldRedirect = true;
           targetRoute = VERIFY_EMAIL_ROUTE;
         }
-      } else { // Verified
+      } else {
+        // Estado: Logado e Verificado
+        // Se estiver em uma rota pública ou de verificação, redirecione para o dashboard.
         if (isPublicRoute || isVerifyRoute) {
-          shouldRedirect = true;
           targetRoute = HOME_ROUTE;
         }
       }
     }
 
-    if (shouldRedirect && pathname !== targetRoute) {
+    if (targetRoute && pathname !== targetRoute) {
       setIsRouting(true);
       router.replace(targetRoute);
     } else {
@@ -59,9 +62,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [authLoading, user, pathname, router]);
 
+  // Enquanto a autenticação está carregando ou um redirecionamento está em andamento,
+  // exiba o loader global para evitar qualquer "flash" de conteúdo.
   if (authLoading || isRouting) {
     return <GlobalLoader />;
   }
 
+  // Se nenhuma condição de redirecionamento for atendida, renderize o conteúdo da página solicitada.
   return <>{children}</>;
 }

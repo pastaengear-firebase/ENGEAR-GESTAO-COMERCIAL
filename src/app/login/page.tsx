@@ -39,20 +39,23 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // AuthGate will handle redirection. We just provide user feedback.
+      // O AuthGate cuidará do redirecionamento com base no estado do usuário (verificado ou não).
+      // Apenas fornecemos feedback ao usuário aqui.
       if (!userCredential.user.emailVerified) {
         toast({
           title: "Verificação de E-mail Pendente",
           description: "Por favor, verifique seu e-mail antes de fazer login. Redirecionando...",
           variant: "destructive",
         });
+        // O AuthGate forçará o redirecionamento para /auth/verify-email
       } else {
         toast({
           title: "Login bem-sucedido!",
           description: "Redirecionando para o dashboard...",
         });
+        // O AuthGate forçará o redirecionamento para /dashboard
       }
-      // Optimistic redirect to speed up transition. AuthGate is the source of truth.
+      // O router.replace aqui é uma otimização, mas o AuthGate é a fonte da verdade.
       router.replace('/dashboard');
 
     } catch (error: any) {
@@ -71,9 +74,6 @@ export default function LoginPage() {
     }
   };
   
-  // No more useEffect for redirection. This page is now "dumb".
-  // AuthGate handles all redirection logic.
-
   return (
     <div className="flex h-screen w-full items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="w-full max-w-sm space-y-6 rounded-xl bg-white dark:bg-gray-800 p-8 shadow-lg">

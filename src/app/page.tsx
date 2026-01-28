@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 
 export default function RootPage() {
-  // Redirect to the main dashboard. AuthGate will handle unauthenticated users.
+  // O AuthGate irá interceptar isso. Se o usuário não estiver logado, será redirecionado para /login.
+  // Se estiver logado, será redirecionado para /dashboard.
   redirect('/dashboard');
 }
