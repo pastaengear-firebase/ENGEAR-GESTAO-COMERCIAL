@@ -79,13 +79,13 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
       />
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-48 flex-col border-r text-sidebar-foreground shadow-lg",
+        "fixed inset-y-0 left-0 z-50 flex w-40 flex-col border-r text-sidebar-foreground shadow-lg",
         "bg-sidebar",
         "transition-transform duration-300 ease-in-out md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="relative flex h-14 items-center justify-center border-b border-sidebar-border bg-white dark:bg-white">
-          <Logo className="w-full p-2" />
+        <div className="relative flex h-auto items-center justify-center border-b border-sidebar-border bg-white dark:bg-white p-2">
+          <Logo className="w-full" />
           <Button variant="ghost" size="icon" onClick={closeMobileMenu} className="absolute right-2 top-1/2 -translate-y-1/2 md:hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
             <X className="h-6 w-6" />
             <span className="sr-only">Fechar menu</span>
