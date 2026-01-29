@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings, FileText, X } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings, FileText, X, BrainCircuit } from 'lucide-react';
 import Logo from '@/components/common/logo';
 import { Button } from '@/components/ui/button';
 
@@ -14,6 +14,12 @@ const navItems: NavItem[] = [
     href: '/dashboard',
     icon: LayoutDashboard,
     isActive: (pathname) => pathname.startsWith('/dashboard'),
+  },
+  {
+    title: 'Busca IA',
+    href: '/busca-ia',
+    icon: BrainCircuit,
+    isActive: (pathname) => pathname.startsWith('/busca-ia'),
   },
   {
     title: 'Inserir Venda',
