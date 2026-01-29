@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const mockUser: AppUser = {
   uid: 'dev-sergio-uid',
   email: 'sergio@engearpb.com.br',
-  displayName: 'Sergio (Dev Mode)',
+  displayName: 'Sergio',
   photoURL: null,
 };
 // ----------------------
