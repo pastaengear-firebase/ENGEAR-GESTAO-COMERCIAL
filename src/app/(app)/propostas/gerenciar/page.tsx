@@ -1,7 +1,6 @@
 // src/app/(app)/propostas/gerenciar/page.tsx
 "use client";
 import { useState } from 'react';
-import Link from 'next/link';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useSales } from '@/hooks/use-sales'; 
 import QuoteForm from '@/components/quotes/quote-form';
@@ -13,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, FileText, PlusCircle, RotateCcw, Info, Printer } from 'lucide-react'; 
+import { Search, RotateCcw, Info, Printer } from 'lucide-react'; 
 import { useToast } from '@/hooks/use-toast';
 import type { Quote } from '@/lib/types';
 
@@ -90,23 +89,12 @@ export default function GerenciarPropostasPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center">
-            <FileText className="mr-3 h-8 w-8" /> Gerenciar Propostas Comerciais
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Gerenciar Propostas Comerciais
           </h1>
           <p className="text-muted-foreground">
             Visualize, busque, edite ou exclua propostas existentes.
           </p>
-        </div>
-        <div className="flex items-center gap-2 print-hide">
-            <Button onClick={handlePrint} variant="outline" size="icon">
-                <Printer className="h-4 w-4" />
-                <span className="sr-only">Imprimir Tabela</span>
-            </Button>
-            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Link href="/propostas/nova">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Nova Proposta
-                </Link>
-            </Button>
         </div>
       </div>
 
@@ -123,8 +111,16 @@ export default function GerenciarPropostasPage() {
 
       <Card className="shadow-lg" id="propostas-printable-area">
         <CardHeader className="print-hide">
-          <CardTitle>Buscar Propostas</CardTitle>
-          <CardDescription>Digite o nome do cliente, descrição, área ou valor para filtrar.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Buscar Propostas</CardTitle>
+              <CardDescription>Digite o nome do cliente, descrição, área ou valor para filtrar.</CardDescription>
+            </div>
+             <Button onClick={handlePrint} variant="outline" size="icon" className="print-hide">
+                <Printer className="h-4 w-4" />
+                <span className="sr-only">Imprimir Tabela</span>
+            </Button>
+          </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

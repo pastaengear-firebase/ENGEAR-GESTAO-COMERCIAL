@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings, FileText, X, BellRing } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings, FileText, X } from 'lucide-react';
 import Logo from '@/components/common/logo';
 import { Button } from '@/components/ui/button';
 
@@ -43,13 +43,7 @@ const navItems: NavItem[] = [
     title: 'Propostas',
     href: '/propostas/gerenciar',
     icon: FileText,
-    isActive: (pathname) => pathname.startsWith('/propostas/gerenciar') || pathname.startsWith('/propostas/nova'),
-  },
-  {
-    title: 'Acompanhamento',
-    href: '/propostas/acompanhamento',
-    icon: BellRing,
-    isActive: (pathname) => pathname.startsWith('/propostas/acompanhamento'),
+    isActive: (pathname) => pathname.startsWith('/propostas'),
   },
   {
     title: 'Configurações',
@@ -79,12 +73,12 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
       />
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-40 flex-col border-r text-sidebar-foreground shadow-lg",
+        "fixed inset-y-0 left-0 z-50 flex w-36 flex-col border-r text-sidebar-foreground shadow-lg",
         "bg-sidebar",
         "transition-transform duration-300 ease-in-out md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="relative flex h-auto items-center justify-center border-b border-sidebar-border bg-white dark:bg-white p-2">
+        <div className="relative flex h-auto items-center justify-center border-b border-sidebar-border bg-white dark:bg-white px-2 py-3">
           <Logo className="w-full" />
           <Button variant="ghost" size="icon" onClick={closeMobileMenu} className="absolute right-2 top-1/2 -translate-y-1/2 md:hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
             <X className="h-6 w-6" />
@@ -98,7 +92,7 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
               href={item.href}
               onClick={closeMobileMenu} // Close menu on link click for mobile
               className={cn(
-                'group flex items-center rounded-md px-3 py-2 text-xs font-medium transition-colors',
+                'group flex items-center rounded-md px-2 py-2 text-xs font-medium transition-colors',
                 item.isActive && item.isActive(pathname)
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
                   : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
@@ -106,7 +100,7 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
               )}
             >
               <item.icon className={cn('mr-2 h-4 w-4 flex-shrink-0')} aria-hidden="true" />
-              {item.title}
+              <span className="truncate">{item.title}</span>
             </Link>
           ))}
         </nav>

@@ -1,4 +1,3 @@
-
 // src/app/(app)/propostas/nova/page.tsx
 "use client";
 import QuoteForm from '@/components/quotes/quote-form';
@@ -17,15 +16,12 @@ export default function NovaPropostaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center">
-            <FilePlus className="mr-3 h-8 w-8" /> Nova Proposta Comercial
+            Nova Proposta Comercial
           </h1>
           <p className="text-muted-foreground">
             Preencha os detalhes abaixo para registrar uma nova proposta.
           </p>
         </div>
-         <Button asChild variant="outline">
-            <Link href="/propostas/gerenciar">Ver Todas as Propostas</Link>
-        </Button>
       </div>
       
       {isReadOnly && (
