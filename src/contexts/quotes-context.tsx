@@ -5,12 +5,34 @@ import { createContext, useState, useCallback, useContext, useMemo } from 'react
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
-import type { Quote, QuotesContextType, Seller, FollowUpDaysOptionValue, QuoteDashboardFilters } from '@/lib/types';
+import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '@/lib/types';
 import { useSales } from '@/hooks/use-sales';
 import { useAuth } from '@/hooks/use-auth';
 import { format, parseISO, addDays } from 'date-fns';
 
 export const QuotesContext = createContext<QuotesContextType | undefined>(undefined);
+
+const calculateFollowUp = (proposalDateStr: string, followUpOption: FollowUpOptionValue) => {
+    if (followUpOption === '0') {
+        return { date: null, sequence: undefined, done: false };
+    }
+    
+    const sequence = followUpOption.split(',').map(Number);
+    const firstOffset = sequence[0];
+
+    try {
+        const proposalD = parseISO(proposalDateStr);
+        const nextDate = format(addDays(proposalD, firstOffset), 'yyyy-MM-dd');
+        return {
+            date: nextDate,
+            sequence: sequence.length > 1 ? followUpOption : undefined,
+            done: false
+        };
+    } catch (e) {
+        console.error("Error calculating followUpDate", e);
+        return { date: null, sequence: undefined, done: false };
+    }
+};
 
 export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const firestore = useFirestore();
@@ -25,36 +47,25 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { selectedSeller, isReadOnly } = useSales();
   const { user } = useAuth();
 
-  const calculateFollowUpDate = (proposalDateStr: string, offsetDays?: FollowUpDaysOptionValue): string | null => {
-    if (offsetDays && offsetDays > 0) {
-        try {
-            const proposalD = parseISO(proposalDateStr); 
-            return format(addDays(proposalD, offsetDays), 'yyyy-MM-dd');
-        } catch(e) {
-            console.error("Error calculating followUpDate", e);
-            return null;
-        }
-    }
-    return null;
-  };
 
   const addQuote = useCallback(async (
-    quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone'> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean }
+    quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue, sendProposalNotification?: boolean }
   ): Promise<Quote> => {
     if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
     if (isReadOnly || !user) {
       throw new Error("Usuário sem permissão para adicionar proposta.");
     }
     
-    const finalFollowUpDate = calculateFollowUpDate(quoteData.proposalDate, quoteData.followUpDaysOffset);
-    const { followUpDaysOffset, ...restOfQuoteData } = quoteData;
+    const { followUpOption, ...restOfQuoteData } = quoteData;
+    const { date, sequence, done } = calculateFollowUp(quoteData.proposalDate, followUpOption);
 
     const newQuoteData = {
       ...restOfQuoteData,
       seller: selectedSeller as Seller,
       sellerUid: user.uid,
-      followUpDate: finalFollowUpDate,
-      followUpDone: false, 
+      followUpDate: date,
+      followUpDone: done,
+      followUpSequence: sequence,
       sendProposalNotification: quoteData.sendProposalNotification || false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -62,12 +73,12 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const docRef = await addDoc(quotesCollection, newQuoteData);
 
-    return { ...quoteData, seller: selectedSeller as Seller, sellerUid: user.uid, id: docRef.id, followUpDate: finalFollowUpDate, createdAt: new Date() } as Quote;
+    return { ...newQuoteData, seller: selectedSeller as Seller, sellerUid: user.uid, id: docRef.id, createdAt: new Date() } as Quote;
   }, [selectedSeller, quotesCollection, isReadOnly, user]);
 
   const updateQuote = useCallback(async (
     id: string, 
-    quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate'>> & { followUpDaysOffset?: FollowUpDaysOptionValue, sendProposalNotification?: boolean, followUpDone?: boolean }
+    quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpSequence'>> & { followUpOption: FollowUpOptionValue, sendProposalNotification?: boolean, followUpDone?: boolean }
   ): Promise<Quote | undefined> => {
     if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
     const originalQuote = quotes?.find(q => q.id === id);
@@ -76,23 +87,19 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const quoteRef = doc(quotesCollection, id);
     
-    const currentProposalDate = quoteUpdateData.proposalDate || originalQuote.proposalDate;
-    let finalFollowUpDate = originalQuote.followUpDate; 
-    if (quoteUpdateData.followUpDaysOffset !== undefined || quoteUpdateData.proposalDate) {
-        finalFollowUpDate = calculateFollowUpDate(currentProposalDate, quoteUpdateData.followUpDaysOffset);
+    const { followUpOption, ...restOfUpdateData } = quoteUpdateData;
+    let updatePayload: Partial<Quote> = restOfUpdateData;
+
+    // Recalculate follow-up if option or proposal date changed
+    if (followUpOption || quoteUpdateData.proposalDate) {
+        const currentProposalDate = quoteUpdateData.proposalDate || originalQuote.proposalDate;
+        const { date, sequence, done } = calculateFollowUp(currentProposalDate, followUpOption);
+        updatePayload = { ...updatePayload, followUpDate: date, followUpSequence: sequence, followUpDone: done };
     }
     
-    const { followUpDaysOffset, ...restOfUpdateData } = quoteUpdateData;
+    await updateDoc(quoteRef, { ...updatePayload, updatedAt: serverTimestamp() });
     
-    const updatePayload: Partial<Quote> & {updatedAt: any} = {
-        ...(restOfUpdateData as Partial<Quote>),
-        followUpDate: finalFollowUpDate,
-        updatedAt: serverTimestamp()
-    };
-
-    await updateDoc(quoteRef, updatePayload);
-    
-    return { ...originalQuote, ...quoteUpdateData, id, followUpDate: finalFollowUpDate, updatedAt: new Date() };
+    return { ...originalQuote, ...updatePayload, id, updatedAt: new Date() };
   }, [quotes, quotesCollection, isReadOnly, selectedSeller]);
 
   const deleteQuote = useCallback(async (id: string) => {
@@ -107,18 +114,54 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [quotes]);
 
   const toggleFollowUpDone = useCallback(async (quoteId: string) => {
-    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
+    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas.");
     const quote = quotes?.find(q => q.id === quoteId);
-    if (isReadOnly || (quote && selectedSeller !== quote.seller)) throw new Error("Usuário não tem permissão para modificar esta proposta.");
+    if (!quote) return;
+    if (isReadOnly || selectedSeller !== quote.seller) throw new Error("Usuário não tem permissão para modificar esta proposta.");
+
+    const quoteRef = doc(quotesCollection, quoteId);
+
+    // If it's being marked as "not done", just revert the 'done' status.
+    if (quote.followUpDone) {
+        await updateDoc(quoteRef, { followUpDone: false, updatedAt: serverTimestamp() });
+        return;
+    }
+
+    // If no sequence, just mark as done.
+    if (!quote.followUpSequence || !quote.followUpDate) {
+        await updateDoc(quoteRef, { followUpDone: true, updatedAt: serverTimestamp() });
+        return;
+    }
+
+    // Sequence logic: find current step and advance to the next, or finish.
+    const sequence = quote.followUpSequence.split(',').map(Number);
+    const proposalD = parseISO(quote.proposalDate);
+    const currentFollowUpD = parseISO(quote.followUpDate);
     
-    if (quote) {
-        const quoteRef = doc(quotesCollection, quoteId);
-        await updateDoc(quoteRef, {
-            followUpDone: !quote.followUpDone,
-            updatedAt: serverTimestamp()
+    let currentIndex = -1;
+    for (let i = 0; i < sequence.length; i++) {
+        const dateInSequence = addDays(proposalD, sequence[i]);
+        if (format(dateInSequence, 'yyyy-MM-dd') === format(currentFollowUpD, 'yyyy-MM-dd')) {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    if (currentIndex === -1 || currentIndex >= sequence.length - 1) {
+        // Not found in sequence or it's the last one
+        await updateDoc(quoteRef, { followUpDone: true, updatedAt: serverTimestamp() });
+    } else {
+        // Advance to the next date in the sequence
+        const nextOffset = sequence[currentIndex + 1];
+        const nextFollowUpDate = format(addDays(proposalD, nextOffset), 'yyyy-MM-dd');
+        await updateDoc(quoteRef, { 
+            followUpDate: nextFollowUpDate,
+            followUpDone: false, // It's not done, it's newly scheduled
+            updatedAt: serverTimestamp() 
         });
     }
   }, [quotes, quotesCollection, isReadOnly, selectedSeller]);
+
 
   const setManagementSearchTerm = useCallback((term: string) => {
     setManagementSearchTermState(term);

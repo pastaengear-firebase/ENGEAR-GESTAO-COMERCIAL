@@ -34,12 +34,14 @@ export type ProposalStatusOption = (typeof PROPOSAL_STATUS_OPTIONS)[number];
 export const CONTACT_SOURCE_OPTIONS = ["E-mail", "Telefone", "Presencial", "Indicação", "Website", "Outro"] as const;
 export type ContactSourceOption = (typeof CONTACT_SOURCE_OPTIONS)[number];
 
-export const FOLLOW_UP_DAYS_OPTIONS = [
-  { label: 'Não agendar', value: 0 },
-  { label: '5 dias', value: 5 },
-  { label: '10 dias', value: 10 },
-  { label: '15 dias', value: 15 },
+export const FOLLOW_UP_OPTIONS = [
+  { label: 'Não agendar', value: '0' },
+  { label: 'Em 5 dias', value: '5' },
+  { label: 'Em 10 dias', value: '10' },
+  { label: 'Em 15 dias', value: '15' },
+  { label: 'Sequência (5, 15, 30 dias)', value: '5,15,30' },
+  { label: 'Sequência (7, 30, 60 dias)', value: '7,30,60' },
 ] as const;
-export type FollowUpDaysOptionValue = (typeof FOLLOW_UP_DAYS_OPTIONS)[number]['value'];
+export type FollowUpOptionValue = (typeof FOLLOW_UP_OPTIONS)[number]['value'];
 
 export const LOCAL_STORAGE_SELECTED_SELLER_KEY = 'salesAppSelectedSeller';

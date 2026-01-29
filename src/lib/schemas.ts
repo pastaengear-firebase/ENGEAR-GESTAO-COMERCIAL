@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, SELLERS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, FOLLOW_UP_DAYS_OPTIONS } from './constants';
+import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, SELLERS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, FOLLOW_UP_OPTIONS } from './constants';
 
 export const LoginSchema = z.object({
   username: z.string().min(1, 'Usuário é obrigatório.'),
@@ -24,7 +24,7 @@ export const SalesFormSchema = z.object({
 });
 export type SalesFormData = z.infer<typeof SalesFormSchema>;
 
-const followUpDaysValues = FOLLOW_UP_DAYS_OPTIONS.map(opt => opt.value) as [0, 5, 10, 15];
+const followUpValues = FOLLOW_UP_OPTIONS.map(opt => opt.value);
 
 export const QuoteFormSchema = z.object({
   clientName: z.string().min(1, 'Nome do cliente é obrigatório.'),
@@ -37,12 +37,11 @@ export const QuoteFormSchema = z.object({
   proposedValue: z.coerce.number().positive('Valor proposto deve ser positivo.'),
   status: z.enum(PROPOSAL_STATUS_OPTIONS, { required_error: 'Status da proposta é obrigatório.'}),
   notes: z.string().optional(),
-  followUpDaysOffset: z.number()
-    .refine(val => followUpDaysValues.includes(val as 0|5|10|15), {
-      message: "Selecione uma opção válida para o período de follow-up."
+  followUpOption: z.string()
+    .refine(val => followUpValues.includes(val as any), {
+        message: "Selecione uma opção válida para o follow-up."
     })
-    .optional()
-    .default(0),
+    .default('0'),
   sendProposalNotification: z.boolean().optional().default(false),
   followUpDone: z.boolean().optional().default(false),
 });

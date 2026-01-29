@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { QuoteFormSchema, type QuoteFormData } from '@/lib/schemas';
-import { AREA_OPTIONS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, COMPANY_OPTIONS, SELLERS, FOLLOW_UP_DAYS_OPTIONS } from '@/lib/constants';
-import type { Seller, FollowUpDaysOptionValue } from '@/lib/constants';
+import { AREA_OPTIONS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, COMPANY_OPTIONS, SELLERS, FOLLOW_UP_OPTIONS } from '@/lib/constants';
+import type { Seller, FollowUpOptionValue } from '@/lib/constants';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useSales } from '@/hooks/use-sales'; 
 import { useSettings } from '@/hooks/use-settings'; 
@@ -21,7 +21,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CalendarIcon, DollarSign, Save, RotateCcw, Info, BellRing, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import type { Quote } from '@/lib/types';
@@ -55,22 +55,23 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       proposedValue: undefined,
       status: "Pendente",
       notes: '',
-      followUpDaysOffset: 0, 
+      followUpOption: '0', 
       sendProposalNotification: false,
     },
   });
 
   useEffect(() => {
     if (editMode && quoteToEdit) {
-      let followUpDaysOffsetValue: FollowUpDaysOptionValue = 0;
-      if (quoteToEdit.followUpDate && quoteToEdit.proposalDate) {
+      let followUpOptionValue: FollowUpOptionValue = '0';
+      if (quoteToEdit.followUpSequence) {
+        followUpOptionValue = quoteToEdit.followUpSequence as FollowUpOptionValue;
+      } else if (quoteToEdit.followUpDate) {
         const proposalD = parseISO(quoteToEdit.proposalDate);
         const followUpD = parseISO(quoteToEdit.followUpDate);
-        const diffDays = Math.round((followUpD.getTime() - proposalD.getTime()) / (1000 * 60 * 60 * 24));
-        
-        const validOffsets = FOLLOW_UP_DAYS_OPTIONS.map(opt => opt.value);
-        if (validOffsets.includes(diffDays as FollowUpDaysOptionValue)) {
-            followUpDaysOffsetValue = diffDays as FollowUpDaysOptionValue;
+        const diff = differenceInDays(followUpD, proposalD);
+        const closestOption = FOLLOW_UP_OPTIONS.find(opt => !opt.value.includes(',') && parseInt(opt.value) === diff);
+        if (closestOption) {
+          followUpOptionValue = closestOption.value;
         }
       }
 
@@ -85,7 +86,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         proposedValue: quoteToEdit.proposedValue,
         status: quoteToEdit.status,
         notes: quoteToEdit.notes || '',
-        followUpDaysOffset: followUpDaysOffsetValue,
+        followUpOption: followUpOptionValue,
         sendProposalNotification: quoteToEdit.sendProposalNotification || false,
       });
     } else if (!editMode) {
@@ -100,7 +101,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         proposedValue: undefined,
         status: "Pendente",
         notes: '',
-        followUpDaysOffset: 0,
+        followUpOption: '0',
         sendProposalNotification: false,
       });
     }
@@ -142,7 +143,7 @@ Valor Proposto: ${quote.proposedValue.toLocaleString('pt-BR', { style: 'currency
 Status: ${quote.status}
 Descrição: ${quote.description}
 ${quote.notes ? `Observações: ${quote.notes}\n` : ''}
-${quote.followUpDate ? `Data de Follow-up Agendada: ${format(parseISO(quote.followUpDate), 'dd/MM/yyyy', { locale: ptBR })}\n` : ''}
+${quote.followUpDate ? `Próximo Acompanhamento: ${format(parseISO(quote.followUpDate), 'dd/MM/yyyy', { locale: ptBR })}\n` : ''}
 --------------------------------------------------
 
 Acesse a aplicação para mais detalhes: ${appBaseUrl}
@@ -179,7 +180,7 @@ Sistema de Controle de Vendas ENGEAR
       ...data,
       proposalDate: format(data.proposalDate, 'yyyy-MM-dd'),
       validityDate: data.validityDate ? format(data.validityDate, 'yyyy-MM-dd') : undefined,
-      proposedValue: Number(Number(data.proposedValue || 0).toFixed(2)),
+      proposedValue: Number(Math.round(+(data.proposedValue || 0) + 'e+2') + 'e-2'),
       sendProposalNotification: data.sendProposalNotification || false,
     };
 
@@ -208,7 +209,7 @@ Sistema de Controle de Vendas ENGEAR
         proposedValue: undefined,
         status: "Pendente",
         notes: '',
-        followUpDaysOffset: 0,
+        followUpOption: '0',
         sendProposalNotification: false,
       });
       
@@ -451,19 +452,19 @@ Sistema de Controle de Vendas ENGEAR
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <FormField
                 control={form.control}
-                name="followUpDaysOffset"
+                name="followUpOption"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel className="flex items-center"><BellRing className="mr-2 h-4 w-4" /> Follow-up</FormLabel>
+                    <FormLabel className="flex items-center"><BellRing className="mr-2 h-4 w-4" /> Acompanhamento (Follow-up)</FormLabel>
                     <Select 
-                        onValueChange={(value) => field.onChange(parseInt(value,10))} 
-                        value={String(field.value ?? 0)} 
+                        onValueChange={field.onChange} 
+                        value={String(field.value ?? '0')} 
                         disabled={isReadOnly || isSubmitting}
                     >
                     <FormControl><SelectTrigger><SelectValue placeholder="Agendar follow-up" /></SelectTrigger></FormControl>
-                    <SelectContent>{FOLLOW_UP_DAYS_OPTIONS.map(opt => <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>)}</SelectContent>
+                    <SelectContent>{FOLLOW_UP_OPTIONS.map(opt => <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>)}</SelectContent>
                     </Select>
-                    <FormDescription>Define um lembrete de follow-up (interno).</FormDescription>
+                    <FormDescription>Define um lembrete único ou uma sequência de acompanhamentos.</FormDescription>
                     <FormMessage />
                 </FormItem>
                 )}
@@ -525,7 +526,7 @@ Sistema de Controle de Vendas ENGEAR
                 proposedValue: undefined,
                 status: "Pendente",
                 notes: '',
-                followUpDaysOffset: 0,
+                followUpOption: '0',
                 sendProposalNotification: false,
               });
               if (onFormSubmit && editMode) onFormSubmit(); 
