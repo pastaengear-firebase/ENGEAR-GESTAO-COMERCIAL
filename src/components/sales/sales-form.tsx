@@ -23,27 +23,25 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { Sale } from '@/lib/types';
 
 interface SalesFormProps {
+  saleToEdit?: Sale | null;
+  fromQuoteId?: string | null;
+  onFormSubmit?: () => void;
   showReadOnlyAlert?: boolean;
 }
 
-export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
-  const { addSale, getSaleById, updateSale, selectedSeller, isReadOnly } = useSales();
+export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showReadOnlyAlert }: SalesFormProps) {
+  const { addSale, updateSale, selectedSeller, isReadOnly } = useSales();
   const { getQuoteById: getQuoteByIdFromContext, updateQuote: updateQuoteStatus } = useQuotes();
   const { settings: appSettings, loadingSettings } = useSettings(); 
   const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
   
-  const editSaleId = searchParams.get('editId');
-  const fromQuoteId = searchParams.get('fromQuoteId');
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [originatingSeller, setOriginatingSeller] = useState<string | null>(null);
+
+  const editMode = !!saleToEdit;
 
   const form = useForm<SalesFormData>({
     resolver: zodResolver(SalesFormSchema),
@@ -65,8 +63,7 @@ export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
   useEffect(() => {
     const initializeForm = async () => {
       let formIsReadOnly = isReadOnly;
-      if (editSaleId) {
-        const saleToEdit = getSaleById(editSaleId);
+      if (editMode && saleToEdit) {
         if (saleToEdit) {
           form.reset({
             date: parseISO(saleToEdit.date), 
@@ -83,9 +80,6 @@ export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
           });
           setOriginatingSeller(saleToEdit.seller);
           if (selectedSeller !== saleToEdit.seller) formIsReadOnly = true;
-        } else {
-          toast({ title: "Erro", description: "Venda não encontrada para edição.", variant: "destructive" });
-          router.push(pathname.startsWith('/editar-venda') ? '/editar-venda' : '/inserir-venda');
         }
       } else if (fromQuoteId) {
         const quoteToConvert = getQuoteByIdFromContext(fromQuoteId);
@@ -115,7 +109,7 @@ export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
           setOriginatingSeller(quoteToConvert.seller);
         } else {
           toast({ title: "Erro", description: "Proposta não encontrada para conversão.", variant: "destructive" });
-          router.push('/inserir-venda');
+          if(onFormSubmit) onFormSubmit();
         }
       } else { // Novo formulário
         form.reset({
@@ -142,7 +136,7 @@ export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
       }
     };
     initializeForm();
-  }, [editSaleId, fromQuoteId, getSaleById, getQuoteByIdFromContext, form, toast, router, pathname, isReadOnly, selectedSeller]);
+  }, [editMode, saleToEdit, fromQuoteId, getQuoteByIdFromContext, form, toast, onFormSubmit, isReadOnly, selectedSeller]);
 
 
   const triggerEmailNotification = (sale: Sale) => {
@@ -159,7 +153,7 @@ export default function SalesForm({ showReadOnlyAlert }: SalesFormProps) {
     
     const subject = `NOVA VENDA - ${sale.company}, ${subjectProject}, OS ${sale.os || 'N/A'}, ${subjectClient}, ${subjectValue}`;
     const appBaseUrl = window.location.origin;
-    const saleEditLink = `${appBaseUrl}/editar-venda?editId=${sale.id}`;
+    const saleEditLink = `${appBaseUrl}/vendas/gerenciar?editId=${sale.id}`;
 
     const body = `
 Uma nova venda foi registrada no sistema:
@@ -198,7 +192,7 @@ Sistema de Controle de Vendas ENGEAR
 
   const onSubmit = async (data: SalesFormData) => {
     let formIsReadOnly = isReadOnly;
-    if((editSaleId || fromQuoteId) && selectedSeller !== originatingSeller) {
+    if((editMode || fromQuoteId) && selectedSeller !== originatingSeller) {
         formIsReadOnly = true;
     }
 
@@ -225,8 +219,8 @@ Sistema de Controle de Vendas ENGEAR
     };
 
     try {
-      if (editSaleId) {
-        await updateSale(editSaleId, salePayload);
+      if (editMode && saleToEdit) {
+        await updateSale(saleToEdit.id, salePayload);
         toast({ title: "Sucesso!", description: "Venda atualizada com sucesso." });
       } else {
         const newSale = await addSale(salePayload);
@@ -255,10 +249,8 @@ Sistema de Controle de Vendas ENGEAR
         sendSaleNotification: false,
       });
 
-      if (pathname.startsWith('/editar-venda') && editSaleId) {
-        router.push('/editar-venda'); 
-      } else if (pathname.startsWith('/inserir-venda') && fromQuoteId) {
-         router.push('/inserir-venda', { scroll: false }); 
+      if (onFormSubmit) {
+        onFormSubmit();
       }
 
     } catch (error) {
@@ -268,8 +260,9 @@ Sistema de Controle de Vendas ENGEAR
       setIsSubmitting(false);
     }
   };
+  
+  const finalIsReadOnly = isReadOnly || ((editMode || fromQuoteId) && selectedSeller !== originatingSeller);
 
-  const finalIsReadOnly = isReadOnly || ((editSaleId || fromQuoteId) && selectedSeller !== originatingSeller);
 
   return (
     <Form {...form}>
@@ -334,7 +327,7 @@ Sistema de Controle de Vendas ENGEAR
               </SelectContent>
             </Select>
             <FormDescription>
-              {editSaleId || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo usuário logado."}
+              {editMode || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo usuário logado."}
             </FormDescription>
           </FormItem>
 
@@ -524,7 +517,7 @@ Sistema de Controle de Vendas ENGEAR
               )}
           />
 
-          {!editSaleId && (
+          {!editMode && (
             <FormField
               control={form.control}
               name="sendSaleNotification"
@@ -556,16 +549,15 @@ Sistema de Controle de Vendas ENGEAR
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={() => {
               form.reset({ date: new Date(), company: undefined, project: '', os: '', area: undefined, clientService: '', salesValue: undefined, status: undefined, payment: undefined, summary: '', sendSaleNotification: false });
-              if (editSaleId) router.push('/editar-venda');
-              if (fromQuoteId) router.push('/inserir-venda');
+              if (onFormSubmit) onFormSubmit();
             }}
             disabled={isSubmitting} className="w-full sm:w-auto">
             <RotateCcw className="mr-2 h-4 w-4" />
-            Limpar / Cancelar
+            {editMode ? 'Cancelar Edição' : 'Limpar Formulário'}
           </Button>
           <Button type="submit" disabled={finalIsReadOnly || isSubmitting} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
             <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? 'Salvando...' : (editSaleId ? 'Atualizar Venda' : 'Salvar Venda')}
+            {isSubmitting ? 'Salvando...' : (editMode ? 'Atualizar Venda' : 'Salvar Venda')}
           </Button>
         </div>
       </form>

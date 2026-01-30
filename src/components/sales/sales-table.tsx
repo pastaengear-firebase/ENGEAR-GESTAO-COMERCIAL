@@ -9,17 +9,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Edit3, Trash2, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface SalesTableProps {
   salesData: Sale[];
+  onEdit?: (sale: Sale) => void;
+  onDelete?: (saleId: string) => void;
+  disabledActions?: boolean;
 }
 
-export default function SalesTable({ salesData }: SalesTableProps) {
+export default function SalesTable({ salesData, onEdit, onDelete, disabledActions }: SalesTableProps) {
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
     switch (status) {
       case 'FINALIZADO':
@@ -33,6 +38,8 @@ export default function SalesTable({ salesData }: SalesTableProps) {
         return 'outline';
     }
   };
+
+  const showActions = onEdit && onDelete;
 
   if (!salesData.length) {
     return (
@@ -62,6 +69,7 @@ export default function SalesTable({ salesData }: SalesTableProps) {
             <TableHead className="text-right">Valor Venda</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Pagamento</TableHead>
+            {showActions && <TableHead className="text-right print-hide">Ações</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -85,6 +93,27 @@ export default function SalesTable({ salesData }: SalesTableProps) {
               <TableCell className="text-right">
                 {sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
+              {showActions && (
+                <TableCell className="text-right print-hide">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(sale)} disabled={disabledActions}>
+                        <Edit3 className="mr-2 h-4 w-4" /> Modificar
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onDelete(sale.id)} className="text-destructive" disabled={disabledActions}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

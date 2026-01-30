@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, FilePlus, FileEdit, Receipt, Settings, FileText, X, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, Receipt, Settings, FileText, X, BrainCircuit, DollarSign } from 'lucide-react';
 import Logo from '@/components/common/logo';
 import { Button } from '@/components/ui/button';
 
@@ -22,16 +22,10 @@ const navItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith('/propostas'),
   },
   {
-    title: 'Inserir Venda',
-    href: '/inserir-venda',
-    icon: FilePlus,
-    isActive: (pathname) => pathname.startsWith('/inserir-venda'),
-  },
-  {
-    title: 'Editar Venda',
-    href: '/editar-venda',
-    icon: FileEdit,
-    isActive: (pathname) => pathname.startsWith('/editar-venda'),
+    title: 'Vendas',
+    href: '/vendas/nova',
+    icon: DollarSign,
+    isActive: (pathname) => pathname.startsWith('/vendas'),
   },
   {
     title: 'Faturamento',
