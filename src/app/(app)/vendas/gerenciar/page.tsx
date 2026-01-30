@@ -121,7 +121,7 @@ export default function GerenciarVendasPage() {
       'Vendedor': sale.seller,
       'Empresa': sale.company,
       'Projeto': sale.project,
-      'O.S.': sale.os,
+      'O.S.': sale.os || '',
       'Área': sale.area,
       'Cliente/Serviço': sale.clientService,
       'Valor da Venda': sale.salesValue,

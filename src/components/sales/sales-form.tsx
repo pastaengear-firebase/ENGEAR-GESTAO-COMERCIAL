@@ -56,7 +56,7 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
       clientService: '',
       salesValue: undefined,
       status: undefined,
-      payment: undefined,
+      payment: 0,
       summary: '',
       sendSaleNotification: false,
     },
@@ -71,7 +71,7 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
             date: parseISO(saleToEdit.date), 
             company: saleToEdit.company,
             project: saleToEdit.project,
-            os: saleToEdit.os,
+            os: saleToEdit.os || '',
             area: saleToEdit.area,
             clientService: saleToEdit.clientService,
             salesValue: saleToEdit.salesValue,
@@ -123,7 +123,7 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
           clientService: '',
           salesValue: undefined,
           status: undefined,
-          payment: undefined,
+          payment: 0,
           summary: '',
           sendSaleNotification: false,
         });
@@ -246,7 +246,7 @@ Sistema de Controle de Vendas ENGEAR
         clientService: '',
         salesValue: undefined,
         status: undefined,
-        payment: undefined,
+        payment: 0,
         summary: '',
         sendSaleNotification: false,
       });
@@ -551,7 +551,7 @@ Sistema de Controle de Vendas ENGEAR
 
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={() => {
-              form.reset({ date: new Date(), company: undefined, project: '', os: '', area: undefined, clientService: '', salesValue: undefined, status: undefined, payment: undefined, summary: '', sendSaleNotification: false });
+              form.reset({ date: new Date(), company: undefined, project: '', os: '', area: undefined, clientService: '', salesValue: undefined, status: undefined, payment: 0, summary: '', sendSaleNotification: false });
               if (onFormSubmit) onFormSubmit();
             }}
             disabled={isSubmitting} className="w-full sm:w-auto">

@@ -16,7 +16,7 @@ export interface Sale {
   date: string; // ISO string
   company: CompanyOption;
   project: string;
-  os: string;
+  os?: string;
   area: AreaOption;
   clientService: string;
   salesValue: number;

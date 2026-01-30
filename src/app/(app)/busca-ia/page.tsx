@@ -1,3 +1,4 @@
+
 // src/app/(app)/busca-ia/page.tsx
 'use client';
 
@@ -73,7 +74,7 @@ export default function BuscaIAPage() {
         const lowerSearchTerm = filters.searchTerm.toLowerCase();
         match &&= (
           sale.project.toLowerCase().includes(lowerSearchTerm) ||
-          sale.os.toLowerCase().includes(lowerSearchTerm) ||
+          (sale.os || '').toLowerCase().includes(lowerSearchTerm) ||
           sale.clientService.toLowerCase().includes(lowerSearchTerm)
         );
       }

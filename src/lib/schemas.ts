@@ -12,12 +12,12 @@ export const SalesFormSchema = z.object({
   date: z.date({ required_error: 'Data é obrigatória.' }),
   company: z.enum(COMPANY_OPTIONS, { required_error: 'Empresa é obrigatória.' }),
   project: z.string().min(1, 'Projeto é obrigatório.'),
-  os: z.string(), // Opcional
+  os: z.string().optional(),
   area: z.enum(AREA_OPTIONS, { required_error: 'Área é obrigatória.' }),
   clientService: z.string().min(1, 'Cliente/Serviço é obrigatório.'),
   salesValue: z.coerce.number().positive('Valor da Venda deve ser positivo.'),
   status: z.enum(STATUS_OPTIONS, { required_error: 'Status é obrigatório.' }),
-  payment: z.coerce.number().min(0, 'Valor do Pagamento não pode ser negativo.'),
+  payment: z.coerce.number().min(0, 'Valor do Pagamento não pode ser negativo.').optional().default(0),
   summary: z.string().optional(),
   sendSaleNotification: z.boolean().optional().default(false),
   seller: z.enum(SELLERS).optional(), // Adicionado para validação, mas será definido via estado
