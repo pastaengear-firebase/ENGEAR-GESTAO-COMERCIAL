@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, FilePlus, Database, FileEdit, Receipt, Settings, FileText, X, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, FilePlus, FileEdit, Receipt, Settings, FileText, X, BrainCircuit } from 'lucide-react';
 import Logo from '@/components/common/logo';
 import { Button } from '@/components/ui/button';
 
@@ -16,22 +16,16 @@ const navItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith('/dashboard'),
   },
   {
-    title: 'Busca IA',
-    href: '/busca-ia',
-    icon: BrainCircuit,
-    isActive: (pathname) => pathname.startsWith('/busca-ia'),
+    title: 'Propostas',
+    href: '/propostas/gerenciar',
+    icon: FileText,
+    isActive: (pathname) => pathname.startsWith('/propostas'),
   },
   {
     title: 'Inserir Venda',
     href: '/inserir-venda',
     icon: FilePlus,
     isActive: (pathname) => pathname.startsWith('/inserir-venda'),
-  },
-  {
-    title: 'Dados',
-    href: '/dados',
-    icon: Database,
-    isActive: (pathname) => pathname.startsWith('/dados'),
   },
   {
     title: 'Editar Venda',
@@ -46,16 +40,16 @@ const navItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith('/faturamento'),
   },
   {
-    title: 'Propostas',
-    href: '/propostas/gerenciar',
-    icon: FileText,
-    isActive: (pathname) => pathname.startsWith('/propostas'),
-  },
-  {
     title: 'Configurações',
     href: '/configuracoes',
     icon: Settings,
     isActive: (pathname) => pathname.startsWith('/configuracoes'),
+  },
+  {
+    title: 'Busca IA',
+    href: '/busca-ia',
+    icon: BrainCircuit,
+    isActive: (pathname) => pathname.startsWith('/busca-ia'),
   },
 ];
 
