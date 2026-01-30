@@ -7,7 +7,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { AppSettings, SettingsContextType } from '@/lib/types';
 
 const defaultSettings: AppSettings = {
-  enableSalesEmailNotifications: false,
+  enableSalesEmailNotifications: true,
   salesNotificationEmails: [],
 };
 
