@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
 import { FileText, PlusCircle, BellRing } from 'lucide-react';
 
 const navLinks = [
-  { href: '/propostas/gerenciar', label: 'Gerenciar', icon: FileText },
   { href: '/propostas/nova', label: 'Nova Proposta', icon: PlusCircle },
   { href: '/propostas/acompanhamento', label: 'Acompanhamento', icon: BellRing },
+  { href: '/propostas/gerenciar', label: 'Gerenciar', icon: FileText },
 ];
 
 export default function PropostasLayout({ children }: { children: React.ReactNode }) {
