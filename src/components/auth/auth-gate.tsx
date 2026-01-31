@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-const PUBLIC_PATHS = ['/login', '/busca-ia'];
+const PUBLIC_PATHS = ['/login'];
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
