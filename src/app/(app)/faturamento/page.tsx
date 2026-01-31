@@ -125,7 +125,7 @@ export default function FaturamentoPage() {
     
     setIsSubmitting(true);
 
-    const subject = `Faturamento: Venda ${selectedSale.project} / OS ${selectedSale.os}`;
+    const subject = `SOLICITAÇÃO DE FATURAMENTO - Projeto ${selectedSale.project}, OS ${selectedSale.os || 'N/A'}, Cliente ${selectedSale.clientService}`;
     const body = `
 Prezados,
 
@@ -171,7 +171,7 @@ Equipe Comercial ENGEAR
         };
         
         const logsCollection = collection(firestore, 'billing-logs');
-        await addDoc(logsCollection, { ...logData, requestedAt: serverTimestamp() });
+        const docRef = await addDoc(logsCollection, { ...logData, requestedAt: serverTimestamp() });
         
         await updateSale(selectedSale.id, { status: "AGUARDANDO PAGAMENTO" });
         

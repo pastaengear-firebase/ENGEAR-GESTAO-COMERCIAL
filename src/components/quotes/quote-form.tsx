@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO, addDays, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Quote } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface QuoteFormProps {
   quoteToEdit?: Quote | null;
@@ -36,6 +37,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
   const { addQuote, updateQuote } = useQuotes();
   const { selectedSeller, isReadOnly } = useSales();
   const { settings: appSettings, loadingSettings } = useSettings(); 
+  const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -102,10 +104,10 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         status: "Pendente",
         notes: '',
         followUpOption: '0',
-        sendProposalNotification: false,
+        sendProposalNotification: appSettings.enableProposalsEmailNotifications, // Default to config
       });
     }
-  }, [quoteToEdit, editMode, form]);
+  }, [quoteToEdit, editMode, form, appSettings.enableProposalsEmailNotifications]);
 
   const triggerProposalEmailNotification = (quote: Quote) => {
     if (loadingSettings || !appSettings.enableProposalsEmailNotifications || appSettings.proposalsNotificationEmails.length === 0) {
@@ -117,7 +119,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
     const subjectClient = quote.clientName.length > 25 ? `${quote.clientName.substring(0, 22)}...` : quote.clientName;
     const subjectValue = quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
-    const subject = `NOVA PROPOSTA - ${subjectClient} - ${subjectValue}`;
+    const subject = `NOVA PROPOSTA - Cliente ${subjectClient}, Valor ${subjectValue}, Vendedor ${quote.seller}`;
     const appBaseUrl = window.location.origin;
     const quoteLink = `${appBaseUrl}/propostas/gerenciar`; // Link to the management page
 
@@ -151,10 +153,16 @@ Sistema de Controle de Vendas ENGEAR
 
   const onSubmit = async (data: QuoteFormData) => {
     if (isReadOnly) { 
+      toast({
+        title: "Ação Não Permitida",
+        description: "Faça login com uma conta de vendedor autorizada para salvar.",
+        variant: "destructive",
+      });
       return;
     }
     
     if (!data.proposalDate) {
+        toast({ title: "Erro de Validação", description: "Data da proposta é obrigatória.", variant: "destructive" });
         return;
     }
 
@@ -195,7 +203,7 @@ Sistema de Controle de Vendas ENGEAR
           status: "Pendente",
           notes: '',
           followUpOption: '0',
-          sendProposalNotification: false,
+          sendProposalNotification: appSettings.enableProposalsEmailNotifications,
         });
       }
       
@@ -203,6 +211,8 @@ Sistema de Controle de Vendas ENGEAR
         onFormSubmit();
       }
 
+    } catch(err: any) {
+       toast({ title: "Erro ao Salvar", description: err.message || "Não foi possível salvar a proposta.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setTimeout(() => setIsSaved(false), 2000);
@@ -511,7 +521,7 @@ Sistema de Controle de Vendas ENGEAR
                 status: "Pendente",
                 notes: '',
                 followUpOption: '0',
-                sendProposalNotification: false,
+                sendProposalNotification: appSettings.enableProposalsEmailNotifications,
               });
               if (onFormSubmit && editMode) onFormSubmit(); 
             }}

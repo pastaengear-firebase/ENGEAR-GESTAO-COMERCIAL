@@ -125,7 +125,7 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
           status: undefined,
           payment: 0,
           summary: '',
-          sendSaleNotification: false,
+          sendSaleNotification: appSettings.enableSalesEmailNotifications,
         });
         setOriginatingSeller(null);
       }
@@ -138,22 +138,21 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
       }
     };
     initializeForm();
-  }, [editMode, saleToEdit, fromQuoteId, getQuoteByIdFromContext, form, toast, onFormSubmit, isReadOnly, selectedSeller]);
+  }, [editMode, saleToEdit, fromQuoteId, getQuoteByIdFromContext, form, toast, onFormSubmit, isReadOnly, selectedSeller, appSettings.enableSalesEmailNotifications]);
 
 
-  const triggerEmailNotification = (sale: Sale) => {
+  const triggerEmailNotification = async (sale: Sale) => {
     if (loadingSettings || !appSettings.enableSalesEmailNotifications || appSettings.salesNotificationEmails.length === 0) {
       return;
     }
 
     const recipients = appSettings.salesNotificationEmails.join(',');
     
-    // Truncate long strings for the subject to avoid overly long mailto links
     const subjectProject = sale.project.length > 25 ? `${sale.project.substring(0, 22)}...` : sale.project;
     const subjectClient = sale.clientService.length > 25 ? `${sale.clientService.substring(0, 22)}...` : sale.clientService;
     const subjectValue = sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
-    const subject = `NOVA VENDA - ${sale.company}, ${subjectProject}, OS ${sale.os || 'N/A'}, ${subjectClient}, ${subjectValue}`;
+    const subject = `NOVA VENDA - ${sale.company}, Projeto ${subjectProject}, OS ${sale.os || 'N/A'}, ${subjectClient}, ${subjectValue}, e ${sale.seller}`;
     const appBaseUrl = window.location.origin;
     const saleEditLink = `${appBaseUrl}/vendas/gerenciar?editId=${sale.id}`;
 
@@ -189,7 +188,6 @@ Sistema de Controle de Vendas ENGEAR
 
     const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, '_blank');
-    toast({ title: "Preparando E-mail", description: "Seu cliente de e-mail foi aberto para enviar a notificação." });
   };
 
   const onSubmit = async (data: SalesFormData) => {
@@ -222,13 +220,11 @@ Sistema de Controle de Vendas ENGEAR
     };
 
     try {
+      let newSale: Sale | null = null;
       if (editMode && saleToEdit) {
         await updateSale(saleToEdit.id, salePayload);
       } else {
-        const newSale = await addSale(salePayload);
-        if (data.sendSaleNotification) {
-          triggerEmailNotification(newSale);
-        }
+        newSale = await addSale(salePayload);
         
         if (fromQuoteId) {
             await updateQuoteStatus(fromQuoteId, { status: "Aceita" } as any);
@@ -237,20 +233,27 @@ Sistema de Controle de Vendas ENGEAR
 
       setIsSaved(true);
 
-      form.reset({
-        date: new Date(),
-        company: undefined,
-        project: '',
-        os: '',
-        area: undefined,
-        clientService: '',
-        salesValue: undefined,
-        status: undefined,
-        payment: 0,
-        summary: '',
-        sendSaleNotification: false,
-      });
+      // Only trigger email for brand new sales
+      if (newSale && data.sendSaleNotification) {
+          await triggerEmailNotification(newSale);
+      }
 
+      if (!editMode) {
+        form.reset({
+            date: new Date(),
+            company: undefined,
+            project: '',
+            os: '',
+            area: undefined,
+            clientService: '',
+            salesValue: undefined,
+            status: undefined,
+            payment: 0,
+            summary: '',
+            sendSaleNotification: appSettings.enableSalesEmailNotifications,
+        });
+      }
+      
       if (onFormSubmit) {
         onFormSubmit();
       }
@@ -551,7 +554,7 @@ Sistema de Controle de Vendas ENGEAR
 
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={() => {
-              form.reset({ date: new Date(), company: undefined, project: '', os: '', area: undefined, clientService: '', salesValue: undefined, status: undefined, payment: 0, summary: '', sendSaleNotification: false });
+              form.reset({ date: new Date(), company: undefined, project: '', os: '', area: undefined, clientService: '', salesValue: undefined, status: undefined, payment: 0, summary: '', sendSaleNotification: appSettings.enableSalesEmailNotifications });
               if (onFormSubmit) onFormSubmit();
             }}
             disabled={isSubmitting} className="w-full sm:w-auto">
