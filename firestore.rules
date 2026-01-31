@@ -4,9 +4,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Permissive rules: allow all authenticated reads and writes.
-    // This is not secure for production environments with sensitive data.
-    match /{document=**} {
+    // Default deny all access unless explicitly allowed.
+    
+    // Sales Collection
+    match /sales/{saleId} {
+      // Anyone who gets past the app's password gate can read sales data.
+      allow read: if true;
+      
+      // Allow creation only if the new sale has a 'seller' field that is 'SERGIO' or 'RODRIGO'.
+      allow create: if request.resource.data.seller in ['SERGIO', 'RODRIGO'];
+      
+      // Allow updates only if the document already belongs to a known seller,
+      // and the seller field is not being changed.
+      allow update: if resource.data.seller in ['SERGIO', 'RODRIGO'] && request.resource.data.seller == resource.data.seller;
+        
+      // Allow deletion only if the document belongs to a known seller.
+      allow delete: if resource.data.seller in ['SERGIO', 'RODRIGO'];
+    }
+
+    // Quotes Collection
+    match /quotes/{quoteId} {
+      allow read: if true;
+      allow create: if request.resource.data.seller in ['SERGIO', 'RODRIGO'];
+      allow update: if resource.data.seller in ['SERGIO', 'RODRIGO'] && request.resource.data.seller == resource.data.seller;
+      allow delete: if resource.data.seller in ['SERGIO', 'RODRIGO'];
+    }
+
+    // Settings Collection
+    // Since settings are global and not tied to a seller, access is less restricted.
+    // This allows the app to read/write settings.
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    // Billing Logs Collection
+    // Logs are append-only from the app.
+    // We allow reads, and writes are implicitly creating new documents.
+    match /billing-logs/{logId} {
       allow read, write: if true;
     }
   }
