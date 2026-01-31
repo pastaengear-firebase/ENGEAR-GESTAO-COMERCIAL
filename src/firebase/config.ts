@@ -1,19 +1,20 @@
 // src/firebase/config.ts
 
-// IMPORTANTE: Por favor, preencha os valores marcados como "Cole o valor..." com os dados do seu projeto Firebase.
-// O erro 'auth/api-key-not-valid' indica que estes valores estão incorretos.
+// IMPORTANTE: A falha de login ('auth/api-key-not-valid') acontece porque os valores abaixo estão incorretos.
+// Por segurança, EU NÃO TENHO ACESSO às suas chaves secretas. É necessário que você, como dono do projeto,
+// copie e cole os valores corretos do seu painel Firebase.
 
-// Para encontrar estes valores:
+// SIGA ESTES PASSOS:
 // 1. Acesse o Firebase Console: https://console.firebase.google.com/
 // 2. Selecione seu projeto: 'engear---depto-comercial-v3'
-// 3. No menu à esquerda, clique no ícone de engrenagem (ao lado de 'Visão geral do projeto') e vá para "Configurações do projeto".
+// 3. Clique no ícone de engrenagem (Configurações do projeto) ao lado de 'Visão geral do projeto'.
 // 4. Na aba "Geral", role para baixo até a seção "Seus apps".
-// 5. Selecione o seu aplicativo da Web (geralmente tem um ícone </ >).
-// 6. Você verá um objeto de configuração `firebaseConfig`. Copie os valores correspondentes para cá.
+// 5. Selecione o seu aplicativo da Web (ícone </ >).
+// 6. Você verá um objeto de configuração `firebaseConfig`. Copie e cole os valores nos campos abaixo.
 
 export const firebaseConfig = {
   // Cole o valor de 'apiKey' do seu projeto Firebase aqui.
-  apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  apiKey: "COLE_SUA_API_KEY_AQUI",
 
   // O Auth Domain deve estar correto.
   authDomain: "engear---depto-comercial-v3.firebaseapp.com",
@@ -25,11 +26,11 @@ export const firebaseConfig = {
   storageBucket: "engear---depto-comercial-v3.appspot.com",
 
   // Cole o valor de 'messagingSenderId' do seu projeto Firebase aqui.
-  messagingSenderId: "000000000000",
+  messagingSenderId: "COLE_SEU_MESSAGING_SENDER_ID_AQUI",
 
   // Cole o valor de 'appId' do seu projeto Firebase aqui.
-  appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx",
+  appId: "COLE_SEU_APP_ID_AQUI",
 
-  // Cole o valor de 'measurementId' do seu projeto Firebase aqui (opcional para Auth).
-  measurementId: "G-XXXXXXXXXX"
+  // Cole o valor de 'measurementId' do seu projeto Firebase aqui (opcional, mas recomendado).
+  measurementId: "COLE_SEU_MEASUREMENT_ID_AQUI"
 };
