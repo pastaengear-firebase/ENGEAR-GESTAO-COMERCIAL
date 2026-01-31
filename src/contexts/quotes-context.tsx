@@ -5,7 +5,7 @@ import type React from 'react';
 import { createContext, useState, useCallback, useContext, useMemo } from 'react';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
-import { ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
+import { ALL_SELLERS_OPTION, SELLERS, SELLER_EMAIL_MAP } from '@/lib/constants';
 import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '@/lib/types';
 import { useSales } from '@/hooks/use-sales';
 import { useAuth } from '@/hooks/use-auth';
@@ -45,17 +45,15 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [managementSearchTerm, setManagementSearchTermState] = useState<string>('');
   const [dashboardFilters, setDashboardFiltersState] = useState<QuoteDashboardFilters>({ selectedYear: 'all' });
 
-  const { selectedSeller, isReadOnly } = useSales();
+  const { selectedSeller } = useSales();
   const { user } = useAuth();
-
+  
+  const userSellerIdentity = useMemo(() => user?.email ? SELLER_EMAIL_MAP[user.email.toLowerCase() as keyof typeof SELLER_EMAIL_MAP] || null : null, [user]);
 
   const addQuote = useCallback(async (
     quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue }
   ): Promise<Quote> => {
-    if (!quotesCollection || !user) throw new Error("Firestore ou usuário não está inicializado.");
-    if (isReadOnly) {
-      throw new Error("Usuário sem permissão para adicionar proposta.");
-    }
+    if (!quotesCollection || !user || !userSellerIdentity) throw new Error("Usuário sem permissão para adicionar proposta.");
     
     const { followUpOption, ...restOfQuoteData } = quoteData;
     const { date, sequence, done } = calculateFollowUp(quoteData.proposalDate, followUpOption);
@@ -63,7 +61,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const docRef = doc(quotesCollection);
     const newQuoteData = {
       ...restOfQuoteData,
-      seller: selectedSeller as Seller,
+      seller: userSellerIdentity,
       sellerUid: user.uid,
       followUpDate: date,
       followUpDone: done,
@@ -77,26 +75,25 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: docRef.id,
         createdAt: new Date().toISOString() 
     } as Quote;
-  }, [selectedSeller, quotesCollection, isReadOnly, user]);
+  }, [user, userSellerIdentity, quotesCollection]);
 
   const addBulkQuotes = useCallback(async (newQuotesData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => {
-    if (!firestore || !quotesCollection || !user) throw new Error("Firestore ou usuário não está inicializado.");
+    if (!firestore || !quotesCollection || !user || !userSellerIdentity) throw new Error("Usuário não tem permissão para importar propostas.");
     const batch = writeBatch(firestore);
     newQuotesData.forEach(quoteData => {
         const docRef = doc(quotesCollection);
         batch.set(docRef, { ...quoteData, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
-  }, [firestore, quotesCollection, user]);
+  }, [firestore, quotesCollection, user, userSellerIdentity]);
 
   const updateQuote = useCallback(async (
     id: string, 
     quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpSequence'>> & { followUpOption: FollowUpOptionValue, followUpDone?: boolean }
   ) => {
-    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
+    if (!quotesCollection || !user) throw new Error("Firestore não inicializado para propostas");
     const originalQuote = quotes?.find(q => q.id === id);
-    if (!originalQuote) return;
-    if (isReadOnly || selectedSeller !== originalQuote.seller) throw new Error("Usuário não tem permissão para modificar esta proposta.");
+    if (!originalQuote || originalQuote.sellerUid !== user.uid) throw new Error("Usuário não tem permissão para modificar esta proposta.");
 
     const quoteRef = doc(quotesCollection, id);
     
@@ -111,24 +108,23 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     await updateDoc(quoteRef, { ...updatePayload, updatedAt: serverTimestamp() });
-  }, [quotes, quotesCollection, isReadOnly, selectedSeller]);
+  }, [quotes, quotesCollection, user]);
 
   const deleteQuote = useCallback(async (id: string) => {
-    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
+    if (!quotesCollection || !user) throw new Error("Firestore não inicializado para propostas");
     const originalQuote = quotes?.find(q => q.id === id);
-    if (isReadOnly || (originalQuote && selectedSeller !== originalQuote.seller)) throw new Error("Usuário não tem permissão para excluir esta proposta.");
+    if (!originalQuote || originalQuote.sellerUid !== user.uid) throw new Error("Usuário não tem permissão para excluir esta proposta.");
     await deleteDoc(doc(quotesCollection, id));
-  }, [quotes, quotesCollection, isReadOnly, selectedSeller]);
+  }, [quotes, quotesCollection, user]);
 
   const getQuoteById = useCallback((id: string): Quote | undefined => {
     return quotes?.find(quote => quote.id === id);
   }, [quotes]);
 
   const toggleFollowUpDone = useCallback(async (quoteId: string) => {
-    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas.");
+    if (!quotesCollection || !user) throw new Error("Firestore não inicializado para propostas.");
     const quote = quotes?.find(q => q.id === quoteId);
-    if (!quote) return;
-    if (isReadOnly || selectedSeller !== quote.seller) throw new Error("Usuário não tem permissão para modificar esta proposta.");
+    if (!quote || quote.sellerUid !== user.uid) return;
 
     const quoteRef = doc(quotesCollection, quoteId);
 
@@ -171,7 +167,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             updatedAt: serverTimestamp() 
         });
     }
-  }, [quotes, quotesCollection, isReadOnly, selectedSeller]);
+  }, [quotes, quotesCollection, user]);
 
 
   const setManagementSearchTerm = useCallback((term: string) => {

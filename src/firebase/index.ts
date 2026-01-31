@@ -8,6 +8,7 @@ import { firebaseConfig } from './config';
 export { FirebaseProvider, FirebaseClientProvider, useFirebase, useFirebaseApp, useFirestore, useAuth } from './provider';
 export { useCollection } from './firestore/use-collection';
 export { useDoc } from './firestore/use-doc';
+export { useUser } from './auth/use-user';
 
 // --- Initialize Firebase ---
 let firebaseApp: FirebaseApp;

@@ -22,30 +22,25 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedSeller, setSelectedSeller] = useState<Seller | typeof ALL_SELLERS_OPTION>(ALL_SELLERS_OPTION);
   const [filters, setFiltersState] = useState<SalesFilters>({ selectedYear: 'all' });
   
+  const userSellerIdentity = useMemo(() => user?.email ? SELLER_EMAIL_MAP[user.email.toLowerCase() as keyof typeof SELLER_EMAIL_MAP] || null : null, [user]);
+  
   useEffect(() => {
-    if (authLoading) return;
-    if (user && user.email) {
-      const seller = SELLER_EMAIL_MAP[user.email.toLowerCase() as keyof typeof SELLER_EMAIL_MAP];
-      if (seller) {
-        setSelectedSeller(seller);
-      } else {
-        setSelectedSeller(ALL_SELLERS_OPTION);
-      }
+    if (userSellerIdentity) {
+      setSelectedSeller(userSellerIdentity);
     } else {
       setSelectedSeller(ALL_SELLERS_OPTION);
     }
-  }, [user, authLoading]);
+  }, [userSellerIdentity]);
 
-  const isReadOnly = useMemo(() => selectedSeller === ALL_SELLERS_OPTION && (!user || !Object.keys(SELLER_EMAIL_MAP).includes(user.email?.toLowerCase() || '')), [selectedSeller, user]);
+  const isReadOnly = useMemo(() => !userSellerIdentity, [userSellerIdentity]);
 
   const addSale = useCallback(async (saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>): Promise<Sale> => {
-    if (!salesCollection || !user) throw new Error("Firestore ou usuário não está inicializado.");
-    if (isReadOnly) throw new Error("Usuário não tem permissão para adicionar vendas.");
+    if (!salesCollection || !user || !userSellerIdentity) throw new Error("Usuário não tem permissão para adicionar vendas.");
 
     const docRef = doc(salesCollection);
     const newSaleData = {
       ...saleData,
-      seller: selectedSeller as Seller,
+      seller: userSellerIdentity,
       sellerUid: user.uid,
     };
     
@@ -56,37 +51,37 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         id: docRef.id, 
         createdAt: new Date().toISOString() 
     } as Sale;
-  }, [salesCollection, selectedSeller, isReadOnly, user]);
+  }, [salesCollection, user, userSellerIdentity]);
 
   const addBulkSales = useCallback(async (newSalesData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => {
-    if (!firestore || !salesCollection || !user) throw new Error("Firestore ou usuário não está inicializado.");
+    if (!firestore || !salesCollection || !user || !userSellerIdentity) throw new Error("Usuário não tem permissão para importar vendas.");
     const batch = writeBatch(firestore);
     newSalesData.forEach(saleData => {
         const docRef = doc(salesCollection);
         batch.set(docRef, { ...saleData, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
-  }, [firestore, salesCollection, user]);
+  }, [firestore, salesCollection, user, userSellerIdentity]);
 
   const updateSale = useCallback(async (id: string, saleUpdateData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => {
-    if (!salesCollection) throw new Error("Firestore não está inicializado.");
+    if (!salesCollection || !user) throw new Error("Firestore não está inicializado.");
     const originalSale = sales?.find(s => s.id === id);
-    if (isReadOnly || (originalSale && originalSale.seller !== selectedSeller)) {
+    if (!originalSale || originalSale.sellerUid !== user.uid) {
       throw new Error("Usuário não tem permissão para modificar esta venda.");
     }
     const saleRef = doc(salesCollection, id);
     await updateDoc(saleRef, { ...saleUpdateData, updatedAt: serverTimestamp() });
-  }, [sales, salesCollection, selectedSeller, isReadOnly]);
+  }, [sales, salesCollection, user]);
 
   const deleteSale = useCallback(async (id: string) => {
-    if (!salesCollection) throw new Error("Firestore não está inicializado.");
+    if (!salesCollection || !user) throw new Error("Firestore não está inicializado.");
     const originalSale = sales?.find(s => s.id === id);
-     if (isReadOnly || (originalSale && originalSale.seller !== selectedSeller)) {
+    if (!originalSale || originalSale.sellerUid !== user.uid) {
       throw new Error("Usuário não tem permissão para excluir esta venda.");
     }
     const saleRef = doc(salesCollection, id);
     await deleteDoc(saleRef);
-  }, [salesCollection, sales, selectedSeller, isReadOnly]);
+  }, [salesCollection, sales, user]);
 
   const getSaleById = useCallback((id: string): Sale | undefined => {
     return sales?.find(sale => sale.id === id);
