@@ -1,3 +1,4 @@
+
 // src/app/(app)/editar-venda/page.tsx
 "use client";
 import { useState, useEffect, useMemo } from 'react';
@@ -18,7 +19,7 @@ import { ptBR } from 'date-fns/locale';
 import { ALL_SELLERS_OPTION } from '@/lib/constants'; // Import ALL_SELLERS_OPTION
 
 export default function EditarVendaPage() {
-  const { sales, deleteSale, getSaleById, loading: salesLoading, selectedSeller } = useSales(); // Added selectedSeller
+  const { sales, deleteSale, getSaleById, loading: salesLoading, selectedSeller, isReadOnly } = useSales();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -31,7 +32,6 @@ export default function EditarVendaPage() {
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
 
   const editIdFromUrl = searchParams.get('editId');
-  const isGlobalSellerEquipeComercial = selectedSeller === ALL_SELLERS_OPTION;
 
   useEffect(() => {
     if (editIdFromUrl) {
@@ -61,7 +61,7 @@ export default function EditarVendaPage() {
   };
 
   const confirmDelete = (id: string) => {
-    if (isGlobalSellerEquipeComercial) {
+    if (isReadOnly) {
       toast({
         title: "Ação Não Permitida",
         description: "Selecione um vendedor específico (SERGIO ou RODRIGO) no seletor do cabeçalho para excluir vendas.",
@@ -168,7 +168,6 @@ export default function EditarVendaPage() {
                             size="sm" 
                             onClick={() => handleEditClick(sale.id)} 
                             className="w-full sm:w-auto"
-                            // disabled={isGlobalSellerEquipeComercial} // Modification disabled by SalesForm
                           >
                             <Edit3 className="h-4 w-4 mr-1" /> Modificar
                           </Button>
@@ -177,7 +176,7 @@ export default function EditarVendaPage() {
                             size="sm" 
                             onClick={() => confirmDelete(sale.id)} 
                             className="text-destructive hover:text-destructive hover:bg-destructive/10 w-full sm:w-auto"
-                            disabled={isGlobalSellerEquipeComercial} // Explicitly disable delete if EQUIPE COMERCIAL
+                            disabled={isReadOnly}
                           >
                             <Trash2 className="h-4 w-4 mr-1" /> Excluir
                           </Button>
@@ -198,14 +197,14 @@ export default function EditarVendaPage() {
           <CardHeader>
             <CardTitle>Modificando Venda: {getSaleById(editIdFromUrl)?.project || `OS ${getSaleById(editIdFromUrl)?.os}`}</CardTitle>
             <CardDescription>
-              {isGlobalSellerEquipeComercial 
-                ? "Selecione SERGIO ou RODRIGO no cabeçalho para habilitar a modificação." 
+              {isReadOnly && getSaleById(editIdFromUrl)?.seller !== selectedSeller
+                ? `Apenas o vendedor ${getSaleById(editIdFromUrl)?.seller} pode modificar esta venda.`
                 : "Altere os campos abaixo e clique em 'Atualizar Venda'."
               }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SalesForm showReadOnlyAlert={true} />
+            <SalesForm showReadOnlyAlert={true} saleToEdit={getSaleById(editIdFromUrl)} onFormSubmit={() => router.push('/editar-venda')} />
           </CardContent>
         </Card>
       )}

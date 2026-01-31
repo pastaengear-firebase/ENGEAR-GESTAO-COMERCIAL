@@ -278,9 +278,9 @@ Sistema de Controle de Vendas ENGEAR
             <Info className="h-4 w-4 !text-amber-600" />
             <AlertTitle>Modo Somente Leitura</AlertTitle>
             <AlertDescription>
-              { originatingSeller
+              { originatingSeller && selectedSeller !== originatingSeller
                 ? `Apenas o vendedor ${originatingSeller} pode modificar este item.`
-                : "Faça login com uma conta de vendedor autorizada para habilitar o formulário."
+                : "Selecione um vendedor (SERGIO ou RODRIGO) para habilitar o formulário."
               }
             </AlertDescription>
           </Alert>
@@ -333,7 +333,7 @@ Sistema de Controle de Vendas ENGEAR
               </SelectContent>
             </Select>
             <FormDescription>
-              {editMode || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo usuário logado."}
+              {editMode || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo seletor no cabeçalho."}
             </FormDescription>
           </FormItem>
 

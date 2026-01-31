@@ -58,7 +58,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newQuoteData = {
       ...restOfQuoteData,
       seller: selectedSeller as Seller,
-      sellerUid: 'static_user', // Static UID since there's no auth
+      sellerUid: 'password_user',
       followUpDate: date,
       followUpDone: done,
       followUpSequence: sequence,
@@ -78,7 +78,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const batch = writeBatch(firestore);
     newQuotesData.forEach(quoteData => {
         const docRef = doc(quotesCollection);
-        batch.set(docRef, { ...quoteData, sellerUid: 'static_user', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        batch.set(docRef, { ...quoteData, sellerUid: 'password_user', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
   }, [firestore, quotesCollection, isReadOnly]);

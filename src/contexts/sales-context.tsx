@@ -33,7 +33,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newSaleData = {
       ...saleData,
       seller: selectedSeller as Seller,
-      sellerUid: "static_user", // Static UID since there's no auth
+      sellerUid: "password_user",
     };
     
     await setDoc(docRef, { ...newSaleData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -50,7 +50,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const batch = writeBatch(firestore);
     newSalesData.forEach(saleData => {
         const docRef = doc(salesCollection);
-        batch.set(docRef, { ...saleData, sellerUid: "static_user", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        batch.set(docRef, { ...saleData, sellerUid: "password_user", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
   }, [firestore, salesCollection, isReadOnly]);

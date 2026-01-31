@@ -3,7 +3,6 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useSales } from '@/hooks/use-sales';
-import { useAuth } from '@/hooks/use-auth';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -15,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Search, Send, Printer, DollarSign, AlertTriangle, CheckCircle, Info, Receipt, Loader2, History } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import type { Sale, BillingLog } from '@/lib/types';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
@@ -25,8 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type PendingSale = Sale & { daysPending: number };
 
 export default function FaturamentoPage() {
-  const { sales, updateSale, loading: salesLoading } = useSales();
-  const { user } = useAuth();
+  const { sales, updateSale, loading: salesLoading, selectedSeller, isReadOnly } = useSales();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -110,9 +109,13 @@ export default function FaturamentoPage() {
   };
 
   const handleSendEmail = async () => {
-    if (!selectedSale || !user || !firestore) {
+    if (!selectedSale || !firestore) {
       toast({ title: "Erro", description: "Nenhuma venda selecionada ou sistema não inicializado.", variant: "destructive" });
       return;
+    }
+    if (isReadOnly) {
+       toast({ title: "Ação Não Permitida", description: "Selecione um vendedor (SERGIO ou RODRIGO) para solicitar faturamento.", variant: "destructive" });
+       return;
     }
     if (!recipientEmail) {
       toast({ title: "Erro", description: "Por favor, insira o e-mail do destinatário.", variant: "destructive" });
@@ -166,8 +169,8 @@ Equipe Comercial ENGEAR
             billingInfo,
             billingAmount: Number(billingAmount),
             recipientEmail,
-            requestedBy: user.displayName || 'Desconhecido',
-            requestedByUid: user.uid,
+            requestedBy: selectedSeller,
+            requestedByUid: 'password_user',
         };
         
         const logsCollection = collection(firestore, 'billing-logs');
@@ -209,6 +212,16 @@ Equipe Comercial ENGEAR
             Solicite faturamentos e consulte o histórico de envios.
         </p>
       </div>
+
+     {isReadOnly && (
+        <Alert variant="default" className="bg-amber-50 border-amber-300 text-amber-700">
+          <Info className="h-4 w-4 !text-amber-600" />
+          <AlertTitle>Ação Necessária</AlertTitle>
+          <AlertDescription>
+            Para solicitar um faturamento, por favor, selecione um vendedor (SERGIO ou RODRIGO) no seletor do cabeçalho.
+          </AlertDescription>
+        </Alert>
+      )}
 
      <Tabs defaultValue="request" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -323,6 +336,7 @@ Equipe Comercial ENGEAR
                         onChange={(e) => setBillingInfo(e.target.value)}
                         maxLength={300}
                         className="mt-1 min-h-[100px]"
+                        disabled={isReadOnly}
                     />
                     <p className="text-xs text-muted-foreground text-right mt-1">{billingInfo.length} / 300 caracteres</p>
                     </div>
@@ -339,6 +353,7 @@ Equipe Comercial ENGEAR
                             value={billingAmount}
                             onChange={(e) => setBillingAmount(e.target.value)}
                             className="pl-8"
+                            disabled={isReadOnly}
                         />
                     </div>
                     </div>
@@ -352,12 +367,13 @@ Equipe Comercial ENGEAR
                         value={recipientEmail}
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         className="mt-1"
+                        disabled={isReadOnly}
                     />
                     </div>
                 </div>
                 </CardContent>
                 <CardFooter className="print-hide border-t pt-4">
-                <Button onClick={handleSendEmail} disabled={isSubmitting} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+                <Button onClick={handleSendEmail} disabled={isSubmitting || isReadOnly} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     {isSubmitting ? 'Processando...' : 'Enviar Dados por E-mail'}
                 </Button>
