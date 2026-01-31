@@ -7,6 +7,7 @@ import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as fir
 import { useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -23,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const auth = useFirebaseAuth();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!auth || !firestore) {
@@ -49,17 +51,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [auth, firestore]);
 
   const signInWithGoogle = useCallback(async () => {
-    if (!auth) return;
+    if (!auth) {
+        toast({
+            title: "Erro de Autenticação",
+            description: "O sistema de autenticação não foi inicializado corretamente.",
+            variant: "destructive",
+        });
+        return;
+    }
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // The AuthGate component will handle redirection upon successful login.
-    } catch (error) {
+      // onAuthStateChanged will handle the rest
+    } catch (error: any) {
       console.error("Error signing in with Google: ", error);
+      
+      let description = "Ocorreu um erro desconhecido durante o login.";
+      if (error.code === 'auth/unauthorized-domain') {
+          description = "O domínio da aplicação não está autorizado para login. Verifique as configurações de autenticação no seu projeto Firebase.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+          description = "A janela de login foi fechada antes da conclusão.";
+      } else if (error.code) {
+          description = `Erro: ${error.code}.`;
+      }
+
+      toast({
+        title: "Falha no Login",
+        description: description,
+        variant: "destructive",
+      });
       setLoading(false);
     }
-  }, [auth]);
+  }, [auth, toast]);
 
   const signOut = useCallback(async () => {
     if (!auth) return;
