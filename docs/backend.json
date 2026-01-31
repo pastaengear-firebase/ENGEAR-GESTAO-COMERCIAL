@@ -1,24 +1,12 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "User Profile",
-      "description": "Represents a user's public profile.",
-      "type": "object",
-      "properties": {
-        "uid": { "type": "string", "description": "The user's unique ID." },
-        "email": { "type": "string", "format": "email", "description": "The user's email address." },
-        "displayName": { "type": "string", "description": "The user's display name." },
-        "photoURL": { "type": "string", "format": "uri", "description": "URL of the user's profile picture." }
-      },
-      "required": ["uid", "email"]
-    },
     "Sale": {
       "title": "Sale",
       "description": "Represents a single sale record.",
       "type": "object",
       "properties": {
         "seller": { "type": "string", "enum": ["SERGIO", "RODRIGO"] },
-        "sellerUid": { "type": "string", "description": "The UID of the seller who created the sale." },
+        "sellerUid": { "type": "string", "description": "A static identifier for the user role." },
         "date": { "type": "string", "format": "date" },
         "company": { "type": "string", "enum": ["ENGEAR", "CLIMAZONE"] },
         "project": { "type": "string" },
@@ -40,7 +28,7 @@
       "type": "object",
       "properties": {
         "seller": { "type": "string", "enum": ["SERGIO", "RODRIGO"] },
-        "sellerUid": { "type": "string", "description": "The UID of the seller who created the quote." },
+        "sellerUid": { "type": "string", "description": "A static identifier for the user role." },
         "clientName": { "type": "string" },
         "proposalDate": { "type": "string", "format": "date" },
         "validityDate": { "type": "string", "format": "date" },
@@ -89,13 +77,9 @@
     }
   },
   "auth": {
-    "providers": ["Google", "Email"]
+    "providers": []
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "Collection of user profile documents."
-    },
     "/sales/{saleId}": {
       "schema": { "$ref": "#/entities/Sale" },
       "description": "Collection of sales documents."

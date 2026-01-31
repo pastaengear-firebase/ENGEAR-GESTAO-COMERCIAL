@@ -6,12 +6,10 @@ import { SettingsProvider } from './settings-context';
 import { QuotesProvider } from './quotes-context';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { AuthProvider } from './auth-context';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <FirebaseClientProvider>
-      <AuthProvider>
         <SalesProvider>
           <SettingsProvider>
             <QuotesProvider>
@@ -21,7 +19,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             </QuotesProvider>
           </SettingsProvider>
         </SalesProvider>
-      </AuthProvider>
     </FirebaseClientProvider>
   );
 };

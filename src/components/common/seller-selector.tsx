@@ -1,7 +1,8 @@
 // src/components/common/seller-selector.tsx
 "use client";
 import { useSales } from '@/hooks/use-sales';
-import { SELLERS, ALL_SELLERS_OPTION, type Seller } from '@/lib/constants';
+import { SELLERS, ALL_SELLERS_OPTION } from '@/lib/constants';
+import type { Seller } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Users } from 'lucide-react';

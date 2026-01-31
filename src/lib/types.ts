@@ -36,6 +36,7 @@ export type SalesContextType = {
   sales: Sale[];
   filteredSales: Sale[];
   selectedSeller: Seller | typeof ALL_SELLERS_OPTION;
+  setSelectedSeller: (seller: Seller | typeof ALL_SELLERS_OPTION) => void;
   isReadOnly: boolean;
   addSale: (saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>) => Promise<Sale>;
   addBulkSales: (newSales: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => Promise<void>;

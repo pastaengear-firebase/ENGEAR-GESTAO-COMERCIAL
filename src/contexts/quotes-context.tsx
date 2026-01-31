@@ -5,10 +5,9 @@ import type React from 'react';
 import { createContext, useState, useCallback, useContext, useMemo } from 'react';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
-import { ALL_SELLERS_OPTION, SELLERS, SELLER_EMAIL_MAP } from '@/lib/constants';
+import { ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
 import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '@/lib/types';
 import { useSales } from '@/hooks/use-sales';
-import { useAuth } from '@/hooks/use-auth';
 import { format, parseISO, addDays } from 'date-fns';
 
 export const QuotesContext = createContext<QuotesContextType | undefined>(undefined);
@@ -45,15 +44,12 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [managementSearchTerm, setManagementSearchTermState] = useState<string>('');
   const [dashboardFilters, setDashboardFiltersState] = useState<QuoteDashboardFilters>({ selectedYear: 'all' });
 
-  const { selectedSeller } = useSales();
-  const { user } = useAuth();
+  const { selectedSeller, isReadOnly } = useSales();
   
-  const userSellerIdentity = useMemo(() => user?.email ? SELLER_EMAIL_MAP[user.email.toLowerCase() as keyof typeof SELLER_EMAIL_MAP] || null : null, [user]);
-
   const addQuote = useCallback(async (
     quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue }
   ): Promise<Quote> => {
-    if (!quotesCollection || !user || !userSellerIdentity) throw new Error("Usuário sem permissão para adicionar proposta.");
+    if (!quotesCollection || selectedSeller === ALL_SELLERS_OPTION) throw new Error("Selecione um vendedor para adicionar uma proposta.");
     
     const { followUpOption, ...restOfQuoteData } = quoteData;
     const { date, sequence, done } = calculateFollowUp(quoteData.proposalDate, followUpOption);
@@ -61,8 +57,8 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const docRef = doc(quotesCollection);
     const newQuoteData = {
       ...restOfQuoteData,
-      seller: userSellerIdentity,
-      sellerUid: user.uid,
+      seller: selectedSeller as Seller,
+      sellerUid: 'static_user', // Static UID since there's no auth
       followUpDate: date,
       followUpDone: done,
       followUpSequence: sequence,
@@ -75,72 +71,66 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: docRef.id,
         createdAt: new Date().toISOString() 
     } as Quote;
-  }, [user, userSellerIdentity, quotesCollection]);
+  }, [selectedSeller, quotesCollection]);
 
   const addBulkQuotes = useCallback(async (newQuotesData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => {
-    if (!firestore || !quotesCollection || !user || !userSellerIdentity) throw new Error("Usuário não tem permissão para importar propostas.");
+    if (!firestore || !quotesCollection || isReadOnly) throw new Error("Usuário não tem permissão para importar propostas.");
     const batch = writeBatch(firestore);
     newQuotesData.forEach(quoteData => {
         const docRef = doc(quotesCollection);
-        batch.set(docRef, { ...quoteData, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        batch.set(docRef, { ...quoteData, sellerUid: 'static_user', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
-  }, [firestore, quotesCollection, user, userSellerIdentity]);
+  }, [firestore, quotesCollection, isReadOnly]);
 
   const updateQuote = useCallback(async (
     id: string, 
     quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpSequence'>> & { followUpOption: FollowUpOptionValue, followUpDone?: boolean }
   ) => {
-    if (!quotesCollection || !user) throw new Error("Firestore não inicializado para propostas");
-    const originalQuote = quotes?.find(q => q.id === id);
-    if (!originalQuote || originalQuote.sellerUid !== user.uid) throw new Error("Usuário não tem permissão para modificar esta proposta.");
-
+    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
+    
     const quoteRef = doc(quotesCollection, id);
     
     const { followUpOption, ...restOfUpdateData } = quoteUpdateData;
     let updatePayload: Partial<Quote> = restOfUpdateData;
 
     // Recalculate follow-up if option or proposal date changed
-    if (followUpOption || quoteUpdateData.proposalDate) {
+    const originalQuote = quotes?.find(q => q.id === id);
+    if (originalQuote && (followUpOption || quoteUpdateData.proposalDate)) {
         const currentProposalDate = quoteUpdateData.proposalDate || originalQuote.proposalDate;
         const { date, sequence, done } = calculateFollowUp(currentProposalDate, followUpOption);
         updatePayload = { ...updatePayload, followUpDate: date, followUpSequence: sequence, followUpDone: done };
     }
     
     await updateDoc(quoteRef, { ...updatePayload, updatedAt: serverTimestamp() });
-  }, [quotes, quotesCollection, user]);
+  }, [quotes, quotesCollection]);
 
   const deleteQuote = useCallback(async (id: string) => {
-    if (!quotesCollection || !user) throw new Error("Firestore não inicializado para propostas");
-    const originalQuote = quotes?.find(q => q.id === id);
-    if (!originalQuote || originalQuote.sellerUid !== user.uid) throw new Error("Usuário não tem permissão para excluir esta proposta.");
+    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
     await deleteDoc(doc(quotesCollection, id));
-  }, [quotes, quotesCollection, user]);
+  }, [quotesCollection]);
 
   const getQuoteById = useCallback((id: string): Quote | undefined => {
     return quotes?.find(quote => quote.id === id);
   }, [quotes]);
 
   const toggleFollowUpDone = useCallback(async (quoteId: string) => {
-    if (!quotesCollection || !user) throw new Error("Firestore não inicializado para propostas.");
+    if (!quotesCollection) throw new Error("Firestore não inicializado para propostas.");
     const quote = quotes?.find(q => q.id === quoteId);
-    if (!quote || quote.sellerUid !== user.uid) return;
+    if (!quote) return;
 
     const quoteRef = doc(quotesCollection, quoteId);
 
-    // If it's being marked as "not done", just revert the 'done' status.
     if (quote.followUpDone) {
         await updateDoc(quoteRef, { followUpDone: false, updatedAt: serverTimestamp() });
         return;
     }
 
-    // If no sequence, just mark as done.
     if (!quote.followUpSequence || !quote.followUpDate) {
         await updateDoc(quoteRef, { followUpDone: true, updatedAt: serverTimestamp() });
         return;
     }
 
-    // Sequence logic: find current step and advance to the next, or finish.
     const sequence = quote.followUpSequence.split(',').map(Number);
     const proposalD = parseISO(quote.proposalDate);
     const currentFollowUpD = parseISO(quote.followUpDate);
@@ -155,19 +145,17 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     if (currentIndex === -1 || currentIndex >= sequence.length - 1) {
-        // Not found in sequence or it's the last one
         await updateDoc(quoteRef, { followUpDone: true, updatedAt: serverTimestamp() });
     } else {
-        // Advance to the next date in the sequence
         const nextOffset = sequence[currentIndex + 1];
         const nextFollowUpDate = format(addDays(proposalD, nextOffset), 'yyyy-MM-dd');
         await updateDoc(quoteRef, { 
             followUpDate: nextFollowUpDate,
-            followUpDone: false, // It's not done, it's newly scheduled
+            followUpDone: false,
             updatedAt: serverTimestamp() 
         });
     }
-  }, [quotes, quotesCollection, user]);
+  }, [quotes, quotesCollection]);
 
 
   const setManagementSearchTerm = useCallback((term: string) => {
