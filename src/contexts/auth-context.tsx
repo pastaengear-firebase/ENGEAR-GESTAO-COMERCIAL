@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation';
 import { 
   onAuthStateChanged, 
   GoogleAuthProvider, 
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut as firebaseSignOut, 
   type User,
   createUserWithEmailAndPassword,
@@ -43,32 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Handle the redirect result from Google sign-in
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          // Successfully signed in. onAuthStateChanged will handle the user state update.
-          // We can show a success toast.
-          toast({
-            title: 'Login bem-sucedido!',
-            description: `Bem-vindo(a) de volta, ${result.user.displayName}!`,
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("Error from redirect result: ", error);
-        let description = "Ocorreu um erro durante o login com Google.";
-        if (error.code === 'auth/account-exists-with-different-credential') {
-          description = 'Já existe uma conta com este e-mail, mas com um método de login diferente.';
-        }
-        toast({
-          title: "Falha no Login com Google",
-          description,
-          variant: "destructive",
-        });
-      });
-
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
         const { uid, email, displayName, photoURL } = firebaseUser;
@@ -89,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => unsubscribe();
-  }, [auth, firestore, toast]);
+  }, [auth, firestore]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!auth) {
@@ -100,18 +73,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         return;
     }
-    setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
+      toast({
+            title: 'Login bem-sucedido!',
+            description: `Bem-vindo(a) de volta!`,
+      });
     } catch (error: any) {
-      console.error("Error starting Google sign-in redirect: ", error);
+      console.error("Error signing in with Google: ", error);
+      let description = "Ocorreu um erro durante o login com Google.";
+      if (error.code === 'auth/account-exists-with-different-credential') {
+          description = 'Já existe uma conta com este e-mail, mas com um método de login diferente.';
+      } else if (error.code === 'auth/popup-blocked') {
+          description = 'O pop-up de login foi bloqueado pelo seu navegador. Por favor, habilite os pop-ups para este site.';
+      }
       toast({
         title: "Falha no Login com Google",
-        description: `Não foi possível iniciar o processo de login. Erro: ${error.code}`,
+        description,
         variant: "destructive",
       });
-      setLoading(false);
     }
   }, [auth, toast]);
 
