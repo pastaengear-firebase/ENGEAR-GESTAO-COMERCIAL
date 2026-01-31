@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { 
   onAuthStateChanged, 
   GoogleAuthProvider, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut, 
   type User,
   createUserWithEmailAndPassword,
@@ -42,14 +43,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Handle errors from the redirect flow
+    getRedirectResult(auth)
+      .catch((error) => {
+        console.error("Error from redirect result: ", error);
+        let description = "Ocorreu um erro durante o login com Google.";
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          description = 'Já existe uma conta com este e-mail, mas com um método de login diferente.';
+        }
+        toast({
+          title: "Falha no Login com Google",
+          description,
+          variant: "destructive",
+        });
+      });
+
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
         const { uid, email, displayName, photoURL } = firebaseUser;
         const appUser: AppUser = { uid, email, displayName, photoURL };
         
         const userRef = doc(firestore, 'users', uid);
-        // When signing up with email, displayName and photoURL can be null.
-        // We ensure not to overwrite existing values with null.
         const userData: any = { uid, email };
         if (displayName) userData.displayName = displayName;
         if (photoURL) userData.photoURL = photoURL;
@@ -64,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => unsubscribe();
-  }, [auth, firestore]);
+  }, [auth, firestore, toast]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!auth) {
@@ -78,27 +93,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      // onAuthStateChanged will handle the rest
+      // Using redirect instead of popup
+      await signInWithRedirect(auth, provider);
+      // The page will now redirect. The `useEffect` will handle the response.
     } catch (error: any) {
-      console.error("Error signing in with Google: ", error);
-      
-      let description = "Ocorreu um erro desconhecido durante o login.";
-      if (error.code === 'auth/unauthorized-domain') {
-          description = "O domínio da aplicação não está autorizado para login. Verifique as configurações de autenticação no seu projeto Firebase.";
-      } else if (error.code === 'auth/popup-closed-by-user') {
-          description = "A janela de login foi fechada antes da conclusão.";
-      } else if (error.code === 'auth/configuration-not-found') {
-          description = "O método de login com Google não está ativado no seu projeto Firebase. Por favor, ative-o no console do Firebase em Authentication > Sign-in method.";
-      } else if (error.code === 'auth/api-key-not-valid') {
-        description = "A chave de API do Firebase é inválida. Verifique o arquivo de configuração.";
-      } else if (error.code) {
-          description = `Erro: ${error.code}.`;
-      }
-
+      console.error("Error starting Google sign-in redirect: ", error);
       toast({
         title: "Falha no Login com Google",
-        description: description,
+        description: `Não foi possível iniciar o processo de login. Erro: ${error.code}`,
         variant: "destructive",
       });
       setLoading(false);
