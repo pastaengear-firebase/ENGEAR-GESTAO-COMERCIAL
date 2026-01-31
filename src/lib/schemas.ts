@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, SELLERS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, FOLLOW_UP_OPTIONS } from './constants';
 
@@ -20,7 +19,6 @@ export const SalesFormSchema = z.object({
   payment: z.coerce.number().min(0, 'Valor do Pagamento não pode ser negativo.').optional().default(0),
   summary: z.string().optional(),
   sendSaleNotification: z.boolean().optional().default(false),
-  seller: z.enum(SELLERS).optional(), // Adicionado para validação, mas será definido via estado
 });
 export type SalesFormData = z.infer<typeof SalesFormSchema>;
 

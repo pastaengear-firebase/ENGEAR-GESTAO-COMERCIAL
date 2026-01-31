@@ -1,4 +1,3 @@
-
 // src/app/(app)/vendas/gerenciar/page.tsx
 "use client";
 import type { ChangeEvent } from 'react';
@@ -81,10 +80,10 @@ export default function GerenciarVendasPage() {
   
   const confirmDelete = (id: string) => {
     const sale = sales.find(s => s.id === id);
-     if (isReadOnly && sale?.seller !== selectedSeller) {
+     if (isReadOnly || (sale && sale.seller !== selectedSeller)) {
         toast({
             title: "Ação Não Permitida",
-            description: `Apenas o vendedor ${sale?.seller} pode excluir esta venda.`,
+            description: `Apenas o vendedor que criou a venda pode excluí-la.`,
             variant: "destructive",
         });
         return;
@@ -152,7 +151,7 @@ export default function GerenciarVendasPage() {
           return;
         }
 
-        const expectedHeaders = ['Data', 'Vendedor', 'Empresa', 'Projeto', 'O.S.', 'Área', 'Cliente/Serviço', 'Valor da Venda', 'Status', 'Pagamento'];
+        const expectedHeaders = ['Data', 'Empresa', 'Projeto', 'O.S.', 'Área', 'Cliente/Serviço', 'Valor da Venda', 'Status', 'Pagamento'];
         const actualHeaders = Object.keys(json[0]);
         const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
         
@@ -160,12 +159,12 @@ export default function GerenciarVendasPage() {
           toast({
             variant: "destructive",
             title: "Cabeçalhos Inválidos",
-            description: `O arquivo não corresponde ao modelo. Cabeçalhos faltando: ${missingHeaders.join(', ')}`,
+            description: `O arquivo não corresponde ao modelo. Cabeçalhos faltando: ${missingHeaders.join(', ')}. O campo 'Vendedor' não é mais necessário.`,
           });
           return;
         }
 
-        const newSales: Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>[] = [];
+        const newSales: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>[] = [];
         const errors: string[] = [];
 
         json.forEach((row, index) => {
@@ -186,14 +185,12 @@ export default function GerenciarVendasPage() {
              return;
           }
 
-          const seller = row['Vendedor'];
           const company = row['Empresa'];
           const area = row['Área'];
           const status = row['Status'];
           const project = String(row['Projeto'] ?? '').trim();
           const clientService = String(row['Cliente/Serviço'] ?? '').trim();
 
-          if (!SELLERS.includes(seller)) { errors.push(`Linha ${lineNumber}: Vendedor inválido: "${seller}".`); return; }
           if (!COMPANY_OPTIONS.includes(company)) { errors.push(`Linha ${lineNumber}: Empresa inválida: "${company}".`); return; }
           if (!AREA_OPTIONS.includes(area)) { errors.push(`Linha ${lineNumber}: Área inválida: "${area}".`); return; }
           if (!STATUS_OPTIONS.includes(status)) { errors.push(`Linha ${lineNumber}: Status inválido: "${status}".`); return; }
@@ -208,7 +205,6 @@ export default function GerenciarVendasPage() {
           
           newSales.push({
             date: format(jsDate, 'yyyy-MM-dd'),
-            seller: seller as Seller,
             company: company as CompanyOption,
             project: project,
             os: String(row['O.S.'] ?? ''),
@@ -217,7 +213,7 @@ export default function GerenciarVendasPage() {
             salesValue: Number(Math.round(+(salesValue || 0) + 'e+2') + 'e-2'),
             status: status as StatusOption,
             payment: Number(Math.round(+(payment || 0) + 'e+2') + 'e-2'),
-          } as Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>);
+          } as Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>);
         });
 
         if (errors.length > 0) {

@@ -6,7 +6,7 @@
       "type": "object",
       "properties": {
         "seller": { "type": "string", "enum": ["SERGIO", "RODRIGO"] },
-        "sellerUid": { "type": "string", "description": "A static identifier for the user role." },
+        "sellerUid": { "type": "string", "description": "The Firebase UID of the user who created the sale." },
         "date": { "type": "string", "format": "date" },
         "company": { "type": "string", "enum": ["ENGEAR", "CLIMAZONE"] },
         "project": { "type": "string" },
@@ -28,7 +28,7 @@
       "type": "object",
       "properties": {
         "seller": { "type": "string", "enum": ["SERGIO", "RODRIGO"] },
-        "sellerUid": { "type": "string", "description": "A static identifier for the user role." },
+        "sellerUid": { "type": "string", "description": "The Firebase UID of the user who created the quote." },
         "clientName": { "type": "string" },
         "proposalDate": { "type": "string", "format": "date" },
         "validityDate": { "type": "string", "format": "date" },
@@ -77,7 +77,7 @@
     }
   },
   "auth": {
-    "providers": []
+    "providers": ["google.com", "password"]
   },
   "firestore": {
     "/sales/{saleId}": {

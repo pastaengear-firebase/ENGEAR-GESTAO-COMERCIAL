@@ -1,14 +1,15 @@
-
 // src/firebase/provider.tsx
 'use client';
 import type React from 'react';
 import { createContext, useContext, useMemo } from 'react';
 import type { FirebaseApp } from 'firebase/app';
 import type { Firestore } from 'firebase/firestore';
+import type { Auth } from 'firebase/auth';
 
 interface FirebaseContextType {
   app: FirebaseApp | null;
   firestore: Firestore | null;
+  auth: Auth | null;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
@@ -18,6 +19,7 @@ interface FirebaseProviderProps {
   value: {
     app: FirebaseApp;
     firestore: Firestore;
+    auth: Auth;
   };
 }
 
@@ -46,4 +48,9 @@ export function useFirebaseApp() {
 export function useFirestore() {
     const context = useFirebase();
     return context.firestore;
+}
+
+export function useAuth() {
+    const context = useFirebase();
+    return context.auth;
 }

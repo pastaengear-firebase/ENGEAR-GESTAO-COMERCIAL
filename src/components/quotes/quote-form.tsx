@@ -1,4 +1,3 @@
-
 // src/components/quotes/quote-form.tsx
 "use client";
 import type React from 'react';
@@ -253,10 +252,10 @@ Sistema de Controle de Vendas ENGEAR
 
           <FormItem>
             <FormLabel>Vendedor</FormLabel>
-            <Select value={selectedSeller} disabled>
+            <Select value={selectedSeller === 'EQUIPE COMERCIAL' ? '' : selectedSeller} disabled>
               <FormControl>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Vendedor não definido"/>
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -264,7 +263,7 @@ Sistema de Controle de Vendas ENGEAR
               </SelectContent>
             </Select>
             <FormDescription>
-              Vendedor definido pelo usuário logado.
+              Vendedor definido pelo seu login.
             </FormDescription>
           </FormItem>
 

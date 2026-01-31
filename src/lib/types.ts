@@ -33,13 +33,15 @@ export type SalesFilters = {
 };
 
 export type SalesContextType = {
+  user: AppUser | null;
+  loadingAuth: boolean;
+  logout: () => void;
   sales: Sale[];
   filteredSales: Sale[];
   selectedSeller: Seller | typeof ALL_SELLERS_OPTION;
-  setSelectedSeller: (seller: Seller | typeof ALL_SELLERS_OPTION) => void;
   isReadOnly: boolean;
   addSale: (saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>) => Promise<Sale>;
-  addBulkSales: (newSales: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => Promise<void>;
+  addBulkSales: (newSales: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>[]) => Promise<void>;
   updateSale: (id: string, saleData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
   deleteSale: (id: string) => Promise<void>;
   getSaleById: (id: string) => Sale | undefined;
@@ -105,7 +107,7 @@ export type QuotesContextType = {
   dashboardFilters: QuoteDashboardFilters;
   
   addQuote: (quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue, sendProposalNotification: boolean }) => Promise<Quote>;
-  addBulkQuotes: (newQuotes: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => Promise<void>;
+  addBulkQuotes: (newQuotes: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>[]) => Promise<void>;
   updateQuote: (id: string, quoteData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpSequence'>> & { followUpOption: FollowUpOptionValue, followUpDone?: boolean }) => Promise<void>;
   deleteQuote: (id: string) => Promise<void>;
   getQuoteById: (id: string) => Quote | undefined;

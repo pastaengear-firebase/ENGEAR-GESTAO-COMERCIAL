@@ -4,44 +4,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Default deny all access unless explicitly allowed.
+    // Allow logged-in users to read all documents.
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
     
-    // Sales Collection
+    // Sales Collection: Secure write operations based on user identity.
     match /sales/{saleId} {
-      // Anyone who gets past the app's password gate can read sales data.
-      allow read: if true;
+      // Allow create if the user is authenticated and the seller UID on the new document matches their own UID.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerUid;
       
-      // Allow creation only if the new sale has a 'seller' field that is 'SERGIO' or 'RODRIGO'.
-      allow create: if request.resource.data.seller in ['SERGIO', 'RODRIGO'];
-      
-      // Allow updates only if the document already belongs to a known seller,
-      // and the seller field is not being changed.
-      allow update: if resource.data.seller in ['SERGIO', 'RODRIGO'] && request.resource.data.seller == resource.data.seller;
+      // Allow update if the user owns the document and is not changing the seller field.
+      allow update: if request.auth != null && request.auth.uid == resource.data.sellerUid && request.resource.data.seller == resource.data.seller;
         
-      // Allow deletion only if the document belongs to a known seller.
-      allow delete: if resource.data.seller in ['SERGIO', 'RODRIGO'];
+      // Allow delete if the user owns the document.
+      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerUid;
     }
 
-    // Quotes Collection
+    // Quotes Collection: Secure write operations based on user identity.
     match /quotes/{quoteId} {
-      allow read: if true;
-      allow create: if request.resource.data.seller in ['SERGIO', 'RODRIGO'];
-      allow update: if resource.data.seller in ['SERGIO', 'RODRIGO'] && request.resource.data.seller == resource.data.seller;
-      allow delete: if resource.data.seller in ['SERGIO', 'RODRIGO'];
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerUid;
+      allow update: if request.auth != null && request.auth.uid == resource.data.sellerUid && request.resource.data.seller == resource.data.seller;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerUid;
     }
 
-    // Settings Collection
-    // Since settings are global and not tied to a seller, access is less restricted.
-    // This allows the app to read/write settings.
+    // Settings Collection: Allow any authenticated user to manage settings.
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
-    // Billing Logs Collection
-    // Logs are append-only from the app.
-    // We allow reads, and writes are implicitly creating new documents.
+    // Billing Logs Collection: Allow authenticated users to create logs.
     match /billing-logs/{logId} {
-      allow read, write: if true;
+      allow create: if request.auth != null;
     }
   }
 }

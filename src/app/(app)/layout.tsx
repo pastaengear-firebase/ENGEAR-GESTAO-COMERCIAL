@@ -4,7 +4,7 @@ import type React from 'react';
 import { useState } from 'react';
 import SidebarNav from '@/components/layout/sidebar-nav';
 import HeaderContent from '@/components/layout/header-content';
-import { PasswordGate } from '@/components/auth/password-gate';
+import { AuthGate } from '@/components/auth/auth-gate';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -13,7 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
-    <PasswordGate>
+    <AuthGate>
       <div className="flex min-h-screen flex-col">
         <SidebarNav isMobileMenuOpen={isMobileMenuOpen} closeMobileMenu={closeMobileMenu} />
         <div className="flex flex-1 flex-col md:pl-36">
@@ -25,6 +25,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
-    </PasswordGate>
+    </AuthGate>
   );
 }

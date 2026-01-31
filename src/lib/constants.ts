@@ -6,7 +6,7 @@ export const ALL_SELLERS_OPTION = 'EQUIPE COMERCIAL';
 export const SELLER_EMAIL_MAP = {
   'sergio@engearpb.com.br': 'SERGIO',
   'rodrigobarros@engearpb.com.br': 'RODRIGO',
-  'pastaengear@gmail.com': 'SERGIO', // Example mapping, adjust as needed
+  'pastaengear@gmail.com': 'SERGIO',
 } as const;
 
 export const COMPANY_OPTIONS = ['ENGEAR', 'CLIMAZONE'] as const;

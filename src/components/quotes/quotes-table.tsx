@@ -1,8 +1,8 @@
-
 // src/components/quotes/quotes-table.tsx
 "use client";
 import type { Quote } from '@/lib/types';
 import { useQuotes } from '@/hooks/use-quotes';
+import { useSales } from '@/hooks/use-sales';
 import {
   Table,
   TableBody,
@@ -27,11 +27,12 @@ interface QuotesTableProps {
   quotesData: Quote[];
   onEdit: (quote: Quote) => void;
   onDelete: (quoteId: string) => void;
-  disabledActions: boolean;
+  disabledActions?: boolean;
 }
 
-export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActions }: QuotesTableProps) {
+export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActions: globalDisabled }: QuotesTableProps) {
   const { toggleFollowUpDone } = useQuotes();
+  const { isReadOnly, selectedSeller } = useSales();
   const router = useRouter();
 
   const getStatusBadgeVariant = (status: Quote['status']): React.ComponentProps<typeof Badge>['variant'] => {
@@ -63,8 +64,12 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
     }
   };
 
-  const handleConvertToSale = (quoteId: string) => {
-    router.push(`/inserir-venda?fromQuoteId=${quoteId}`);
+  const handleConvertToSale = (quote: Quote) => {
+    if (isReadOnly || selectedSeller !== quote.seller) {
+        // Opcional: Adicionar um toast para informar o usuário
+        return;
+    }
+    router.push(`/vendas/nova?fromQuoteId=${quote.id}`);
   };
 
 
@@ -95,7 +100,10 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
           </TableRow>
         </TableHeader>
         <TableBody>
-          {quotesData.map((quote) => (
+          {quotesData.map((quote) => {
+            const areActionsDisabled = globalDisabled || isReadOnly || selectedSeller !== quote.seller;
+
+            return (
             <TableRow key={quote.id} className="hover:bg-muted/50 transition-colors">
               <TableCell>{format(parseISO(quote.proposalDate), 'dd/MM/yy', { locale: ptBR })}</TableCell>
               <TableCell className="font-medium max-w-[200px] truncate" title={quote.clientName}>{quote.clientName}</TableCell>
@@ -115,13 +123,13 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
                         <span className={cn(getFollowUpDateClass(quote.followUpDate, quote.followUpDone))}>
                             {format(parseISO(quote.followUpDate), 'dd/MM/yy', { locale: ptBR })}
                         </span>
-                        {!disabledActions && (
+                        {!areActionsDisabled && (
                            <div className="flex items-center space-x-1">
                              <Checkbox
                                 id={`followUpDone-${quote.id}`}
                                 checked={!!quote.followUpDone}
                                 onCheckedChange={() => toggleFollowUpDone(quote.id)}
-                                disabled={disabledActions}
+                                disabled={areActionsDisabled}
                                 aria-label="Follow-up realizado"
                              />
                              <Label htmlFor={`followUpDone-${quote.id}`} className="text-xs cursor-pointer">Realizado?</Label>
@@ -135,27 +143,27 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
+                    <Button variant="ghost" className="h-8 w-8 p-0" disabled={areActionsDisabled}>
                       <span className="sr-only">Abrir menu</span>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit(quote)} disabled={disabledActions}>
+                    <DropdownMenuItem onClick={() => onEdit(quote)} disabled={areActionsDisabled}>
                       <Edit3 className="mr-2 h-4 w-4" /> Modificar
                     </DropdownMenuItem>
-                     <DropdownMenuItem onClick={() => handleConvertToSale(quote.id)} disabled={disabledActions}>
+                     <DropdownMenuItem onClick={() => handleConvertToSale(quote)} disabled={areActionsDisabled}>
                       <FileUp className="mr-2 h-4 w-4" /> Converter em Venda
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onDelete(quote.id)} className="text-destructive" disabled={disabledActions}>
+                    <DropdownMenuItem onClick={() => onDelete(quote.id)} className="text-destructive" disabled={areActionsDisabled}>
                       <Trash2 className="mr-2 h-4 w-4" /> Excluir
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
       <ScrollBar orientation="horizontal" />

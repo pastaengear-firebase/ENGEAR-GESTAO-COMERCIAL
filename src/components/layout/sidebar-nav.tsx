@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/lib/types';
-import { LayoutDashboard, Receipt, Settings, FileText, X, BrainCircuit, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Receipt, Settings, FileText, X, BrainCircuit, DollarSign, LogOut } from 'lucide-react';
 import Logo from '@/components/common/logo';
 import { Button } from '@/components/ui/button';
+import { useSales } from '@/hooks/use-sales';
 
 const navItems: NavItem[] = [
   {
@@ -54,6 +55,7 @@ interface SidebarNavProps {
 
 export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: SidebarNavProps) {
   const pathname = usePathname();
+  const { logout } = useSales();
 
   return (
     <>
@@ -98,8 +100,16 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
             </Link>
           ))}
         </nav>
-        <div className="mt-auto border-t border-sidebar-border p-4">
-          <p className="text-center text-xs text-sidebar-foreground/70">
+        <div className="mt-auto border-t border-sidebar-border p-2">
+           <Button
+              variant="ghost"
+              onClick={() => { closeMobileMenu(); logout(); }}
+              className="group flex w-full items-center rounded-md px-2 py-2 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:outline-none focus:ring-2 focus:ring-sidebar-ring"
+            >
+              <LogOut className="mr-2 h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Sair</span>
+            </Button>
+          <p className="mt-2 text-center text-xs text-sidebar-foreground/70">
             © {new Date().getFullYear()} ENGEAR
           </p>
         </div>

@@ -1,4 +1,3 @@
-
 // src/app/(app)/faturamento/page.tsx
 "use client";
 import { useState, useEffect, useMemo } from 'react';
@@ -25,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type PendingSale = Sale & { daysPending: number };
 
 export default function FaturamentoPage() {
-  const { sales, updateSale, loading: salesLoading, selectedSeller, isReadOnly } = useSales();
+  const { sales, updateSale, loading: salesLoading, selectedSeller, isReadOnly, user } = useSales();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -109,12 +108,12 @@ export default function FaturamentoPage() {
   };
 
   const handleSendEmail = async () => {
-    if (!selectedSale || !firestore) {
-      toast({ title: "Erro", description: "Nenhuma venda selecionada ou sistema não inicializado.", variant: "destructive" });
+    if (!selectedSale || !firestore || !user) {
+      toast({ title: "Erro", description: "Nenhuma venda selecionada ou usuário não autenticado.", variant: "destructive" });
       return;
     }
     if (isReadOnly) {
-       toast({ title: "Ação Não Permitida", description: "Selecione um vendedor (SERGIO ou RODRIGO) para solicitar faturamento.", variant: "destructive" });
+       toast({ title: "Ação Não Permitida", description: "Faça login como um vendedor para solicitar faturamento.", variant: "destructive" });
        return;
     }
     if (!recipientEmail) {
@@ -170,7 +169,7 @@ Equipe Comercial ENGEAR
             billingAmount: Number(billingAmount),
             recipientEmail,
             requestedBy: selectedSeller,
-            requestedByUid: 'password_user',
+            requestedByUid: user.uid,
         };
         
         const logsCollection = collection(firestore, 'billing-logs');
@@ -218,7 +217,7 @@ Equipe Comercial ENGEAR
           <Info className="h-4 w-4 !text-amber-600" />
           <AlertTitle>Ação Necessária</AlertTitle>
           <AlertDescription>
-            Para solicitar um faturamento, por favor, selecione um vendedor (SERGIO ou RODRIGO) no seletor do cabeçalho.
+            Para solicitar um faturamento, por favor, faça login com uma conta de vendedor autorizada.
           </AlertDescription>
         </Alert>
       )}

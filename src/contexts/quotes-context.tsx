@@ -3,7 +3,7 @@
 "use client";
 import type React from 'react';
 import { createContext, useState, useCallback, useContext, useMemo } from 'react';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useAuth } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
 import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '@/lib/types';
@@ -44,12 +44,12 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [managementSearchTerm, setManagementSearchTermState] = useState<string>('');
   const [dashboardFilters, setDashboardFiltersState] = useState<QuoteDashboardFilters>({ selectedYear: 'all' });
 
-  const { selectedSeller, isReadOnly } = useSales();
+  const { selectedSeller, isReadOnly, user } = useSales();
   
   const addQuote = useCallback(async (
     quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue }
   ): Promise<Quote> => {
-    if (!quotesCollection || selectedSeller === ALL_SELLERS_OPTION) throw new Error("Selecione um vendedor para adicionar uma proposta.");
+    if (!quotesCollection || !user || isReadOnly) throw new Error("Usuário não tem permissão para adicionar uma proposta.");
     
     const { followUpOption, ...restOfQuoteData } = quoteData;
     const { date, sequence, done } = calculateFollowUp(quoteData.proposalDate, followUpOption);
@@ -58,7 +58,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newQuoteData = {
       ...restOfQuoteData,
       seller: selectedSeller as Seller,
-      sellerUid: 'password_user',
+      sellerUid: user.uid,
       followUpDate: date,
       followUpDone: done,
       followUpSequence: sequence,
@@ -71,17 +71,17 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: docRef.id,
         createdAt: new Date().toISOString() 
     } as Quote;
-  }, [selectedSeller, quotesCollection]);
+  }, [selectedSeller, quotesCollection, user, isReadOnly]);
 
-  const addBulkQuotes = useCallback(async (newQuotesData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => {
-    if (!firestore || !quotesCollection || isReadOnly) throw new Error("Usuário não tem permissão para importar propostas.");
+  const addBulkQuotes = useCallback(async (newQuotesData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>[]) => {
+    if (!firestore || !quotesCollection || !user || isReadOnly) throw new Error("Usuário não tem permissão para importar propostas.");
     const batch = writeBatch(firestore);
     newQuotesData.forEach(quoteData => {
         const docRef = doc(quotesCollection);
-        batch.set(docRef, { ...quoteData, sellerUid: 'password_user', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        batch.set(docRef, { ...quoteData, seller: selectedSeller, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
-  }, [firestore, quotesCollection, isReadOnly]);
+  }, [firestore, quotesCollection, isReadOnly, user, selectedSeller]);
 
   const updateQuote = useCallback(async (
     id: string, 

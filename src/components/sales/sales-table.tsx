@@ -16,15 +16,18 @@ import { MoreHorizontal, Edit3, Trash2, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useSales } from '@/hooks/use-sales';
 
 interface SalesTableProps {
   salesData: Sale[];
   onEdit?: (sale: Sale) => void;
   onDelete?: (saleId: string) => void;
-  disabledActions?: boolean;
+  disabledActions?: boolean; // Prop global para desabilitar
 }
 
-export default function SalesTable({ salesData, onEdit, onDelete, disabledActions }: SalesTableProps) {
+export default function SalesTable({ salesData, onEdit, onDelete, disabledActions: globalDisabled }: SalesTableProps) {
+  const { user, isReadOnly, selectedSeller } = useSales();
+
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
     switch (status) {
       case 'FINALIZADO':
@@ -74,7 +77,12 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
           </TableRow>
         </TableHeader>
         <TableBody>
-          {salesData.map((sale) => (
+          {salesData.map((sale) => {
+            // Ações são desabilitadas se a prop global for true, se o usuário for read-only,
+            // ou se o vendedor selecionado não for o dono da venda.
+            const areActionsDisabled = globalDisabled || isReadOnly || selectedSeller !== sale.seller;
+            
+            return (
             <TableRow key={sale.id} className="hover:bg-muted/50 transition-colors">
               <TableCell>{format(parseISO(sale.date), 'dd/MM/yy', { locale: ptBR })}</TableCell>
               <TableCell>{sale.seller}</TableCell>
@@ -98,17 +106,17 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                 <TableCell className="text-right print-hide">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
+                      <Button variant="ghost" className="h-8 w-8 p-0" disabled={areActionsDisabled}>
                         <span className="sr-only">Abrir menu</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(sale)} disabled={disabledActions}>
+                      <DropdownMenuItem onClick={() => onEdit(sale)} disabled={areActionsDisabled}>
                         <Edit3 className="mr-2 h-4 w-4" /> Modificar
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onDelete(sale.id)} className="text-destructive" disabled={disabledActions}>
+                      <DropdownMenuItem onClick={() => onDelete(sale.id)} className="text-destructive" disabled={areActionsDisabled}>
                         <Trash2 className="mr-2 h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -116,7 +124,7 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                 </TableCell>
               )}
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
       <ScrollBar orientation="horizontal" />

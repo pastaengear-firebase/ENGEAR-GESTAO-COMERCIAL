@@ -1,4 +1,3 @@
-
 // src/components/sales/sales-form.tsx
 "use client";
 import type React from 'react';
@@ -34,7 +33,7 @@ interface SalesFormProps {
 }
 
 export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showReadOnlyAlert }: SalesFormProps) {
-  const { addSale, updateSale, selectedSeller, isReadOnly } = useSales();
+  const { addSale, updateSale, selectedSeller, isReadOnly, user } = useSales();
   const { getQuoteById: getQuoteByIdFromContext, updateQuote: updateQuoteStatus } = useQuotes();
   const { settings: appSettings, loadingSettings } = useSettings(); 
   const { toast } = useToast();
@@ -130,12 +129,6 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
         setOriginatingSeller(null);
       }
       
-      // Forçar desabilitação do formulário se necessário
-      if(formIsReadOnly) {
-        Object.keys(form.getValues()).forEach((key: any) => {
-            form.control.getFieldState(key).isDirty = false;
-        });
-      }
     };
     initializeForm();
   }, [editMode, saleToEdit, fromQuoteId, getQuoteByIdFromContext, form, toast, onFormSubmit, isReadOnly, selectedSeller, appSettings.enableSalesEmailNotifications]);
@@ -280,7 +273,7 @@ Sistema de Controle de Vendas ENGEAR
             <AlertDescription>
               { originatingSeller && selectedSeller !== originatingSeller
                 ? `Apenas o vendedor ${originatingSeller} pode modificar este item.`
-                : "Selecione um vendedor (SERGIO ou RODRIGO) para habilitar o formulário."
+                : "Faça login com um usuário de vendas autorizado para habilitar o formulário."
               }
             </AlertDescription>
           </Alert>
@@ -322,10 +315,10 @@ Sistema de Controle de Vendas ENGEAR
 
           <FormItem>
             <FormLabel>Vendedor</FormLabel>
-            <Select value={originatingSeller || selectedSeller} disabled>
+            <Select value={originatingSeller || (selectedSeller === 'EQUIPE COMERCIAL' ? '' : selectedSeller)} disabled>
               <FormControl>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Vendedor não definido" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -333,7 +326,7 @@ Sistema de Controle de Vendas ENGEAR
               </SelectContent>
             </Select>
             <FormDescription>
-              {editMode || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo seletor no cabeçalho."}
+              {editMode || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo seu login."}
             </FormDescription>
           </FormItem>
 

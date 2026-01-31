@@ -3,15 +3,32 @@
 import SalesForm from '@/components/sales/sales-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from 'lucide-react';
+import { Info, FilePlus } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
+import { useSearchParams } from 'next/navigation';
 
 export default function InserirVendaPage() {
   const { isReadOnly } = useSales();
+  const searchParams = useSearchParams();
+  const fromQuoteId = searchParams.get('fromQuoteId');
+
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">Inserir Nova Venda</h1>
+       <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center">
+            <FilePlus className="mr-3 h-8 w-8" /> 
+            {fromQuoteId ? 'Converter Proposta em Venda' : 'Inserir Nova Venda'}
+          </h1>
+          <p className="text-muted-foreground">
+            {fromQuoteId 
+              ? 'Os dados da proposta foram pré-preenchidos. Confirme e salve a nova venda.'
+              : 'Preencha os detalhes abaixo para registrar uma nova venda.'
+            }
+          </p>
+        </div>
+      </div>
       
       {isReadOnly && (
         <Alert variant="default" className="bg-amber-50 border-amber-300 text-amber-700">
@@ -35,7 +52,7 @@ export default function InserirVendaPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SalesForm />
+          <SalesForm fromQuoteId={fromQuoteId} />
         </CardContent>
       </Card>
     </div>
