@@ -43,5 +43,6 @@ export const QuoteFormSchema = z.object({
     })
     .default('0'),
   followUpDone: z.boolean().optional().default(false),
+  sendProposalNotification: z.boolean().optional().default(false),
 });
 export type QuoteFormData = z.infer<typeof QuoteFormSchema>;

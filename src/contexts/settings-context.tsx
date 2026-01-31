@@ -10,6 +10,8 @@ import type { AppSettings, SettingsContextType } from '@/lib/types';
 const defaultSettings: AppSettings = {
   enableSalesEmailNotifications: true,
   salesNotificationEmails: [],
+  enableProposalsEmailNotifications: true,
+  proposalsNotificationEmails: [],
 };
 
 const SETTINGS_DOC_ID = 'global'; // Use a single document for all app settings

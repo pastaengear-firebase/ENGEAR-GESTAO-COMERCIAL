@@ -66,6 +66,8 @@
       "properties": {
         "enableSalesEmailNotifications": { "type": "boolean" },
         "salesNotificationEmails": { "type": "array", "items": { "type": "string" } },
+        "enableProposalsEmailNotifications": { "type": "boolean", "description": "Enable email notifications for new proposals." },
+        "proposalsNotificationEmails": { "type": "array", "items": { "type": "string" }, "description": "List of emails to notify for new proposals." },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },

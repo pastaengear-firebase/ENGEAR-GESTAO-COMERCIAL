@@ -16,7 +16,7 @@ export interface Sale {
   date: string; // ISO string
   company: CompanyOption;
   project: string;
-  os?: string;
+  os: string; // O.S. is not optional
   area: AreaOption;
   clientService: string;
   salesValue: number;
@@ -57,6 +57,8 @@ export type NavItem = {
 export interface AppSettings {
   enableSalesEmailNotifications: boolean;
   salesNotificationEmails: string[];
+  enableProposalsEmailNotifications: boolean;
+  proposalsNotificationEmails: string[];
 }
 
 export type SettingsContextType = {
@@ -101,7 +103,7 @@ export type QuotesContextType = {
   setDashboardFilters: (filters: Partial<QuoteDashboardFilters>) => void;
   dashboardFilters: QuoteDashboardFilters;
   
-  addQuote: (quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue }) => Promise<Quote>;
+  addQuote: (quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue, sendProposalNotification: boolean }) => Promise<Quote>;
   addBulkQuotes: (newQuotes: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'sellerUid'>[]) => Promise<void>;
   updateQuote: (id: string, quoteData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpSequence'>> & { followUpOption: FollowUpOptionValue, followUpDone?: boolean }) => Promise<void>;
   deleteQuote: (id: string) => Promise<void>;

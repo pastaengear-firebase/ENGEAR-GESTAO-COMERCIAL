@@ -9,20 +9,21 @@ import { QuoteFormSchema, type QuoteFormData } from '@/lib/schemas';
 import { AREA_OPTIONS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, COMPANY_OPTIONS, SELLERS, FOLLOW_UP_OPTIONS } from '@/lib/constants';
 import type { Seller, FollowUpOptionValue } from '@/lib/constants';
 import { useQuotes } from '@/hooks/use-quotes';
-import { useSales } from '@/hooks/use-sales'; 
+import { useSales } from '@/hooks/use-sales';
+import { useSettings } from '@/hooks/use-settings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CalendarIcon, DollarSign, Save, RotateCcw, Info, BellRing, Check } from 'lucide-react';
+import { CalendarIcon, DollarSign, Save, RotateCcw, Info, BellRing, Check, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO, addDays, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useToast } from '@/hooks/use-toast';
 import type { Quote } from '@/lib/types';
 
 interface QuoteFormProps {
@@ -34,7 +35,7 @@ interface QuoteFormProps {
 export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert }: QuoteFormProps) {
   const { addQuote, updateQuote } = useQuotes();
   const { selectedSeller, isReadOnly } = useSales();
-  const { toast } = useToast();
+  const { settings: appSettings, loadingSettings } = useSettings(); 
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -55,6 +56,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       status: "Pendente",
       notes: '',
       followUpOption: '0', 
+      sendProposalNotification: false,
     },
   });
 
@@ -85,6 +87,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         status: quoteToEdit.status,
         notes: quoteToEdit.notes || '',
         followUpOption: followUpOptionValue,
+        sendProposalNotification: false,
       });
     } else if (!editMode) {
       form.reset({ 
@@ -99,22 +102,59 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         status: "Pendente",
         notes: '',
         followUpOption: '0',
+        sendProposalNotification: false,
       });
     }
   }, [quoteToEdit, editMode, form]);
 
+  const triggerProposalEmailNotification = (quote: Quote) => {
+    if (loadingSettings || !appSettings.enableProposalsEmailNotifications || appSettings.proposalsNotificationEmails.length === 0) {
+      return;
+    }
+
+    const recipients = appSettings.proposalsNotificationEmails.join(',');
+    
+    const subjectClient = quote.clientName.length > 25 ? `${quote.clientName.substring(0, 22)}...` : quote.clientName;
+    const subjectValue = quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    
+    const subject = `NOVA PROPOSTA - ${subjectClient} - ${subjectValue}`;
+    const appBaseUrl = window.location.origin;
+    const quoteLink = `${appBaseUrl}/propostas/gerenciar`; // Link to the management page
+
+    const body = `
+Uma nova proposta foi registrada no sistema:
+
+Detalhes da Proposta:
+--------------------------------------------------
+ID: ${quote.id}
+Data da Proposta: ${format(parseISO(quote.proposalDate), 'dd/MM/yyyy', { locale: ptBR })}
+Vendedor: ${quote.seller}
+Cliente: ${quote.clientName}
+Valor Proposto: ${quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+Status: ${quote.status}
+--------------------------------------------------
+
+Descrição do Escopo:
+--------------------------------------------------
+${quote.description || "Nenhuma descrição fornecida."}
+--------------------------------------------------
+
+Acesse a aplicação para gerenciar as propostas: ${quoteLink}
+
+Atenciosamente,
+Sistema de Controle de Vendas ENGEAR
+    `;
+
+    const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
   const onSubmit = async (data: QuoteFormData) => {
     if (isReadOnly) { 
-       toast({
-        title: "Ação Não Permitida",
-        description: "Faça login com um usuário de vendas para criar ou modificar uma proposta.",
-        variant: "destructive",
-      });
       return;
     }
     
     if (!data.proposalDate) {
-        toast({ title: "Erro de Validação", description: "Data da proposta é obrigatória.", variant: "destructive" });
         return;
     }
 
@@ -134,36 +174,35 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       if (editMode && quoteToEdit) {
         await updateQuote(quoteToEdit.id, quotePayload as any);
       } else {
-        await addQuote(quotePayload as any);
+        const newQuote = await addQuote(quotePayload as any);
+        if (data.sendProposalNotification) {
+          triggerProposalEmailNotification(newQuote);
+        }
       }
       
       setIsSaved(true);
 
-      form.reset({
-        clientName: '',
-        proposalDate: new Date(), 
-        validityDate: undefined,
-        company: undefined,
-        area: undefined,
-        contactSource: undefined,
-        description: '',
-        proposedValue: undefined,
-        status: "Pendente",
-        notes: '',
-        followUpOption: '0',
-      });
+      if (!editMode) {
+        form.reset({
+          clientName: '',
+          proposalDate: new Date(), 
+          validityDate: undefined,
+          company: undefined,
+          area: undefined,
+          contactSource: undefined,
+          description: '',
+          proposedValue: undefined,
+          status: "Pendente",
+          notes: '',
+          followUpOption: '0',
+          sendProposalNotification: false,
+        });
+      }
       
       if (onFormSubmit) {
         onFormSubmit();
       }
 
-    } catch (error) {
-      console.error("Detailed error saving quote in QuoteForm onSubmit:", error);
-      toast({ 
-        title: "Erro Crítico ao Salvar Proposta", 
-        description: `Ocorreu um erro inesperado: ${(error as Error).message}. Verifique o console para mais detalhes.`, 
-        variant: "destructive" 
-      });
     } finally {
       setIsSubmitting(false);
       setTimeout(() => setIsSaved(false), 2000);
@@ -427,6 +466,34 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
             )}
         />
 
+        {!editMode && (
+          <FormField
+            control={form.control}
+            name="sendProposalNotification"
+            render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-muted/30">
+                <FormControl>
+                <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={isReadOnly || isSubmitting || loadingSettings || !appSettings.enableProposalsEmailNotifications}
+                />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" />ENVIAR E-MAIL COM A NOVA PROPOSTA</FormLabel>
+                <FormDescription>
+                    {loadingSettings ? "Carregando config..." : 
+                    !appSettings.enableProposalsEmailNotifications ? "Notificações de propostas desabilitadas em Configurações." :
+                    "Se marcado, um e-mail com os dados da proposta será preparado para envio à equipe."
+                    }
+                </FormDescription>
+                </div>
+            </FormItem>
+            )}
+          />
+        )}
+
+
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button
             type="button"
@@ -444,6 +511,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
                 status: "Pendente",
                 notes: '',
                 followUpOption: '0',
+                sendProposalNotification: false,
               });
               if (onFormSubmit && editMode) onFormSubmit(); 
             }}
