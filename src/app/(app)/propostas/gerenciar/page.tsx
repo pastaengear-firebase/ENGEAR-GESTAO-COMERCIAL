@@ -102,15 +102,15 @@ export default function GerenciarPropostasPage() {
 
   const handleExport = () => {
     const dataToExport = managementFilteredQuotes.map(q => ({
-      'Cliente': q.clientName,
+      'Cliente': q.clientName || '',
       'Vendedor': q.seller,
       'Data Proposta': q.proposalDate,
       'Data Validade': q.validityDate || '',
-      'Empresa': q.company,
-      'Área': q.area,
-      'Fonte Contato': q.contactSource,
-      'Descrição': q.description,
-      'Valor Proposto': q.proposedValue,
+      'Empresa': q.company || '',
+      'Área': q.area || '',
+      'Fonte Contato': q.contactSource || '',
+      'Descrição': q.description || '',
+      'Valor Proposto': q.proposedValue || 0,
       'Status': q.status,
       'Notas': q.notes || '',
       'Data Follow-up': q.followUpDate || '',

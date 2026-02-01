@@ -33,7 +33,7 @@ export const QuoteFormSchema = z.object({
   contactSource: z.enum(CONTACT_SOURCE_OPTIONS).optional(),
   description: z.string().optional(),
   proposedValue: z.coerce.number().optional(),
-  status: z.enum(PROPOSAL_STATUS_OPTIONS).default('Pendente'),
+  status: z.enum(PROPOSAL_STATUS_OPTIONS).default('Enviada'),
   notes: z.string().optional(),
   followUpOption: z.string()
     .refine(val => followUpValues.includes(val as any), {

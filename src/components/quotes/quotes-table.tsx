@@ -170,10 +170,10 @@ export default function QuotesTable({ quotesData, onEdit, onDelete, disabledActi
             return (
             <TableRow key={quote.id} className="hover:bg-muted/50 transition-colors">
               <TableCell>{format(parseISO(quote.proposalDate), 'dd/MM/yy', { locale: ptBR })}</TableCell>
-              <TableCell className="font-medium max-w-[200px] truncate" title={quote.clientName}>{quote.clientName}</TableCell>
+              <TableCell className="font-medium max-w-[200px] truncate" title={quote.clientName || ''}>{quote.clientName || ''}</TableCell>
               <TableCell>{quote.seller}</TableCell>
               <TableCell className="text-right">
-                {quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {(quote.proposedValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
               <TableCell>
                 <Badge variant={getStatusBadgeVariant(quote.status)} className="capitalize text-xs px-2 py-0.5">

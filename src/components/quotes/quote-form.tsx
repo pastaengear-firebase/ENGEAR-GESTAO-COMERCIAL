@@ -57,7 +57,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       contactSource: undefined,
       description: '',
       proposedValue: undefined,
-      status: "Pendente",
+      status: "Enviada",
       notes: '',
       followUpOption: '0', 
       sendProposalNotification: false,
@@ -103,7 +103,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         contactSource: undefined,
         description: '',
         proposedValue: undefined,
-        status: "Pendente",
+        status: "Enviada",
         notes: '',
         followUpOption: '0',
         sendProposalNotification: appSettings.enableProposalsEmailNotifications, // Default to config
@@ -118,8 +118,8 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
 
     const recipients = appSettings.proposalsNotificationEmails.join(',');
     
-    const subjectClient = quote.clientName.length > 25 ? `${quote.clientName.substring(0, 22)}...` : quote.clientName;
-    const subjectValue = quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const subjectClient = quote.clientName && quote.clientName.length > 25 ? `${quote.clientName.substring(0, 22)}...` : (quote.clientName || "N/A");
+    const subjectValue = (quote.proposedValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
     const subject = `NOVA PROPOSTA - Cliente ${subjectClient}, Valor ${subjectValue}, Vendedor ${quote.seller}`;
     const appBaseUrl = window.location.origin;
@@ -133,8 +133,8 @@ Detalhes da Proposta:
 ID: ${quote.id}
 Data da Proposta: ${format(parseISO(quote.proposalDate), 'dd/MM/yyyy', { locale: ptBR })}
 Vendedor: ${quote.seller}
-Cliente: ${quote.clientName}
-Valor Proposto: ${quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+Cliente: ${quote.clientName || 'Não informado'}
+Valor Proposto: ${(quote.proposedValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
 Status: ${quote.status}
 --------------------------------------------------
 
@@ -202,7 +202,7 @@ Sistema de Controle de Vendas ENGEAR
           contactSource: undefined,
           description: '',
           proposedValue: undefined,
-          status: "Pendente",
+          status: "Enviada",
           notes: '',
           followUpOption: '0',
           sendProposalNotification: appSettings.enableProposalsEmailNotifications,
@@ -520,7 +520,7 @@ Sistema de Controle de Vendas ENGEAR
                 contactSource: undefined,
                 description: '',
                 proposedValue: undefined,
-                status: "Pendente",
+                status: "Enviada",
                 notes: '',
                 followUpOption: '0',
                 sendProposalNotification: appSettings.enableProposalsEmailNotifications,
