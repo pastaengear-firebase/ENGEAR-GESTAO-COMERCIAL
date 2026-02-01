@@ -1,9 +1,17 @@
 
-import type { AreaOption, StatusOption, CompanyOption, ProposalStatusOption, ContactSourceOption, FollowUpOptionValue } from './constants';
-import { type Seller } from './constants';
-export type { Seller };
+import type { 
+  AreaOption, 
+  StatusOption, 
+  CompanyOption, 
+  ProposalStatusOption, 
+  ContactSourceOption, 
+  FollowUpOptionValue,
+  Seller
+} from './constants';
 import { ALL_SELLERS_OPTION } from './constants';
 
+// Explicitly re-exporting the type to solve build issues.
+export type { Seller };
 
 export interface AppUser {
   uid: string;
