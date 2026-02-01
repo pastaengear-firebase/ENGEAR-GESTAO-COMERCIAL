@@ -5,7 +5,7 @@
 
 export const firebaseConfig = {
   apiKey: "AIzaSyAfGwU56XJvloOMDig5aljP8lN1hVnK9RM",
-  authDomain: "engear---depto-comercial-v3.firebaseapp.com",
+  authDomain: "studio--engear---depto-comercial-v3.firebaseapp.com",
   projectId: "engear---depto-comercial-v3",
   storageBucket: "engear---depto-comercial-v3.appspot.com",
   messagingSenderId: "297634043634",

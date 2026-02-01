@@ -1,7 +1,8 @@
 
 import type { AreaOption, StatusOption, CompanyOption, ProposalStatusOption, ContactSourceOption, FollowUpOptionValue } from './constants';
 export type { Seller } from './constants';
-import { type Seller, ALL_SELLERS_OPTION } from './constants';
+import { ALL_SELLERS_OPTION } from './constants';
+import type { Seller } from './constants';
 
 export interface AppUser {
   uid: string;
