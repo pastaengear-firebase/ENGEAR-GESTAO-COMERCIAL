@@ -1,0 +1,12 @@
+# apphosting.yaml
+runtime: nodejs20
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+
+# Se o seu projeto Next.js usa variáveis de ambiente, 
+# elas DEVEM ser declaradas aqui para o build funcionar.
+env:
+  - variable: NEXT_PUBLIC_EXAMPLE
+    value: "valor-exemplo"
