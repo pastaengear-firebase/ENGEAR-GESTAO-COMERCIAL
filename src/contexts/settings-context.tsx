@@ -34,7 +34,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   useEffect(() => {
     if (firestoreSettings) {
-        setSettings({ ...defaultSettings, ...firestoreSettings });
+        // Merge the new Firestore data into the existing state.
+        // This prevents fields from being cleared if Firestore returns a partial
+        // object during optimistic updates.
+        setSettings(prevSettings => ({ ...prevSettings, ...firestoreSettings }));
     }
   }, [firestoreSettings]);
 
