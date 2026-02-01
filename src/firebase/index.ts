@@ -1,3 +1,4 @@
+
 // src/firebase/index.ts
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
@@ -7,10 +8,11 @@ import { firebaseConfig } from './config';
 
 // Export providers and hooks for easy import
 export { FirebaseProvider, useFirebase, useFirebaseApp, useFirestore, useAuth, useStorage } from './provider';
-export { FirebaseClientProvider } from './client-provider';
 export { useCollection } from './firestore/use-collection';
 export { useDoc } from './firestore/use-doc';
 export { useUser } from './auth/use-user';
+// Explicitly export from client-provider to fix build error
+export { FirebaseClientProvider } from './client-provider';
 
 
 // --- Initialize Firebase ---

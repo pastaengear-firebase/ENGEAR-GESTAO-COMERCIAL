@@ -1,6 +1,7 @@
 
-import type { AreaOption, StatusOption, CompanyOption, ProposalStatusOption, ContactSourceOption, FollowUpOptionValue, Seller as SellerType } from './constants';
-export type Seller = SellerType;
+import type { AreaOption, StatusOption, CompanyOption, ProposalStatusOption, ContactSourceOption, FollowUpOptionValue } from './constants';
+import { type Seller } from './constants';
+export type { Seller };
 import { ALL_SELLERS_OPTION } from './constants';
 
 
