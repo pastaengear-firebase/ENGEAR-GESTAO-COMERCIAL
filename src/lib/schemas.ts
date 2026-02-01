@@ -25,15 +25,15 @@ export type SalesFormData = z.infer<typeof SalesFormSchema>;
 const followUpValues = FOLLOW_UP_OPTIONS.map(opt => opt.value);
 
 export const QuoteFormSchema = z.object({
-  clientName: z.string().min(1, 'Nome do cliente é obrigatório.'),
-  proposalDate: z.date({ required_error: 'Data da proposta é obrigatória.' }),
+  clientName: z.string().optional(),
+  proposalDate: z.date().optional(),
   validityDate: z.date().optional(),
-  company: z.enum(COMPANY_OPTIONS, { required_error: 'Empresa é obrigatória.' }),
-  area: z.enum(AREA_OPTIONS, { required_error: 'Área é obrigatória.' }),
-  contactSource: z.enum(CONTACT_SOURCE_OPTIONS, { required_error: 'Fonte do contato é obrigatória.'}),
-  description: z.string().min(1, 'Descrição/Escopo é obrigatório.'),
-  proposedValue: z.coerce.number().positive('Valor proposto deve ser positivo.'),
-  status: z.enum(PROPOSAL_STATUS_OPTIONS, { required_error: 'Status da proposta é obrigatório.'}),
+  company: z.enum(COMPANY_OPTIONS).optional(),
+  area: z.enum(AREA_OPTIONS).optional(),
+  contactSource: z.enum(CONTACT_SOURCE_OPTIONS).optional(),
+  description: z.string().optional(),
+  proposedValue: z.coerce.number().optional(),
+  status: z.enum(PROPOSAL_STATUS_OPTIONS).default('Pendente'),
   notes: z.string().optional(),
   followUpOption: z.string()
     .refine(val => followUpValues.includes(val as any), {

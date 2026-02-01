@@ -47,7 +47,7 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["seller", "sellerUid", "clientName", "proposalDate", "company", "area", "contactSource", "description", "proposedValue", "status", "createdAt"]
+      "required": ["seller", "sellerUid", "proposalDate", "status", "createdAt"]
     },
     "Setting": {
       "title": "Setting",
