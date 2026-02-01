@@ -5,8 +5,9 @@ runConfig:
   cpu: 1
   memoryMiB: 512
 
-# Se o seu projeto Next.js usa variáveis de ambiente, 
-# elas DEVEM ser declaradas aqui para o build funcionar.
+# O aviso no seu console (faixa azul) pede variáveis de ambiente.
+# Se você usa Firebase Auth ou Firestore (vimos que estão ativados), 
+# você pode precisar declarar as chaves aqui se o build as exigir.
 env:
-  - variable: NEXT_PUBLIC_EXAMPLE
-    value: "valor-exemplo"
+  - variable: NODE_ENV
+    value: "production"
