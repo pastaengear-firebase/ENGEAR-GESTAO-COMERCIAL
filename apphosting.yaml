@@ -1,5 +1,5 @@
 # apphosting.yaml
-# Forçando um novo build para resolver o erro "Signed URL Expired".
+# Forçando uma nova compilação para gerar uma nova Signed URL.
 runtime: nodejs20
 
 runConfig:
@@ -10,3 +10,4 @@ env:
     value: "phase-production-build"
   - variable: NODE_ENV
     value: "production"
+
