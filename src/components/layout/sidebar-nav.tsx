@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   },
   {
     title: 'Vendas',
-    href: '/vendas/nova',
+    href: '/vendas/gerenciar', // Alterado para ser a página principal de vendas
     icon: DollarSign,
     isActive: (pathname) => pathname.startsWith('/vendas'),
   },
