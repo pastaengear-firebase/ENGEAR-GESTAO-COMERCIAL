@@ -112,8 +112,7 @@ const intelligentSearchFlow = ai.defineFlow(
     outputSchema: SearchOutputSchema,
     enforceAppCheck: false, // Desativa a verificação obrigatória para permitir testes de implantação.
   },
-  async (input, context) => {
-    
+  async (input) => {
     const llmResponse = await searchPrompt(input);
     const output = llmResponse.output;
     if (!output) {
@@ -122,3 +121,4 @@ const intelligentSearchFlow = ai.defineFlow(
     return output;
   }
 );
+
