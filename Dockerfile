@@ -1,26 +1,24 @@
-# Use a stable Node.js 20 LTS image as a base
+# 1. Usa uma imagem oficial estável (Node 20 LTS)
 FROM node:20-slim
 
-# Set the working directory inside the container
+# 2. Define o diretório de trabalho
 WORKDIR /app
 
-# Copy package manifest files
-COPY package.json ./
+# 3. Copia arquivos de dependências primeiro (otimiza o cache)
+COPY package*.json ./
 
-# Install all dependencies based on package.json.
-# Using npm install as a package-lock is not present. For CI, `npm ci` is preferred.
+# 4. Instala as dependências de produção e desenvolvimento para o build
 RUN npm install
 
-# Copy the rest of the application's source code
+# 5. Copia o restante do código da aplicação
 COPY . .
 
-# Build the Next.js application for production
+# 6. Constrói a aplicação Next.js para produção
 RUN npm run build
 
-# The App Hosting environment sets the PORT variable (defaulting to 8080)
-# which Next.js automatically respects. Exposing it is good practice.
+# 7. Define a variável de ambiente da porta exigida pelo App Hosting/Cloud Run
+ENV PORT=8080
 EXPOSE 8080
 
-# The command to run the production server.
-# "next start" is the command in the "start" script of package.json.
+# 8. Comando para iniciar a aplicação em modo de produção
 CMD ["npm", "start"]
