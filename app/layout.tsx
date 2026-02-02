@@ -1,9 +1,10 @@
+
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
-import { AppProvider } from '../contexts/app-provider';
-import { Toaster } from "../components/ui/toaster";
+import { AppProvider } from '@/contexts/app-provider';
+import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
