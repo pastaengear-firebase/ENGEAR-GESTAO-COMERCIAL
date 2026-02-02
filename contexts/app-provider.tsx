@@ -1,4 +1,3 @@
-
 // src/contexts/app-provider.tsx
 "use client";
 import type React from 'react';
@@ -8,10 +7,6 @@ import { QuotesProvider } from './quotes-context';
 import { TooltipProvider } from '../components/ui/tooltip';
 import { FirebaseClientProvider } from '../firebase/client-provider';
 
-/**
- * Provedor mestre que unifica todos os contextos.
- * Usa caminhos relativos para garantir estabilidade no build.
- */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <FirebaseClientProvider>

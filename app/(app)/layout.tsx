@@ -2,9 +2,9 @@
 "use client";
 import type React from 'react';
 import { useState } from 'react';
-import SidebarNav from '@/components/layout/sidebar-nav';
-import HeaderContent from '@/components/layout/header-content';
-import { AuthGate } from '@/components/auth/auth-gate';
+import SidebarNav from '../../components/layout/sidebar-nav';
+import HeaderContent from '../../components/layout/header-content';
+import { AuthGate } from '../../components/auth/auth-gate';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

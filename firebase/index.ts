@@ -1,8 +1,6 @@
-
-// src/firebase/index.ts
+'use client';
 /**
- * Arquivo de exportação central do Firebase.
- * NÃO exporta o FirebaseClientProvider aqui para evitar ciclos de importação.
+ * Barrel file simplificado para evitar dependências circulares.
  */
 export { FirebaseProvider, useFirebase, useFirebaseApp, useFirestore, useAuth, useStorage } from './provider';
 export { useCollection } from './firestore/use-collection';

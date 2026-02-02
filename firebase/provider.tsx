@@ -44,21 +44,17 @@ export function useFirebase() {
 }
 
 export function useFirebaseApp() {
-    const context = useFirebase();
-    return context.app;
+    return useFirebase().app;
 }
 
 export function useFirestore() {
-    const context = useFirebase();
-    return context.firestore;
+    return useFirebase().firestore;
 }
 
 export function useAuth() {
-    const context = useFirebase();
-    return context.auth;
+    return useFirebase().auth;
 }
 
 export function useStorage() {
-    const context = useFirebase();
-    return context.storage;
+    return useFirebase().storage;
 }

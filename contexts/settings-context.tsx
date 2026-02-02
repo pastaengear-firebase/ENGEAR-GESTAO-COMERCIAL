@@ -1,9 +1,9 @@
-
-// src/contexts/settings-context.tsx
+// contexts/settings-context.tsx
 "use client";
 import type React from 'react';
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useFirestore, useDoc } from '@/firebase';
+import { useFirestore } from '../firebase/provider';
+import { useDoc } from '../firebase/firestore/use-doc';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { AppSettings, SettingsContextType } from '@/lib/types';
 
@@ -14,7 +14,7 @@ const defaultSettings: AppSettings = {
   proposalsNotificationEmails: [],
 };
 
-const SETTINGS_DOC_ID = 'global'; // Use a single document for all app settings
+const SETTINGS_DOC_ID = 'global';
 
 export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
@@ -34,24 +34,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   useEffect(() => {
     if (firestoreSettings) {
-        // Merge the new Firestore data into the existing state.
-        // This prevents fields from being cleared if Firestore returns a partial
-        // object during optimistic updates.
         setSettings(prevSettings => ({ ...prevSettings, ...firestoreSettings }));
     }
   }, [firestoreSettings]);
 
   const updateSettings = useCallback(async (newSettings: Partial<AppSettings>) => {
-      if (!settingsDocRef) {
-          console.error("Cannot update settings: Firestore is not available.");
-          throw new Error("Firestore not available");
-      }
-      
+      if (!settingsDocRef) throw new Error("Firestore not available");
       await setDoc(settingsDocRef, {
           ...newSettings, 
           updatedAt: serverTimestamp() 
       }, { merge: true });
-      
   }, [settingsDocRef]);
 
   const loadingSettings = loadingFirestoreSettings;

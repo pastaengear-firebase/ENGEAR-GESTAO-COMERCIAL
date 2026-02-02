@@ -1,14 +1,14 @@
-
-// src/contexts/quotes-context.tsx
+// contexts/quotes-context.tsx
 "use client";
 import type React from 'react';
-import { createContext, useState, useCallback, useContext, useMemo } from 'react';
-import { useFirestore, useCollection, useStorage } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
+import { createContext, useState, useCallback, useMemo } from 'react';
+import { useFirestore, useStorage } from '../firebase/provider';
+import { useCollection } from '../firebase/firestore/use-collection';
+import { collection, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
-import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '@/lib/types';
-import { useSales } from '@/hooks/use-sales';
+import { ALL_SELLERS_OPTION } from '../lib/constants';
+import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '../lib/types';
+import { useSales } from '../hooks/use-sales';
 import { format, parseISO, addDays } from 'date-fns';
 
 export const QuotesContext = createContext<QuotesContextType | undefined>(undefined);
@@ -66,9 +66,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       followUpSequence: sequence,
     };
 
-    // Remove any undefined properties before sending to Firestore
     const cleanedData = Object.fromEntries(Object.entries(newQuoteData).filter(([_, v]) => v !== undefined));
-
     await setDoc(docRef, { ...cleanedData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
 
     return { 
@@ -83,7 +81,6 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const batch = writeBatch(firestore);
     newQuotesData.forEach(quoteData => {
         const docRef = doc(quotesCollection);
-        // Remove any undefined properties before sending to Firestore
         const cleanedData = Object.fromEntries(Object.entries(quoteData).filter(([_, v]) => v !== undefined));
         batch.set(docRef, { ...cleanedData, seller: userRole, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
@@ -97,11 +94,9 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
     
     const quoteRef = doc(quotesCollection, id);
-    
     const { followUpOption, ...restOfUpdateData } = quoteUpdateData;
     let updatePayload: Partial<Quote> = restOfUpdateData;
 
-    // Recalculate follow-up if option or proposal date changed
     const originalQuote = quotes?.find(q => q.id === id);
     if (originalQuote && (followUpOption || quoteUpdateData.proposalDate)) {
         const currentProposalDate = quoteUpdateData.proposalDate || originalQuote.proposalDate;
@@ -109,9 +104,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatePayload = { ...updatePayload, followUpDate: date, followUpSequence: sequence, followUpDone: done };
     }
     
-    // Remove any undefined properties before sending to Firestore
     const cleanedPayload = Object.fromEntries(Object.entries(updatePayload).filter(([_, v]) => v !== undefined));
-
     await updateDoc(quoteRef, { ...cleanedPayload, updatedAt: serverTimestamp() });
   }, [quotes, quotesCollection]);
 
@@ -120,10 +113,11 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const quoteToDelete = quotes?.find(q => q.id === id);
     if (quoteToDelete?.attachmentPath) {
-        await deleteAttachment(quoteToDelete);
+        const fileRef = ref(storage!, quoteToDelete.attachmentPath);
+        await deleteObject(fileRef).catch(() => {});
     }
     await deleteDoc(doc(quotesCollection, id));
-  }, [quotesCollection, quotes]);
+  }, [quotesCollection, quotes, storage]);
 
   const getQuoteById = useCallback((id: string): Quote | undefined => {
     return quotes?.find(quote => quote.id === id);
@@ -134,7 +128,6 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const filePath = `proposals/${quoteId}/${file.name}`;
     const fileRef = ref(storage, filePath);
-    
     await uploadBytes(fileRef, file);
     const url = await getDownloadURL(fileRef);
     
@@ -148,9 +141,8 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteAttachment = useCallback(async (quote: Quote) => {
       if (!storage || !quotesCollection || !quote.attachmentPath) return;
-
       const fileRef = ref(storage, quote.attachmentPath);
-      await deleteObject(fileRef);
+      await deleteObject(fileRef).catch(() => {});
 
       const quoteRef = doc(quotesCollection, quote.id);
       await updateDoc(quoteRef, {
@@ -166,7 +158,6 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!quote) return;
 
     const quoteRef = doc(quotesCollection, quoteId);
-
     if (quote.followUpDone) {
         await updateDoc(quoteRef, { followUpDone: false, updatedAt: serverTimestamp() });
         return;
@@ -203,10 +194,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [quotes, quotesCollection]);
 
-
-  const setManagementSearchTerm = useCallback((term: string) => {
-    setManagementSearchTermState(term);
-  }, []);
+  const setManagementSearchTerm = (term: string) => setManagementSearchTermState(term);
 
   const managementFilteredQuotes = useMemo(() => {
     return (quotes || [])
@@ -226,9 +214,9 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
   }, [quotes, viewingAsSeller, managementSearchTerm]);
 
-  const setDashboardFilters = useCallback((newFilters: Partial<QuoteDashboardFilters>) => {
+  const setDashboardFilters = (newFilters: Partial<QuoteDashboardFilters>) => {
     setDashboardFiltersState(prevFilters => ({ ...prevFilters, ...newFilters }));
-  }, []);
+  };
 
   const dashboardFilteredQuotes = useMemo(() => {
     return (quotes || [])
@@ -249,15 +237,12 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <QuotesContext.Provider
       value={{
         quotes: quotes || [],
-        
         managementFilteredQuotes,
         setManagementSearchTerm,
         managementSearchTerm,
-
         dashboardFilteredQuotes,
         setDashboardFilters,
         dashboardFilters,
-        
         addQuote,
         addBulkQuotes,
         updateQuote,

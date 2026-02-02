@@ -1,4 +1,4 @@
-// src/firebase/firestore/use-doc.tsx
+// firebase/firestore/use-doc.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import {

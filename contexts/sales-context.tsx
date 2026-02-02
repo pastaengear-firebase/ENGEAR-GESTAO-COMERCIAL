@@ -1,13 +1,13 @@
-
-// src/contexts/sales-context.tsx
+// contexts/sales-context.tsx
 "use client";
 import type React from 'react';
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useFirestore, useCollection, useAuth } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
+import { useFirestore, useAuth } from '../firebase/provider';
+import { useCollection } from '../firebase/firestore/use-collection';
+import { collection, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '@/lib/constants';
-import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '@/lib/types';
+import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '../lib/constants';
+import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '../lib/types';
 import { useRouter } from 'next/navigation';
 
 export const SalesContext = createContext<SalesContextType | undefined>(undefined);
@@ -72,9 +72,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sellerUid: user.uid,
     };
     
-    // Remove any undefined properties before sending to Firestore
     const cleanedData = Object.fromEntries(Object.entries(newSaleData).filter(([_, v]) => v !== undefined));
-    
     await setDoc(docRef, { ...cleanedData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     
     return { 
@@ -89,7 +87,6 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const batch = writeBatch(firestore);
     newSalesData.forEach(saleData => {
         const docRef = doc(salesCollection);
-        // Remove any undefined properties before sending to Firestore
         const cleanedData = Object.fromEntries(Object.entries(saleData).filter(([_, v]) => v !== undefined));
         batch.set(docRef, { ...cleanedData, seller: userRole, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
@@ -99,10 +96,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateSale = useCallback(async (id: string, saleUpdateData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => {
     if (!salesCollection) throw new Error("Firestore não está inicializado.");
     const saleRef = doc(salesCollection, id);
-
-    // Remove any undefined properties before sending to Firestore
     const cleanedData = Object.fromEntries(Object.entries(saleUpdateData).filter(([_, v]) => v !== undefined));
-
     await updateDoc(saleRef, { ...cleanedData, updatedAt: serverTimestamp() });
   }, [salesCollection]);
 
@@ -143,8 +137,6 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
   }, [sales, viewingAsSeller, filters]);
 
-  const loading = salesLoading;
-
   return (
     <SalesContext.Provider
       value={{
@@ -163,7 +155,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         getSaleById,
         setFilters,
         filters,
-        loading
+        loading: salesLoading
       }}
     >
       {children}

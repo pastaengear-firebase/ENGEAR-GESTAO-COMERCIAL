@@ -2,8 +2,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { useAuth } from '@/firebase';
-import type { AppUser } from '@/lib/types';
+import { useAuth } from '../provider';
+import type { AppUser } from '../../lib/types';
 
 export function useUser() {
   const auth = useAuth();
