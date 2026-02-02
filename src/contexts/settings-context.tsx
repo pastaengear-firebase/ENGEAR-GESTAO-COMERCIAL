@@ -1,5 +1,5 @@
 'use client';
 /**
- * Redirecionando para o arquivo estável na raiz para evitar conflitos de build.
+ * @fileOverview Obsolete file - redirecting logic to root context.
  */
 export * from '../../contexts/settings-context';
