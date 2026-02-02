@@ -35,6 +35,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const isMounted = useRef(false);
+  const isRedirecting = useRef(false);
   
   const loginForm = useForm<LoginFormData>({ resolver: zodResolver(LoginSchema) });
   const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(RegisterSchema) });
@@ -43,7 +44,8 @@ export default function LoginPage() {
     isMounted.current = true;
     if (auth && !user) {
       getRedirectResult(auth).then((result) => {
-        if (result && isMounted.current) {
+        if (result && isMounted.current && !isRedirecting.current) {
+          isRedirecting.current = true;
           router.replace('/dashboard');
         }
       }).catch((e) => setError(e.message));
@@ -52,7 +54,8 @@ export default function LoginPage() {
   }, [auth, user, router]);
   
   useEffect(() => {
-    if (!loadingAuth && user && isMounted.current) {
+    if (!loadingAuth && user && isMounted.current && !isRedirecting.current) {
+      isRedirecting.current = true;
       router.replace('/dashboard');
     }
   }, [user, loadingAuth, router]);
