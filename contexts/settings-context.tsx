@@ -1,11 +1,9 @@
-
-// contexts/settings-context.tsx
-"use client";
+'use client';
 import type React from 'react';
 import { createContext, useCallback, useMemo } from 'react';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '../firebase/provider';
 import { useDoc } from '../firebase/firestore/use-doc';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { AppSettings, SettingsContextType } from '../lib/types';
 
 const defaultSettings: AppSettings = {
@@ -22,37 +20,23 @@ export const SettingsContext = createContext<SettingsContextType | undefined>(un
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const firestore = useFirestore();
 
-  const settingsDocRef = useMemo(() => {
-      if (firestore) {
-          return doc(firestore, 'settings', SETTINGS_DOC_ID);
-      }
-      return null;
-  }, [firestore]);
-
+  const settingsDocRef = useMemo(() => firestore ? doc(firestore, 'settings', SETTINGS_DOC_ID) : null, [firestore]);
   const { data: firestoreSettings, loading: loadingFirestoreSettings } = useDoc<AppSettings>(settingsDocRef);
   
-  const settingsValue = useMemo(() => ({
+  // Settings é computado de forma estável para evitar loops de renderização
+  const settings = useMemo(() => ({
     ...defaultSettings,
     ...(firestoreSettings || {})
   }), [firestoreSettings]);
 
   const updateSettings = useCallback(async (newSettings: Partial<AppSettings>) => {
-      if (!settingsDocRef) throw new Error("Firestore not available");
-      await setDoc(settingsDocRef, {
-          ...newSettings, 
-          updatedAt: serverTimestamp() 
-      }, { merge: true });
+      if (!settingsDocRef) throw new Error("Firestore indisponível.");
+      await setDoc(settingsDocRef, { ...newSettings, updatedAt: serverTimestamp() }, { merge: true });
   }, [settingsDocRef]);
 
   const contextValue = useMemo(() => ({
-    settings: settingsValue,
-    updateSettings,
-    loadingSettings: loadingFirestoreSettings
-  }), [settingsValue, updateSettings, loadingFirestoreSettings]);
+    settings, updateSettings, loadingSettings: loadingFirestoreSettings
+  }), [settings, updateSettings, loadingFirestoreSettings]);
 
-  return (
-    <SettingsContext.Provider value={contextValue}>
-      {children}
-    </SettingsContext.Provider>
-  );
+  return <SettingsContext.Provider value={contextValue}>{children}</SettingsContext.Provider>;
 };

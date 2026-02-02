@@ -1,5 +1,4 @@
-// src/contexts/app-provider.tsx
-"use client";
+'use client';
 import type React from 'react';
 import { FirebaseClientProvider } from '../firebase/client-provider';
 import { SalesProvider } from './sales-context';

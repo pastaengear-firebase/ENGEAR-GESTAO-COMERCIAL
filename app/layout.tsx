@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
@@ -12,19 +11,11 @@ export const metadata: Metadata = {
   description: 'Sistema de controle de vendas para a equipe comercial ENGEAR.',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-        >
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <AppProvider>
             {children}
             <Toaster />

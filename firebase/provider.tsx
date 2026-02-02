@@ -1,4 +1,3 @@
-// src/firebase/provider.tsx
 'use client';
 import type React from 'react';
 import { createContext, useContext, useMemo } from 'react';
@@ -27,7 +26,9 @@ interface FirebaseProviderProps {
 }
 
 export function FirebaseProvider({ children, value }: FirebaseProviderProps) {
-  const contextValue = useMemo(() => value, [value]);
+  // Garantir que o valor do contexto seja estável
+  const contextValue = useMemo(() => value, [value.app, value.firestore, value.auth, value.storage]);
+  
   return (
     <FirebaseContext.Provider value={contextValue}>
       {children}
@@ -38,7 +39,7 @@ export function FirebaseProvider({ children, value }: FirebaseProviderProps) {
 export function useFirebase() {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
-    throw new Error('useFirebase must be used within a FirebaseProvider');
+    throw new Error('useFirebase deve ser usado dentro de um FirebaseProvider');
   }
   return context;
 }

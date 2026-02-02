@@ -1,28 +1,19 @@
-
-// app/(auth)/login/page.tsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useAuth } from '../../../firebase/provider';
 import { useSales } from '../../../hooks/use-sales';
-
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert';
-import { Mail, KeyRound, LogIn, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, LogIn, UserPlus, Mail, KeyRound } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 
 const LoginSchema = z.object({
@@ -43,32 +34,26 @@ export default function LoginPage() {
   const { user, loadingAuth } = useSales();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const lastRedirect = useRef<string | null>(null);
+  const hasRedirected = useRef(false);
   
   const loginForm = useForm<LoginFormData>({ resolver: zodResolver(LoginSchema) });
   const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(RegisterSchema) });
 
   useEffect(() => {
     if (auth && !user) {
-      getRedirectResult(auth)
-        .then((result) => {
-          if (result && lastRedirect.current !== '/dashboard') {
-            lastRedirect.current = '/dashboard';
-            router.replace('/dashboard');
-          }
-        })
-        .catch((error) => {
-          setError(error.message);
-        });
+      getRedirectResult(auth).then((result) => {
+        if (result && !hasRedirected.current) {
+          hasRedirected.current = true;
+          router.replace('/dashboard');
+        }
+      }).catch((e) => setError(e.message));
     }
   }, [auth, user, router]);
   
   useEffect(() => {
-    if (!loadingAuth && user) {
-      if (lastRedirect.current !== '/dashboard') {
-        lastRedirect.current = '/dashboard';
-        router.replace('/dashboard');
-      }
+    if (!loadingAuth && user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      router.replace('/dashboard');
     }
   }, [user, loadingAuth, router]);
   
@@ -91,26 +76,24 @@ export default function LoginPage() {
     try {
       await createUserWithEmailAndPassword(auth, data.email, data.password);
     } catch (err: any) {
-       setError(err.code === 'auth/email-already-in-use' ? 'Este e-mail já está em uso.' : err.message);
+       setError(err.code === 'auth/email-already-in-use' ? 'E-mail em uso.' : err.message);
        setIsProcessing(false);
     }
   };
 
   const handleGoogleSignIn = () => {
     if (!auth) return;
-    setError(null);
-    setIsProcessing(true);
     const provider = new GoogleAuthProvider();
     signInWithRedirect(auth, provider);
   };
   
   if (loadingAuth || user) {
      return (
-        <div className="flex flex-col items-center justify-center text-center p-10 h-screen w-screen">
+        <div className="flex flex-col items-center justify-center h-screen w-screen">
           <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-          <p className="text-muted-foreground">Carregando perfil...</p>
+          <p className="text-muted-foreground">Autenticando...</p>
         </div>
-     )
+     );
   }
 
   return (
@@ -121,7 +104,7 @@ export default function LoginPage() {
       </TabsList>
       <TabsContent value="login">
         <Card>
-          <CardHeader><CardTitle>Login</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Acesso ao Sistema</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
             <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
@@ -141,7 +124,7 @@ export default function LoginPage() {
       </TabsContent>
       <TabsContent value="register">
         <Card>
-          <CardHeader><CardTitle>Registrar</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Novo Registro</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
               <div className="space-y-2">
@@ -152,7 +135,7 @@ export default function LoginPage() {
                 <Label htmlFor="register-password">Senha</Label>
                 <Input id="register-password" type="password" {...registerForm.register("password")} />
               </div>
-              <Button type="submit" className="w-full" disabled={isProcessing}>Registrar Nova Conta</Button>
+              <Button type="submit" className="w-full" disabled={isProcessing}>Registrar</Button>
             </form>
           </CardContent>
         </Card>
