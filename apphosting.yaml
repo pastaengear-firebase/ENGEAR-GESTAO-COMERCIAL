@@ -13,3 +13,6 @@ env:
 secretParameters:
   - secret: NEXTN_GEMINI_KEY
     key: GOOGLE_GENAI_API_KEY
+    availability:
+      - BUILD
+      - RUN
