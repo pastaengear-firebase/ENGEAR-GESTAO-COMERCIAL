@@ -1,3 +1,4 @@
+
 // src/app/(auth)/login/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
@@ -6,14 +7,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
 } from 'firebase/auth';
-import { useFirebaseApp } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { useSales } from '@/hooks/use-sales';
 
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mail, KeyRound, LogIn, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
@@ -40,8 +39,7 @@ type RegisterFormData = z.infer<typeof RegisterSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const firebaseApp = useFirebaseApp();
-  const auth = getAuth(firebaseApp!);
+  const auth = useAuth();
   const { user, loadingAuth } = useSales();
 
   const [error, setError] = useState<string | null>(null);
@@ -50,71 +48,64 @@ export default function LoginPage() {
   const loginForm = useForm<LoginFormData>({ resolver: zodResolver(LoginSchema) });
   const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(RegisterSchema) });
 
-  // Handle redirect result from Google sign-in
   useEffect(() => {
-    if (auth) {
-      setIsProcessing(true);
+    if (auth && !user) {
       getRedirectResult(auth)
         .then((result) => {
           if (result) {
-            router.push('/dashboard');
-          } else {
-             setIsProcessing(false);
+            router.replace('/dashboard');
           }
         })
         .catch((error) => {
           console.error("Redirect Result Error:", error);
           setError(error.message);
-          setIsProcessing(false);
         });
     }
-  }, [auth, router]);
+  }, [auth, user, router]);
   
-  // If user is already logged in, redirect
   useEffect(() => {
     if (!loadingAuth && user) {
-      router.push('/dashboard');
+      router.replace('/dashboard');
     }
   }, [user, loadingAuth, router]);
   
   const handleLogin = async (data: LoginFormData) => {
+    if (!auth) return;
     setError(null);
     setIsProcessing(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      router.push('/dashboard');
     } catch (err: any) {
       setError(err.code === 'auth/invalid-credential' ? 'E-mail ou senha inválidos.' : err.message);
-    } finally {
       setIsProcessing(false);
     }
   };
   
   const handleRegister = async (data: RegisterFormData) => {
+    if (!auth) return;
     setError(null);
     setIsProcessing(true);
     try {
       await createUserWithEmailAndPassword(auth, data.email, data.password);
-      router.push('/dashboard');
     } catch (err: any) {
        setError(err.code === 'auth/email-already-in-use' ? 'Este e-mail já está em uso.' : err.message);
-    } finally {
-      setIsProcessing(false);
+       setIsProcessing(false);
     }
   };
 
   const handleGoogleSignIn = () => {
+    if (!auth) return;
     setError(null);
     setIsProcessing(true);
     const provider = new GoogleAuthProvider();
     signInWithRedirect(auth, provider);
   };
   
-  if (loadingAuth || isProcessing || user) {
+  if (loadingAuth || user) {
      return (
-        <div className="flex flex-col items-center justify-center text-center p-10">
+        <div className="flex flex-col items-center justify-center text-center p-10 h-screen w-screen">
           <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-          <p className="text-muted-foreground">Carregando...</p>
+          <p className="text-muted-foreground">Carregando perfil...</p>
         </div>
      )
   }
@@ -145,7 +136,7 @@ export default function LoginPage() {
                 <Input id="login-password" type="password" {...loginForm.register("password")} />
                  {loginForm.formState.errors.password && <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={isProcessing}><LogIn className="mr-2"/>Entrar</Button>
+              <Button type="submit" className="w-full" disabled={isProcessing}><LogIn className="mr-2"/>{isProcessing ? 'Entrando...' : 'Entrar'}</Button>
             </form>
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
@@ -175,7 +166,7 @@ export default function LoginPage() {
                 <Input id="register-password" type="password" {...registerForm.register("password")} />
                 {registerForm.formState.errors.password && <p className="text-sm text-destructive">{registerForm.formState.errors.password.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={isProcessing}><UserPlus className="mr-2"/>Registrar Nova Conta</Button>
+              <Button type="submit" className="w-full" disabled={isProcessing}><UserPlus className="mr-2"/>{isProcessing ? 'Registrando...' : 'Registrar Nova Conta'}</Button>
             </form>
           </CardContent>
         </Card>

@@ -1,3 +1,4 @@
+
 // src/components/auth/auth-gate.tsx
 'use client';
 import type React from 'react';
@@ -12,8 +13,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Redireciona apenas se não estiver carregando, não tiver usuário e não estiver na página de login
     if (!loadingAuth && !user && pathname !== '/login') {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [user, loadingAuth, router, pathname]);
 

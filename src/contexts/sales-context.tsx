@@ -4,7 +4,7 @@
 import type React from 'react';
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirestore, useCollection, useAuth } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '@/lib/constants';
 import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '@/lib/types';
@@ -34,17 +34,20 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (firebaseUser) {
-        const appUser: AppUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-        };
-        setUser(appUser);
+        // Estabiliza a referência do usuário para evitar loops
+        setUser(prev => {
+            if (prev?.uid === firebaseUser.uid) return prev;
+            return {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+            };
+        });
         
         const role = SELLER_EMAIL_MAP[firebaseUser.email?.toLowerCase() as keyof typeof SELLER_EMAIL_MAP] || ALL_SELLERS_OPTION;
         setUserRole(role);
-        setViewingAsSeller(role);
+        setViewingAsSeller(prev => prev === ALL_SELLERS_OPTION ? role : prev);
 
       } else {
         setUser(null);
@@ -59,7 +62,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const logout = useCallback(async () => {
     if (!auth) return;
     await signOut(auth);
-    router.push('/login');
+    router.replace('/login');
   }, [auth, router]);
 
   const addSale = useCallback(async (saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>): Promise<Sale> => {
@@ -72,9 +75,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sellerUid: user.uid,
     };
     
-    // Remove any undefined properties before sending to Firestore
     const cleanedData = Object.fromEntries(Object.entries(newSaleData).filter(([_, v]) => v !== undefined));
-    
     await setDoc(docRef, { ...cleanedData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     
     return { 
@@ -89,7 +90,6 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const batch = writeBatch(firestore);
     newSalesData.forEach(saleData => {
         const docRef = doc(salesCollection);
-        // Remove any undefined properties before sending to Firestore
         const cleanedData = Object.fromEntries(Object.entries(saleData).filter(([_, v]) => v !== undefined));
         batch.set(docRef, { ...cleanedData, seller: userRole, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
@@ -99,10 +99,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateSale = useCallback(async (id: string, saleUpdateData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => {
     if (!salesCollection) throw new Error("Firestore não está inicializado.");
     const saleRef = doc(salesCollection, id);
-
-    // Remove any undefined properties before sending to Firestore
     const cleanedData = Object.fromEntries(Object.entries(saleUpdateData).filter(([_, v]) => v !== undefined));
-
     await updateDoc(saleRef, { ...cleanedData, updatedAt: serverTimestamp() });
   }, [salesCollection]);
 
@@ -121,7 +118,8 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const filteredSales = useMemo(() => {
-    return (sales || [])
+    const list = sales || [];
+    return list
       .filter(sale => {
         if (viewingAsSeller === ALL_SELLERS_OPTION) return true;
         return sale.seller === viewingAsSeller;
@@ -132,7 +130,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return (
           sale.company.toLowerCase().includes(term) ||
           sale.project.toLowerCase().includes(term) ||
-          sale.os.toLowerCase().includes(term) ||
+          (sale.os || '').toLowerCase().includes(term) ||
           sale.clientService.toLowerCase().includes(term)
         );
       })
@@ -143,29 +141,27 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
   }, [sales, viewingAsSeller, filters]);
 
-  const loading = salesLoading;
+  const contextValue = useMemo(() => ({
+    user,
+    userRole,
+    loadingAuth,
+    logout,
+    sales: sales || [],
+    filteredSales,
+    viewingAsSeller,
+    setViewingAsSeller,
+    addSale,
+    addBulkSales,
+    updateSale,
+    deleteSale,
+    getSaleById,
+    setFilters,
+    filters,
+    loading: salesLoading
+  }), [user, userRole, loadingAuth, logout, sales, filteredSales, viewingAsSeller, addSale, addBulkSales, updateSale, deleteSale, getSaleById, setFilters, filters, salesLoading]);
 
   return (
-    <SalesContext.Provider
-      value={{
-        user,
-        userRole,
-        loadingAuth,
-        logout,
-        sales: sales || [],
-        filteredSales,
-        viewingAsSeller,
-        setViewingAsSeller,
-        addSale,
-        addBulkSales,
-        updateSale,
-        deleteSale,
-        getSaleById,
-        setFilters,
-        filters,
-        loading
-      }}
-    >
+    <SalesContext.Provider value={contextValue}>
       {children}
     </SalesContext.Provider>
   );
