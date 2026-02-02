@@ -1,8 +1,11 @@
-
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -21,7 +24,9 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
@@ -39,7 +44,13 @@
     "firebase/**/*.ts",
     "firebase/**/*.tsx",
     "ai/**/*.ts",
-    "ai/**/*.tsx"
+    "ai/**/*.tsx",
+    ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "src", ".next", "out"]
+  "exclude": [
+    "node_modules",
+    "src",
+    ".next",
+    "out"
+  ]
 }
