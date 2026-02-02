@@ -1,8 +1,11 @@
 
-// app/page.tsx
+// src/app/page.tsx
 import { redirect } from 'next/navigation';
 
 export default function RootPage() {
-  // Redireciona para o dashboard como página inicial.
+  /**
+   * Redirecionamento limpo para o dashboard.
+   * O AuthGate dentro do layout cuidará da autenticação.
+   */
   redirect('/dashboard');
 }
