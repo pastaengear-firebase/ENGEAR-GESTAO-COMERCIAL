@@ -34,7 +34,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [settingsDocRef]);
 
   const contextValue = useMemo(() => ({
-    settings, updateSettings, loadingSettings: loadingFirestoreSettings
+    settings, 
+    updateSettings, 
+    loadingSettings: loadingFirestoreSettings
   }), [settings, updateSettings, loadingFirestoreSettings]);
 
   return <SettingsContext.Provider value={contextValue}>{children}</SettingsContext.Provider>;
