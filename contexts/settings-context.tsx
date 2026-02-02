@@ -2,9 +2,9 @@
 import type React from 'react';
 import { createContext, useCallback, useMemo } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore } from '../firebase/provider';
-import { useDoc } from '../firebase/firestore/use-doc';
-import type { AppSettings, SettingsContextType } from '../lib/types';
+import { useFirestore } from '@/firebase/provider';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import type { AppSettings, SettingsContextType } from '@/lib/types';
 
 const defaultSettings: AppSettings = {
   enableSalesEmailNotifications: true,
@@ -23,7 +23,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const settingsDocRef = useMemo(() => firestore ? doc(firestore, 'settings', SETTINGS_DOC_ID) : null, [firestore]);
   const { data: firestoreSettings, loading: loadingFirestoreSettings } = useDoc<AppSettings>(settingsDocRef);
   
-  // Settings é computado de forma estável para evitar loops de renderização
   const settings = useMemo(() => ({
     ...defaultSettings,
     ...(firestoreSettings || {})

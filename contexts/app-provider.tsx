@@ -1,4 +1,3 @@
-
 'use client';
 import type React from 'react';
 import { FirebaseClientProvider } from '@/firebase/client-provider';

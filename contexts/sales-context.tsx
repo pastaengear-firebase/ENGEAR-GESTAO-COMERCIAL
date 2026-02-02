@@ -3,11 +3,11 @@ import type React from 'react';
 import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { collection, updateDoc, deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
-import { useFirestore, useAuth } from '../firebase/provider';
-import { useCollection } from '../firebase/firestore/use-collection';
-import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '../lib/constants';
-import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '../lib/types';
+import { collection, serverTimestamp, setDoc, doc, writeBatch, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useAuth } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '@/lib/constants';
+import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '@/lib/types';
 
 export const SalesContext = createContext<SalesContextType | undefined>(undefined);
 
@@ -105,11 +105,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getSaleById = useCallback((id: string) => sales?.find(sale => sale.id === id), [sales]);
 
   const setFilters = useCallback((newFilters: Partial<SalesFilters>) => {
-    setFiltersState(prev => {
-        const updated = { ...prev, ...newFilters };
-        if (JSON.stringify(prev) === JSON.stringify(updated)) return prev;
-        return updated;
-    });
+    setFiltersState(prev => ({ ...prev, ...newFilters }));
   }, []);
 
   const filteredSales = useMemo(() => {
