@@ -5,14 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { useAuth } from '@/firebase/provider';
-import { useSales } from '@/hooks/use-sales';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '../../../firebase/provider';
+import { useSales } from '../../../hooks/use-sales';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { Alert, AlertDescription } from '../../../components/ui/alert';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 
@@ -34,25 +34,25 @@ export default function LoginPage() {
   const { user, loadingAuth } = useSales();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const hasRedirected = useRef(false);
+  const isMounted = useRef(false);
   
   const loginForm = useForm<LoginFormData>({ resolver: zodResolver(LoginSchema) });
   const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(RegisterSchema) });
 
   useEffect(() => {
+    isMounted.current = true;
     if (auth && !user) {
       getRedirectResult(auth).then((result) => {
-        if (result && !hasRedirected.current) {
-          hasRedirected.current = true;
+        if (result && isMounted.current) {
           router.replace('/dashboard');
         }
       }).catch((e) => setError(e.message));
     }
+    return () => { isMounted.current = false; };
   }, [auth, user, router]);
   
   useEffect(() => {
-    if (!loadingAuth && user && !hasRedirected.current) {
-      hasRedirected.current = true;
+    if (!loadingAuth && user && isMounted.current) {
       router.replace('/dashboard');
     }
   }, [user, loadingAuth, router]);

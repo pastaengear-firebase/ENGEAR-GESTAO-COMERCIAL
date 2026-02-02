@@ -24,9 +24,7 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
   "include": [
@@ -44,8 +42,7 @@
     "firebase/**/*.ts",
     "firebase/**/*.tsx",
     "ai/**/*.ts",
-    "ai/**/*.tsx",
-    ".next/types/**/*.ts"
+    "ai/**/*.tsx"
   ],
   "exclude": [
     "node_modules",
