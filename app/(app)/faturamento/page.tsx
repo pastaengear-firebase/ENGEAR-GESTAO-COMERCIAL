@@ -1,25 +1,23 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, Printer, DollarSign, AlertTriangle, CheckCircle, Info, Loader2, History } from 'lucide-react';
-import { useSales } from '../../../hooks/use-sales';
-import { useFirestore, useCollection } from '../../../firebase';
-import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table';
-import { Textarea } from '../../../components/ui/textarea';
-import { Label } from '../../../components/ui/label';
-import { ScrollArea, ScrollBar } from "../../../components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
-import { useToast } from '../../../hooks/use-toast';
-import { ALL_SELLERS_OPTION } from '../../../lib/constants';
-import type { Sale, BillingLog } from '../../../lib/types';
+import { Receipt, Search, Send, AlertTriangle, Loader2 } from 'lucide-react';
+import { useSales } from '@/hooks/use-sales';
+import { useFirestore, useCollection } from '@/firebase';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from '@/hooks/use-toast';
+import type { Sale, BillingLog } from '@/lib/types';
 
 export default function FaturamentoPage() {
-  const { sales, updateSale, loading: salesLoading, userRole, user } = useSales();
+  const { sales, updateSale, userRole, user } = useSales();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -32,7 +30,7 @@ export default function FaturamentoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const logsQuery = useMemo(() => firestore ? query(collection(firestore, 'billing-logs'), orderBy('requestedAt', 'desc')) : null, [firestore]);
-  const { data: billingLogs, loading: loadingLogs } = useCollection<BillingLog>(logsQuery);
+  const { data: billingLogs } = useCollection<BillingLog>(logsQuery);
 
   const pendingSales = useMemo(() => {
     const limit = subDays(new Date(), 30);
@@ -45,7 +43,7 @@ export default function FaturamentoPage() {
 
   const handleSearch = () => {
     const term = searchTerm.toLowerCase();
-    setSearchResults(sales.filter(s => s.project.toLowerCase().includes(term) || s.os.toLowerCase().includes(term) || s.clientService.toLowerCase().includes(term)));
+    setSearchResults(sales.filter(s => s.project.toLowerCase().includes(term) || (s.os || '').toLowerCase().includes(term) || s.clientService.toLowerCase().includes(term)));
   };
 
   const handleSendEmail = async () => {

@@ -1,44 +1,39 @@
 "use client";
 import type { ChangeEvent } from 'react';
 import { useState, useMemo, useRef } from 'react';
-import { useSales } from '../../../../hooks/use-sales';
-import { useToast } from '../../../../hooks/use-toast';
+import { useSales } from '@/hooks/use-sales';
+import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isValid } from 'date-fns';
 
-import SalesForm from '../../../../components/sales/sales-form';
-import SalesTable from '../../../../components/sales/sales-table';
-import { Input } from '../../../../components/ui/input';
-import { Button } from '../../../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../../../../components/ui/card';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../../components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../../components/ui/dialog';
-import { ScrollArea } from "../../../../components/ui/scroll-area";
+import SalesForm from '@/components/sales/sales-form';
+import SalesTable from '@/components/sales/sales-table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, RotateCcw, FileUp, FileDown, Wrench, Printer } from 'lucide-react';
 
-import type { Sale, CompanyOption, AreaOption, StatusOption } from '../../../../lib/types';
-import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS, ALL_SELLERS_OPTION } from '../../../../lib/constants';
+import type { Sale, CompanyOption, AreaOption, StatusOption } from '@/lib/types';
+import { COMPANY_OPTIONS, AREA_OPTIONS, STATUS_OPTIONS, ALL_SELLERS_OPTION } from '@/lib/constants';
 
 export default function GerenciarVendasPage() {
-  // Hooks
   const { sales, viewingAsSeller, userRole, addBulkSales, deleteSale } = useSales();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // State
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Memos
   const displaySales = useMemo(() => {
     let filtered = sales;
-    
     if (viewingAsSeller !== 'EQUIPE COMERCIAL') {
         filtered = filtered.filter(sale => sale.seller === viewingAsSeller);
     }
-
     if (searchTerm) {
         const lowerSearchTerm = searchTerm.toLowerCase();
         filtered = filtered.filter(sale =>
@@ -55,7 +50,6 @@ export default function GerenciarVendasPage() {
   const totalPayments = displaySales.reduce((sum, sale) => sum + sale.payment, 0);
   const isUserReadOnly = userRole === ALL_SELLERS_OPTION;
   
-  // Handlers
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
   };
@@ -160,7 +154,7 @@ export default function GerenciarVendasPage() {
           toast({
             variant: "destructive",
             title: "Cabeçalhos Inválidos",
-            description: `O arquivo não corresponde ao modelo. Cabeçalhos faltando: ${missingHeaders.join(', ')}. O campo 'Vendedor' não é mais necessário e será preenchido automaticamente.`,
+            description: `O arquivo não corresponde ao modelo. Cabeçalhos faltando: ${missingHeaders.join(', ')}.`,
           });
           return;
         }
@@ -170,21 +164,12 @@ export default function GerenciarVendasPage() {
 
         json.forEach((row, index) => {
           const lineNumber = index + 2;
-          
           const dateValue = row['Data'];
           let jsDate: Date;
-          if (dateValue instanceof Date) {
-            jsDate = dateValue;
-          } else if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-            jsDate = parseISO(dateValue);
-          } else {
-            errors.push(`Linha ${lineNumber}: Formato de data inválido. Use AAAA-MM-DD.`);
-            return;
-          }
-          if (!isValid(jsDate)) {
-             errors.push(`Linha ${lineNumber}: Data inválida: "${row['Data']}".`);
-             return;
-          }
+          if (dateValue instanceof Date) { jsDate = dateValue; }
+          else if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) { jsDate = parseISO(dateValue); }
+          else { errors.push(`Linha ${lineNumber}: Formato de data inválido. Use AAAA-MM-DD.`); return; }
+          if (!isValid(jsDate)) { errors.push(`Linha ${lineNumber}: Data inválida: "${row['Data']}".`); return; }
 
           const company = row['Empresa'];
           const area = row['Área'];
@@ -214,39 +199,25 @@ export default function GerenciarVendasPage() {
             salesValue: Number(Math.round(+(salesValue || 0) + 'e+2') + 'e-2'),
             status: status as StatusOption,
             payment: Number(Math.round(+(payment || 0) + 'e+2') + 'e-2'),
-          } as Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>);
+          });
         });
 
         if (errors.length > 0) {
-          toast({
-            variant: "destructive",
-            title: `Encontrados ${errors.length} erros. Nenhuma venda importada.`,
-            description: `Exemplo (Linha ${errors[0].split(':')[0].replace('Linha ','')}): ${errors[0].split(': ')[1]}. Corrija o arquivo e tente novamente.`,
-            duration: 9000,
-          });
+          toast({ variant: "destructive", title: `Erro na importação.`, description: errors[0], duration: 9000 });
           return;
         }
         
         if (newSales.length > 0) {
           await addBulkSales(newSales as any);
           toast({ title: "Importação Concluída", description: `${newSales.length} novas vendas foram importadas.` });
-        } else {
-          toast({ variant: "destructive", title: "Nenhuma Venda Válida", description: "Nenhuma venda para importar foi encontrada no arquivo." });
         }
-
       } catch (error) {
-        toast({ variant: "destructive", title: "Erro ao Ler Arquivo", description: "Não foi possível ler o arquivo. Verifique se é um arquivo Excel (.xlsx, .xls) válido." });
-        console.error("Import error:", error);
+        toast({ variant: "destructive", title: "Erro ao Ler Arquivo", description: "Falha na leitura do Excel." });
       } finally {
-        if (event.target) {
-            event.target.value = '';
-        }
+        if (event.target) { event.target.value = ''; }
       }
     };
     reader.readAsArrayBuffer(file);
-  };
-   const handlePrint = () => {
-    window.print();
   };
 
   return (
@@ -262,56 +233,28 @@ export default function GerenciarVendasPage() {
               <CardDescription>Visualize, filtre e gerencie os registros de vendas.</CardDescription>
             </div>
             <div className="flex items-center gap-2 print-hide w-full sm:w-auto">
-              <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" className="w-full sm:w-auto" disabled={isUserReadOnly}>
-                <FileUp className="mr-2 h-4 w-4" />
-                Importar
+              <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" disabled={isUserReadOnly}>
+                <FileUp className="mr-2 h-4 w-4" /> Importar
               </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".xlsx, .xls"
-                disabled={isUserReadOnly}
-              />
-              <Button onClick={handleExport} variant="outline" size="sm" className="w-full sm:w-auto">
-                <FileDown className="mr-2 h-4 w-4" />
-                Exportar
-              </Button>
-              <Button onClick={handlePrint} variant="outline" size="icon" className="print-hide">
-                <Printer className="h-4 w-4" />
-                <span className="sr-only">Imprimir Tabela</span>
-              </Button>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls" disabled={isUserReadOnly} />
+              <Button onClick={handleExport} variant="outline" size="sm"> <FileDown className="mr-2 h-4 w-4" /> Exportar </Button>
+              <Button onClick={() => window.print()} variant="outline" size="icon" className="print-hide"> <Printer className="h-4 w-4" /> </Button>
             </div>
           </div>
            <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
             <div className="relative flex-grow w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por projeto, empresa, O.S..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="pl-10 w-full"
-              />
+              <Input type="search" placeholder="Buscar por projeto, empresa, O.S..." value={searchTerm} onChange={handleSearchChange} className="pl-10 w-full" />
             </div>
-            <Button variant="outline" onClick={handleClearSearch} className="w-full sm:w-auto print-hide">
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Limpar Busca
-            </Button>
+            <Button variant="outline" onClick={handleClearSearch} className="w-full sm:w-auto print-hide"> <RotateCcw className="mr-2 h-4 w-4" /> Limpar </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <SalesTable 
-            salesData={displaySales}
-            onEdit={handleEditClick}
-            onDelete={confirmDelete}
-          />
+          <SalesTable salesData={displaySales} onEdit={handleEditClick} onDelete={confirmDelete} />
         </CardContent>
         <CardFooter className="border-t p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm text-muted-foreground">
            <p className="flex-1">Total de Registros: <span className="font-semibold text-foreground">{displaySales.length}</span></p>
-           <p className="flex-1">Valor Total em Vendas: <span className="font-semibold text-foreground">{totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
-           <p className="flex-1">Total Recebido: <span className="font-semibold text-foreground">{totalPayments.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+           <p className="flex-1">Valor Total: <span className="font-semibold text-foreground">{totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
         </CardFooter>
       </Card>
       
@@ -319,19 +262,11 @@ export default function GerenciarVendasPage() {
         <DialogContent className="sm:max-w-[600px] md:max-w-[750px] lg:max-w-[900px] max-h-[90vh]">
            <ScrollArea className="max-h-[85vh] p-1">
             <DialogHeader className="px-4 pt-4">
-              <DialogTitle className="text-2xl">
-                Modificar Venda
-              </DialogTitle>
-              <DialogDescription>
-                Alterando venda: {editingSale?.project}
-              </DialogDescription>
+              <DialogTitle className="text-2xl">Modificar Venda</DialogTitle>
+              <DialogDescription>Alterando venda: {editingSale?.project}</DialogDescription>
             </DialogHeader>
             <div className="p-4">
-              <SalesForm
-                saleToEdit={editingSale}
-                onFormSubmit={handleFormSubmitted}
-                showReadOnlyAlert={true}
-              />
+              <SalesForm saleToEdit={editingSale} onFormSubmit={handleFormSubmitted} showReadOnlyAlert={true} />
             </div>
           </ScrollArea>
         </DialogContent>
@@ -341,15 +276,11 @@ export default function GerenciarVendasPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSaleToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-              Excluir
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

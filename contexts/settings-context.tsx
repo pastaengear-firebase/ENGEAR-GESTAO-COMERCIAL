@@ -37,7 +37,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     settings, 
     updateSettings, 
     loadingSettings: loadingFirestoreSettings
-  }), [settings, updateSettings, loadingFirestoreSettings]); // Corrigido: sem ':'
+  }), [settings, updateSettings, loadingFirestoreSettings]);
 
   return <SettingsContext.Provider value={contextValue}>{children}</SettingsContext.Provider>;
 };
