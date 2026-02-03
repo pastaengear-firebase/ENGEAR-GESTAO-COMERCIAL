@@ -2,17 +2,17 @@
 
 import { useState, useMemo } from 'react';
 import { BrainCircuit, Search, CircleDashed, Bot } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
-import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
-import { useSales } from '../../../hooks/use-sales';
-import { useQuotes } from '../../../hooks/use-quotes';
-import { intelligentSearch, type SearchOutput } from '../../../ai/flows/intelligent-search-flow';
-import SalesTable from '../../../components/sales/sales-table';
-import QuotesTable from '../../../components/quotes/quotes-table';
-import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert';
-import { Skeleton } from '../../../components/ui/skeleton';
-import type { Sale, Quote } from '../../../lib/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
+import { Button } from '../../../../components/ui/button';
+import { useSales } from '../../../../hooks/use-sales';
+import { useQuotes } from '../../../../hooks/use-quotes';
+import { intelligentSearch, type SearchOutput } from '../../../../ai/flows/intelligent-search-flow';
+import SalesTable from '../../../../components/sales/sales-table';
+import QuotesTable from '../../../../components/quotes/quotes-table';
+import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
+import { Skeleton } from '../../../../components/ui/skeleton';
+import type { Sale, Quote } from '../../../../lib/types';
 import { parseISO, isWithinInterval } from 'date-fns';
 
 export default function BuscaIAPage() {

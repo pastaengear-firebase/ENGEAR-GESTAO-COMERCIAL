@@ -1,2 +1,2 @@
-// Neutralizado para evitar conflito de duplicidade com a pasta app/ da raiz.
-export default function Placeholder() { return null; }
+// Arquivo neutralizado para evitar conflito de roteamento com app/(app)/dashboard/page.tsx
+export default function NeutralizedPage() { return null; }
