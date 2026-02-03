@@ -1,4 +1,3 @@
-// src/components/layout/sidebar-nav.tsx
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -24,7 +23,7 @@ const navItems: NavItem[] = [
   },
   {
     title: 'Vendas',
-    href: '/vendas/gerenciar', // Alterado para ser a página principal de vendas
+    href: '/vendas/gerenciar',
     icon: DollarSign,
     isActive: (pathname) => pathname.startsWith('/vendas'),
   },
@@ -59,7 +58,6 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
 
   return (
     <>
-      {/* Overlay for mobile */}
       <div
         onClick={closeMobileMenu}
         className={cn(
@@ -86,7 +84,7 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
             <Link
               key={item.href}
               href={item.href}
-              onClick={closeMobileMenu} // Close menu on link click for mobile
+              onClick={closeMobileMenu}
               className={cn(
                 'group flex items-center rounded-md px-2 py-2 text-xs font-medium transition-colors',
                 item.isActive && item.isActive(pathname)
