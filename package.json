@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": "20"
+    "node": "20.x"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.0.0",
