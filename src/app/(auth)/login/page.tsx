@@ -1,1 +1,1 @@
-export default function ObsoletePage() { return null; }
+export default function NeutralizedPage() { return null; }
