@@ -1,7 +1,4 @@
-# apphosting.yaml
-# Forçando uma nova compilação para gerar uma nova Signed URL.
 runtime: nodejs20
-
 runConfig:
   cpu: 1
   memoryMiB: 512
