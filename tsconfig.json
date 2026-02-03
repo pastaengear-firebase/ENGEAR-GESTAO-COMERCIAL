@@ -38,7 +38,8 @@
     "contexts",
     "firebase",
     "hooks",
-    "lib"
+    "lib",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
