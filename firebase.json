@@ -1,5 +1,13 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "apphosting": {
+    "backends": [
+      {
+        "codebase": "default",
+        "region": "us-central1"
+      }
+    ]
   }
 }
