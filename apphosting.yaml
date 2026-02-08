@@ -1,13 +1,13 @@
 runtime: nodejs20
 env: standard
 handlers:
-  - url: /.*/
+  - url: /.*
     script: auto
-envConfig:
-  NEXT_PUBLIC_FIREBASE_API_KEY: your_api_key_value
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: your_auth_domain_value
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: your_project_id_value
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: your_storage_bucket_value
-  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: your_messaging_sender_id_value
-  NEXT_PUBLIC_FIREBASE_APP_ID: your_app_id_value
-  NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: your_measurement_id_value
+    envConfig:
+      NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyAfGwU56XJvloOMDig5aljP8lN1hVnK9RM
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: engear---depto-comercial-v3.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: engear---depto-comercial-v3
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: engear---depto-comercial-v3.firebasestorage.app
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "297634043634"
+      NEXT_PUBLIC_FIREBASE_APP_ID: 1:297634043634:web:7ab55b978129187c9aa26b
+      NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-XXEKVJLWDG
