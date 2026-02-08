@@ -1,15 +1,5 @@
 runtime: nodejs20
-
 env: standard
-
 handlers:
-  - url: /.*/n    script: auto
-
-build:
-  env: 
-    NODE_ENV: production
-    ANOTHER_ENV_VARIABLE: value
-  firestore:
-    emulator:
-      host: "localhost"
-      port: "8080"
+  - url: /.*
+    script: auto
