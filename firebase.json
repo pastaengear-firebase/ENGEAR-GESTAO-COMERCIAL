@@ -1,1 +1,1 @@
-{ "hosting": { "public": "public", "ignore": [ "firebase.json", "**/.*", "**/node_modules/**" ], "rewrites": [ { "source": "**", "destination": "/index.html" } ], "cleanUrls": true }, "firestore": { "rules": "firestore.rules" } }
+{ "hosting": { "source": ".", "ignore": [ "firebase.json", "**/.*", "**/node_modules/**", ".git", ".gitignore", "node_modules", "npm-debug.*", ".next", "out" ] }, "apphosting": { "backends": [ { "codebase": "default" } ] }, "firestore": { "rules": "firestore.rules" } }
