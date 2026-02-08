@@ -1,10 +1,10 @@
 # ENGEAR - GESTÃO COMERCIAL
 
-Sistema completo de controle de vendas e gestão da equipe comercial ENGEAR, desenvolvido com Next.js 14 e Firebase App Hosting.
+Sistema completo de controle de vendas e gestão da equipe comercial ENGEAR, desenvolvido com Next.js 15 e Firebase App Hosting.
 
 ## 🚀 Tecnologias
 
-- **Next.js 14** - Framework React com App Router
+- **Next.js 15.5.10** - Framework React com App Router (secure, patched version)
 - **React 18** - Biblioteca JavaScript para interfaces
 - **TypeScript** - Superset JavaScript com tipagem estática
 - **Firebase** - Backend as a Service (Authentication, Firestore, Storage)
