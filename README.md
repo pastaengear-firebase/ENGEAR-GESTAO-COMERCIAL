@@ -1,51 +1,51 @@
-# ENGEAR - GESTÃO COMERCIAL
+# ENGEAR GESTAO COMERCIAL
 
-Projeto Next.js para controle de vendas da ENGEAR.
+## Setup Instructions
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/pastaengear-firebase/ENGEAR-GESTAO-COMERCIAL.git
+   cd ENGEAR-GESTAO-COMERCIAL
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Começando
+## Firebase Configuration Steps
+1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/).
+2. Add a web application to your project.
+3. Copy the Firebase configuration object and add it to your project:
+   ```javascript
+   const firebaseConfig = {
+       apiKey: "YOUR_API_KEY",
+       authDomain: "YOUR_AUTH_DOMAIN",
+       projectId: "YOUR_PROJECT_ID",
+       storageBucket: "YOUR_STORAGE_BUCKET",
+       messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+       appId: "YOUR_APP_ID"
+   };
+   ```
+4. Initialize Firebase in your application:
+   ```javascript
+   import { initializeApp } from "firebase/app";
+   const app = initializeApp(firebaseConfig);
+   ```
 
-### Pré-requisitos
-- Node.js 18.17 ou superior
-- npm ou yarn
+## Deployment Guide
+1. Build your application:
+   ```bash
+   npm run build
+   ```
+2. Deploy to Firebase Hosting:
+   ```bash
+   firebase deploy
+   ```
 
-### Instalação
+## Additional Notes
+- Ensure you have the Firebase CLI installed.
+- You can install it via npm:
+  ```bash
+  npm install -g firebase-tools
+  ```
 
-1. Clone o repositório
-2. Instale as dependências:
-```bash
-npm install
-```
-
-### Desenvolvimento
-
-Execute o servidor de desenvolvimento:
-```bash
-npm run dev
-```
-
-Abra [http://localhost:3000](http://localhost:3000) no navegador para ver o resultado.
-
-### Build
-
-```bash
-npm run build
-npm start
-```
-
-## Estrutura do Projeto
-
-- `app/` - App Router do Next.js 14
-- `components/` - Componentes React reutilizáveis
-- `hooks/` - Custom hooks
-- `public/` - Arquivos estáticos
-
-## Tecnologias
-
-- Next.js 14
-- React 18
-- TypeScript
-- Firebase
-
-## Licença
-
-MIT
+- Make sure to set the appropriate security rules for your Firebase project accordingly.
