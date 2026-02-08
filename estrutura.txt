@@ -107,43 +107,5 @@
 │   └── utils.ts
 ├── next.config.js
 ├── package.json
-├── src
-│   ├── ai
-│   │   ├── flows
-│   │   └── genkit.ts
-│   ├── app
-│   │   ├── (app)
-│   │   ├── (auth)
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components
-│   │   ├── auth
-│   │   ├── common
-│   │   ├── layout
-│   │   ├── quotes
-│   │   ├── sales
-│   │   └── ui
-│   ├── contexts
-│   │   ├── app-provider.tsx
-│   │   ├── quotes-context.tsx
-│   │   ├── sales-context.tsx
-│   │   └── settings-context.tsx
-│   ├── firebase
-│   │   ├── auth
-│   │   ├── client-provider.tsx
-│   │   ├── config.ts
-│   │   ├── firestore
-│   │   ├── index.ts
-│   │   └── provider.tsx
-│   ├── hooks
-│   │   ├── use-quotes.ts
-│   │   ├── use-sales.ts
-│   │   └── use-settings.ts
-│   └── lib
-│       ├── constants.ts
-│       ├── schemas.ts
-│       ├── types.ts
-│       └── utils.ts
 ├── tailwind.config.ts
 └── tsconfig.json
