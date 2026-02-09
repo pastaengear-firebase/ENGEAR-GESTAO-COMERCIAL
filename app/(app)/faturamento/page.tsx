@@ -4,7 +4,7 @@ import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns'
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Receipt, Search, Send, AlertTriangle, Loader2 } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection } from '../../../firebase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
