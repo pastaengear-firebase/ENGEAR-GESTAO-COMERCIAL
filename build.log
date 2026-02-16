@@ -1,0 +1,62 @@
+
+> nextn@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings
+
+./node_modules/require-in-the-middle/index.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/require-in-the-middle/index.js
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/index.js
+./node_modules/@opentelemetry/instrumentation/build/esm/platform/index.js
+./node_modules/@opentelemetry/instrumentation/build/esm/index.js
+./node_modules/@opentelemetry/sdk-node/build/src/sdk.js
+./node_modules/@opentelemetry/sdk-node/build/src/index.js
+./node_modules/@genkit-ai/core/lib/tracing/node-telemetry-provider.js
+./node_modules/@genkit-ai/core/lib/node.js
+./node_modules/genkit/lib/common.js
+./node_modules/genkit/lib/index.mjs
+./ai/genkit.ts
+./ai/flows/intelligent-search-flow.ts
+
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/17) ...
+   Generating static pages (4/17) 
+   Generating static pages (8/17) 
+   Generating static pages (12/17) 
+ ✓ Generating static pages (17/17)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    159 B          87.7 kB
+├ ○ /_not-found                          880 B          88.4 kB
+├ ○ /busca-ia                            11.4 kB         274 kB
+├ ○ /configuracoes                       9.3 kB          193 kB
+├ ○ /dados                               159 B          87.7 kB
+├ ○ /dashboard                           111 kB          371 kB
+├ ○ /editar-venda                        159 B          87.7 kB
+├ ○ /faturamento                         10.7 kB         231 kB
+├ ○ /inserir-venda                       159 B          87.7 kB
+├ ○ /login                               9.69 kB         241 kB
+├ ○ /propostas/acompanhamento            6.99 kB         252 kB
+├ ○ /propostas/gerenciar                 5.91 kB         329 kB
+├ ○ /propostas/nova                      863 B           302 kB
+├ ○ /vendas/gerenciar                    7.2 kB          326 kB
+└ ○ /vendas/nova                         1.08 kB         302 kB
++ First Load JS shared by all            87.5 kB
+  ├ chunks/2117-874e249f1b8757d5.js      31.9 kB
+  ├ chunks/fd9d1056-233b5cb9cb453adb.js  53.6 kB
+  └ other shared chunks (total)          2.01 kB
+
+
+○  (Static)  prerendered as static content
+

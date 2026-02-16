@@ -98,72 +98,9 @@ export default function GerenciarPropostasPage() {
   const handlePrint = () => {
     window.print();
   };
-// Helpers CSV (Excel PT-BR usa ';')
-const escapeCsv = (value: any) => {
-  const v = String(value ?? '');
-  return /[",\n\r;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-};
 
-const rowsToCsv = (rows: Record<string, any>[]) => {
-  if (!rows || rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const lines = [
-    headers.join(';'),
-    ...rows.map(r => headers.map(h => escapeCsv((r as any)[h])).join(';')),
-  ];
-  return lines.join('\n');
-};
-
-const csvToRows = (csvText: string) => {
-  const text = (csvText || '').replace(/^\uFEFF/, '');
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    const next = text[i + 1];
-
-    if (inQuotes) {
-      if (c === '"' && next === '"') { field += '"'; i++; continue; }
-      if (c === '"') { inQuotes = false; continue; }
-      field += c;
-      continue;
-    }
-
-    if (c === '"') { inQuotes = true; continue; }
-    if (c === ';') { row.push(field.trim()); field = ''; continue; }
-    if (c === '\r') continue;
-    if (c === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; continue; }
-    field += c;
-  }
-  row.push(field.trim());
-  rows.push(row);
-
-  const cleaned = rows.filter(r => r.some(v => (v ?? '').trim() !== ''));
-  if (cleaned.length === 0) return [];
-
-  const headers = cleaned[0].map(h => (h ?? '').trim());
-  return cleaned.slice(1).map(r => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = r[idx] ?? ''; });
-    return obj;
-  });
-};
-
-const downloadTextFile = (content: string, filename: string, mime: string) => {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-};
   const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const dataToExport = managementFilteredQuotes.map(q => ({
       'Cliente': q.clientName || '',
       'Vendedor': q.seller,
@@ -179,8 +116,10 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
       'Data Follow-up': q.followUpDate || '',
       'Follow-up Realizado?': q.followUpDone ? 'Sim' : 'Não',
     }));
-        const csv = rowsToCsv(dataToExport);
-    downloadTextFile(csv, "Dados_Propostas.csv", "text/csv;charset=utf-8;");
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Propostas");
+    XLSX.writeFile(workbook, "Dados_Propostas.xlsx");
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -190,12 +129,15 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-      
-                const text = String(e.target?.result ?? '');
-        const json: any[] = csvToRows(text);
+        const XLSX = await import('xlsx');
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
 
         if (json.length === 0) {
-          toast({ variant: "destructive", title: "Arquivo Vazio", description: "O arquivo CSV selecionado não contém dados." });
+          toast({ variant: "destructive", title: "Arquivo Vazio", description: "O arquivo Excel selecionado não contém dados." });
           return;
         }
 
@@ -292,7 +234,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
         }
 
       } catch (error) {
-        toast({ variant: "destructive", title: "Erro ao Ler Arquivo", description: "Não foi possível ler o arquivo. Verifique se é um arquivo CSV (.csv) válido." });
+        toast({ variant: "destructive", title: "Erro ao Ler Arquivo", description: "Não foi possível ler o arquivo. Verifique se é um arquivo Excel (.xlsx, .xls) válido." });
         console.error("Import error:", error);
       } finally {
         if (event.target) {
@@ -300,7 +242,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
         }
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
 
@@ -362,7 +304,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept=".csv"
+              accept=".xlsx, .xls"
               disabled={isUserReadOnly}
             />
             <Button onClick={handleExport} variant="outline" size="sm" className="w-full sm:w-auto">

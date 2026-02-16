@@ -107,8 +107,75 @@ export default function GerenciarVendasPage() {
     setEditingSale(null);
   };
 
+  
+  // Helpers CSV (Excel PT-BR usa ';')
+  const escapeCsv = (value: any) => {
+    const v = String(value ?? '');
+    return /[",\n\r;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
+
+  const rowsToCsv = (rows: Record<string, any>[]) => {
+    if (!rows || rows.length === 0) return '';
+    const headers = Object.keys(rows[0]);
+    const lines = [
+      headers.join(';'),
+      ...rows.map(r => headers.map(h => escapeCsv(r[h])).join(';')),
+    ];
+    return lines.join('\n');
+  };
+
+  const csvToRows = (csvText: string) => {
+    const text = (csvText || '').replace(/^\uFEFF/, '');
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i + 1];
+
+      if (inQuotes) {
+        if (c === '"' && next === '"') { field += '"'; i++; continue; }
+        if (c === '"') { inQuotes = false; continue; }
+        field += c;
+        continue;
+      }
+
+      if (c === '"') { inQuotes = true; continue; }
+      if (c === ';') { row.push(field.trim()); field = ''; continue; }
+      if (c === '\r') { continue; }
+      if (c === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; continue; }
+      field += c;
+    }
+    row.push(field.trim());
+    rows.push(row);
+
+    const cleaned = rows.filter(r => r.some(v => String(v ?? '').trim() !== ''));
+    if (cleaned.length === 0) return [];
+
+    const headers = cleaned[0].map(h => String(h ?? '').trim());
+    return cleaned.slice(1).map(r => {
+      const obj: Record<string, any> = {};
+      headers.forEach((h, idx) => { obj[h] = r[idx] ?? ''; });
+      return obj;
+    });
+  };
+
+  const downloadTextFile = (content: string, filename: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = async () => {
-    const XLSX = await import('xlsx');
+
     const dataToExport = displaySales.map(sale => ({
       'Data': sale.date,
       'Vendedor': sale.seller,
@@ -121,11 +188,8 @@ export default function GerenciarVendasPage() {
       'Status': sale.status,
       'Pagamento': sale.payment,
     }));
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas");
-    XLSX.writeFile(workbook, "Dados_Vendas.xlsx");
-  };
+    const csv = rowsToCsv(dataToExport);
+    downloadTextFile(csv, "Dados_Vendas.csv", "text/csv;charset=utf-8;");  };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -134,15 +198,11 @@ export default function GerenciarVendasPage() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const XLSX = await import('xlsx');
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+        const text = String(e.target?.result ?? '');
+        const json: any[] = csvToRows(text);
 
         if (json.length === 0) {
-          toast({ variant: "destructive", title: "Arquivo Vazio", description: "O arquivo Excel selecionado não contém dados." });
+          toast({ variant: "destructive", title: "Arquivo Vazio", description: "O arquivo CSV selecionado não contém dados." });
           return;
         }
 
@@ -217,7 +277,7 @@ export default function GerenciarVendasPage() {
         if (event.target) { event.target.value = ''; }
       }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
   };
 
   return (
@@ -236,7 +296,7 @@ export default function GerenciarVendasPage() {
               <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" disabled={isUserReadOnly}>
                 <FileUp className="mr-2 h-4 w-4" /> Importar
               </Button>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls" disabled={isUserReadOnly} />
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".csv" disabled={isUserReadOnly} />
               <Button onClick={handleExport} variant="outline" size="sm"> <FileDown className="mr-2 h-4 w-4" /> Exportar </Button>
               <Button onClick={() => window.print()} variant="outline" size="icon" className="print-hide"> <Printer className="h-4 w-4" /> </Button>
             </div>
