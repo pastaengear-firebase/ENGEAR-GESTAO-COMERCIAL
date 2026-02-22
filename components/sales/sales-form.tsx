@@ -113,13 +113,13 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
       } else { // Novo formulário
         form.reset({
           date: new Date(),
-          company: undefined,
+          company: '',
           project: '',
           os: '',
-          area: undefined,
+          area: '',
           clientService: '',
           salesValue: undefined,
-          status: undefined,
+          status: '',
           payment: 0,
           summary: '',
           sendSaleNotification: appSettings.enableSalesEmailNotifications,
@@ -244,13 +244,13 @@ Para gerenciar, acesse: ${saleEditLink}
       if (!editMode) {
         form.reset({
             date: new Date(),
-            company: undefined,
+            company: '',
             project: '',
             os: '',
-            area: undefined,
+            area: '',
             clientService: '',
             salesValue: undefined,
-            status: undefined,
+            status: '',
             payment: 0,
             summary: '',
             sendSaleNotification: appSettings.enableSalesEmailNotifications,
@@ -554,7 +554,7 @@ Para gerenciar, acesse: ${saleEditLink}
 
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={() => {
-              form.reset({ date: new Date(), company: undefined, project: '', os: '', area: undefined, clientService: '', salesValue: undefined, status: undefined, payment: 0, summary: '', sendSaleNotification: appSettings.enableSalesEmailNotifications });
+              form.reset({ date: new Date(), company: '', project: '', os: '', area: '', clientService: '', salesValue: undefined, status: '', payment: 0, summary: '', sendSaleNotification: appSettings.enableSalesEmailNotifications });
               if (onFormSubmit) onFormSubmit();
             }}
             disabled={isSubmitting} className="w-full sm:w-auto">
