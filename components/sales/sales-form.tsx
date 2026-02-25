@@ -1,14 +1,13 @@
-
-// src/components/sales/sales-form.tsx
+// components/sales/sales-form.tsx
 "use client";
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SalesFormSchema, type SalesFormData } from '@/lib/schemas';
 import { AREA_OPTIONS, STATUS_OPTIONS, SELLERS, COMPANY_OPTIONS, ALL_SELLERS_OPTION } from '@/lib/constants';
 import { useSales } from '@/hooks/use-sales';
-import { useQuotes } from '@/hooks/use-quotes'; // Para buscar e atualizar propostas
+import { useQuotes } from '@/hooks/use-quotes'; 
 import { useSettings } from '@/hooks/use-settings'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,13 +47,13 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
   const form = useForm<SalesFormData>({
     resolver: zodResolver(SalesFormSchema),
     defaultValues: {
-      date: undefined, 
+      date: new Date(), 
       company: undefined,
       project: '',
       os: '',
       area: undefined,
       clientService: '',
-      salesValue: undefined,
+      salesValue: 0,
       status: undefined,
       payment: 0,
       summary: '',
@@ -64,206 +63,126 @@ export default function SalesForm({ saleToEdit, fromQuoteId, onFormSubmit, showR
   
   const isFormDisabled = (userRole === ALL_SELLERS_OPTION && !editMode) || (editMode && userRole !== saleToEdit.seller);
 
+  // Função para resetar o formulário com segurança
+  const resetForm = useCallback((data?: any) => {
+    if (data) {
+      form.reset({
+        ...data,
+        // Garantir que campos de data sejam objetos Date
+        date: typeof data.date === 'string' ? parseISO(data.date) : data.date,
+        // Garantir que valores nulos do Firebase virem strings vazias para o formulário
+        os: data.os || '',
+        summary: data.summary || '',
+        payment: data.payment || 0,
+        // Se o valor for "null" ou "undefined" em Enums, passamos undefined para o Select não bugar
+        company: data.company || undefined,
+        area: data.area || undefined,
+        status: data.status || undefined,
+      });
+    } else {
+      form.reset({
+        date: new Date(),
+        company: undefined,
+        project: '',
+        os: '',
+        area: undefined,
+        clientService: '',
+        salesValue: undefined,
+        status: undefined,
+        payment: 0,
+        summary: '',
+        sendSaleNotification: appSettings?.enableSalesEmailNotifications || false,
+      });
+    }
+  }, [form, appSettings?.enableSalesEmailNotifications]);
+
   useEffect(() => {
-    const initializeForm = () => {
-      if (editMode && saleToEdit) {
-          form.reset({
-            date: parseISO(saleToEdit.date), 
-            company: saleToEdit.company,
-            project: saleToEdit.project,
-            os: saleToEdit.os || '',
-            area: saleToEdit.area,
-            clientService: saleToEdit.clientService,
-            salesValue: saleToEdit.salesValue,
-            status: saleToEdit.status,
-            payment: saleToEdit.payment,
-            summary: saleToEdit.summary || '',
-            sendSaleNotification: false,
-          });
-          setOriginatingSeller(saleToEdit.seller);
-      } else if (fromQuoteId) {
-        const quoteToConvert = getQuoteByIdFromContext(fromQuoteId);
-        if (quoteToConvert) {
-          if (userRole !== quoteToConvert.seller) {
-             toast({
-                title: "Aviso de Vendedor",
-                description: `Para converter a proposta de ${quoteToConvert.seller}, o usuário logado deve ser o mesmo. O formulário está em modo leitura.`,
-                variant: "default",
-                duration: 7000,
-             });
-          }
-          form.reset({
-            date: new Date(),
-            company: quoteToConvert.company,
-            project: (quoteToConvert.clientName || '').substring(0, 5),
-            os: '',
-            area: quoteToConvert.area,
-            clientService: quoteToConvert.clientName,
-            salesValue: quoteToConvert.proposedValue,
-            status: "A INICIAR",
-            payment: 0,
-            summary: quoteToConvert.description, // Pre-fill summary from quote description
-            sendSaleNotification: appSettings.enableSalesEmailNotifications,
-          });
-          setOriginatingSeller(quoteToConvert.seller);
-        } else {
-          toast({ title: "Erro", description: "Proposta não encontrada para conversão.", variant: "destructive" });
-          if(onFormSubmit) onFormSubmit();
+    if (editMode && saleToEdit) {
+        resetForm(saleToEdit);
+        setOriginatingSeller(saleToEdit.seller);
+    } else if (fromQuoteId) {
+      const quoteToConvert = getQuoteByIdFromContext(fromQuoteId);
+      if (quoteToConvert) {
+        if (userRole !== quoteToConvert.seller) {
+           toast({
+              title: "Aviso de Vendedor",
+              description: `Atenção: Você está convertendo uma proposta de ${quoteToConvert.seller}.`,
+              variant: "default",
+              duration: 5000,
+           });
         }
-      } else { // Novo formulário
-        form.reset({
+        
+        // MAPEAMENTO DA PROPOSTA PARA A VENDA
+        resetForm({
           date: new Date(),
-          company: '',
-          project: '',
+          company: quoteToConvert.company,
+          project: '', // Deixamos vazio para o vendedor inserir o código de 5 dígitos
           os: '',
-          area: '',
-          clientService: '',
-          salesValue: undefined,
-          status: '',
+          area: quoteToConvert.area,
+          clientService: quoteToConvert.clientName,
+          salesValue: quoteToConvert.proposedValue,
+          status: "A INICIAR",
           payment: 0,
-          summary: '',
-          sendSaleNotification: appSettings.enableSalesEmailNotifications,
+          summary: `Convertido da Proposta: ${quoteToConvert.description || ''}`,
+          sendSaleNotification: appSettings?.enableSalesEmailNotifications || false,
         });
-        setOriginatingSeller(null);
+        setOriginatingSeller(quoteToConvert.seller);
       }
-      
-    };
-    initializeForm();
-  }, [editMode, saleToEdit, fromQuoteId, getQuoteByIdFromContext, form, toast, onFormSubmit, userRole, appSettings.enableSalesEmailNotifications]);
+    } else {
+      resetForm();
+      setOriginatingSeller(null);
+    }
+  }, [editMode, saleToEdit, fromQuoteId, getQuoteByIdFromContext, resetForm, userRole, toast, appSettings?.enableSalesEmailNotifications]);
 
 
   const triggerEmailNotification = async (sale: Sale) => {
-    if (loadingSettings) {
-      toast({ title: "Aguarde", description: "Carregando configurações de e-mail...", variant: "default" });
-      return;
-    }
-    if (!appSettings.enableSalesEmailNotifications) {
-      toast({ title: "Notificação desativada", description: "O envio automático de e-mail para Vendas está desativado nas Configurações.", variant: "default" });
-      return;
-    }
+    if (!appSettings.enableSalesEmailNotifications) return;
 
     let recipients = appSettings.salesNotificationEmails.join(',');
-    if (!recipients) {
-      toast({
-        title: "Destinatários não configurados",
-        description: "Vou abrir o e-mail mesmo assim para você preencher os destinatários manualmente. (Ou cadastre em Configurações.)",
-        variant: "default",
-        duration: 6500
-      });
-      recipients = "";
-    }
-    
     const subjectValue = sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const subject = `Nova Venda: ${sale.project} (${subjectValue}) - ${sale.seller}`;
-
-    const appBaseUrl = window.location.origin;
-    const saleEditLink = `${appBaseUrl}/vendas/gerenciar`;
-
-    const body = `
-Uma nova venda foi registrada no sistema.
-
-Vendedor: ${sale.seller}
-Projeto: ${sale.project}
-Cliente/Serviço: ${sale.clientService}
-Valor da Venda: ${subjectValue}
-Status: ${sale.status}
-Data: ${format(parseISO(sale.date), 'dd/MM/yyyy', { locale: ptBR })}
-
-Resumo:
-${sale.summary || "Nenhum resumo fornecido."}
-
-Para gerenciar, acesse: ${saleEditLink}
-    `;
-
+    const body = `Nova venda registrada.\nVendedor: ${sale.seller}\nProjeto: ${sale.project}\nCliente: ${sale.clientService}\nValor: ${subjectValue}`;
     const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    try {
-        const openedWindow = window.open(mailtoLink, '_blank');
-        if (!openedWindow) {
-            throw new Error('Popup blocked');
-        }
-    } catch (e) {
-        toast({
-            title: "Ação Necessária",
-            description: "Não foi possível abrir seu programa de e-mail. Verifique se o bloqueador de pop-ups do seu navegador está desativado para este site.",
-            variant: "destructive",
-            duration: 9000,
-        });
-    }
+    window.open(mailtoLink, '_blank');
   };
 
   const onSubmit = async (data: SalesFormData) => {
     if (isFormDisabled) {
-       let message = "Seu perfil de usuário não tem permissão para salvar.";
-       if (editMode && saleToEdit) {
-           message = `Apenas o vendedor ${saleToEdit.seller} pode modificar esta venda.`;
-       }
-      toast({ title: "Ação Não Permitida", description: message, variant: "destructive" });
+      toast({ title: "Ação Não Permitida", description: "Sem permissão para salvar.", variant: "destructive" });
       return;
-    }
-    if (!data.date) { 
-        toast({ title: "Erro de Validação", description: "Data da venda é obrigatória.", variant: "destructive" });
-        return;
     }
 
     setIsSubmitting(true);
     setIsSaved(false);
 
-    const salePayload: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'> = {
+    const salePayload = {
       ...data,
       date: format(data.date, 'yyyy-MM-dd'),
-      salesValue: Number(Number(data.salesValue || 0).toFixed(2)),
-      payment: Number(Number(data.payment || 0).toFixed(2)),
+      salesValue: Number(data.salesValue || 0),
+      payment: Number(data.payment || 0),
     };
 
     try {
-      let newSale: Sale | null = null;
       if (editMode && saleToEdit) {
         await updateSale(saleToEdit.id, salePayload);
+        toast({ title: "Sucesso", description: "Venda atualizada com sucesso!" });
       } else {
-        newSale = await addSale(salePayload);
-        
+        const newSale = await addSale(salePayload);
         if (fromQuoteId) {
-            const quoteToUpdate = getQuoteByIdFromContext(fromQuoteId);
-            if (quoteToUpdate) {
-              await updateQuoteStatus(fromQuoteId, { 
-                status: "Aceita", 
-                followUpOption: quoteToUpdate.followUpOption || "Nenhum" 
-              });
-            }
+          await updateQuoteStatus(fromQuoteId, { status: "Aceita" });
         }
+        if (newSale && data.sendSaleNotification) {
+          await triggerEmailNotification(newSale);
+        }
+        toast({ title: "Sucesso", description: "Venda cadastrada com sucesso!" });
       }
 
       setIsSaved(true);
-
-      // Only trigger email for brand new sales
-      if (newSale && data.sendSaleNotification) {
-          await triggerEmailNotification(newSale);
-      }
-
-      if (!editMode) {
-        form.reset({
-            date: new Date(),
-            company: '',
-            project: '',
-            os: '',
-            area: '',
-            clientService: '',
-            salesValue: undefined,
-            status: '',
-            payment: 0,
-            summary: '',
-            sendSaleNotification: appSettings.enableSalesEmailNotifications,
-        });
-      }
-      
-      if (onFormSubmit) {
-        onFormSubmit();
-      }
+      if (onFormSubmit) onFormSubmit();
 
     } catch (error) {
-      console.error("Error saving sale:", error);
-      toast({ title: "Erro ao Salvar", description: (error as Error).message || "Não foi possível salvar a venda.", variant: "destructive" });
+      toast({ title: "Erro", description: "Erro ao salvar.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setTimeout(() => setIsSaved(false), 2000);
@@ -280,7 +199,7 @@ Para gerenciar, acesse: ${saleEditLink}
             <AlertDescription>
               { originatingSeller && userRole !== originatingSeller
                 ? `Apenas o vendedor ${originatingSeller} pode modificar este item.`
-                : "Faça login com um usuário de vendas autorizado para habilitar o formulário."
+                : "Faça login autorizado para habilitar."
               }
             </AlertDescription>
           </Alert>
@@ -308,9 +227,9 @@ Para gerenciar, acesse: ${saleEditLink}
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value || undefined} 
+                      selected={field.value} 
                       onSelect={field.onChange}
-                      disabled={(date) => date > new Date() || date < new Date("1900-01-01") || isFormDisabled || isSubmitting}
+                      disabled={(date) => date > new Date() || isFormDisabled || isSubmitting}
                       initialFocus
                     />
                   </PopoverContent>
@@ -322,19 +241,7 @@ Para gerenciar, acesse: ${saleEditLink}
 
           <FormItem>
             <FormLabel>Vendedor</FormLabel>
-            <Select value={originatingSeller || (userRole === ALL_SELLERS_OPTION ? '' : userRole)} disabled>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vendedor não definido" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                 {SELLERS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <FormDescription>
-              {editMode || fromQuoteId ? `Vendedor original: ${originatingSeller}` : "Vendedor definido pelo seu login."}
-            </FormDescription>
+            <Input value={originatingSeller || userRole} disabled className="bg-muted" />
           </FormItem>
 
           <FormField
@@ -345,7 +252,7 @@ Para gerenciar, acesse: ${saleEditLink}
                 <FormLabel>Empresa</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  value={field.value}
+                  value={field.value || ""}
                   disabled={isFormDisabled || isSubmitting}
                 >
                   <FormControl>
@@ -383,7 +290,7 @@ Para gerenciar, acesse: ${saleEditLink}
               <FormItem>
                 <FormLabel>O.S. (máx 5 dígitos)</FormLabel>
                 <FormControl>
-                  <Input placeholder="Número da O.S. ou deixe em branco" {...field} maxLength={5} disabled={isFormDisabled || isSubmitting} />
+                  <Input placeholder="Número da O.S." {...field} maxLength={5} disabled={isFormDisabled || isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -396,7 +303,7 @@ Para gerenciar, acesse: ${saleEditLink}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Área</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled || isSubmitting}>
+                <Select onValueChange={field.onChange} value={field.value || ""} disabled={isFormDisabled || isSubmitting}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a Área" />
@@ -418,7 +325,7 @@ Para gerenciar, acesse: ${saleEditLink}
               <FormItem>
                 <FormLabel>Cliente/Serviço</FormLabel>
                 <FormControl>
-                  <Input placeholder="Tipo de Cliente ou Serviço Prestado" {...field} disabled={isFormDisabled || isSubmitting} />
+                  <Input placeholder="Cliente ou Serviço" {...field} disabled={isFormDisabled || isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -436,13 +343,9 @@ Para gerenciar, acesse: ${saleEditLink}
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="number"
-                      placeholder="0,00"
                       className="pl-8"
-                      value={field.value === undefined || field.value === null || isNaN(Number(field.value)) ? '' : String(field.value)}
-                      onChange={e => { const val = e.target.value; field.onChange(val === '' ? undefined : parseFloat(val)); }}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
+                      value={field.value ?? ''}
+                      onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
                       disabled={isFormDisabled || isSubmitting}
                       step="0.01"
                     />
@@ -459,10 +362,10 @@ Para gerenciar, acesse: ${saleEditLink}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled || isSubmitting}>
+                <Select onValueChange={field.onChange} value={field.value || ""} disabled={isFormDisabled || isSubmitting}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o Status da Venda" />
+                      <SelectValue placeholder="Selecione o Status" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -485,13 +388,9 @@ Para gerenciar, acesse: ${saleEditLink}
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="number"
-                      placeholder="0,00"
                       className="pl-8"
-                      value={field.value === undefined || field.value === null || isNaN(Number(field.value)) ? '' : String(field.value)}
-                      onChange={e => { const val = e.target.value; field.onChange(val === '' ? undefined : parseFloat(val)); }}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
+                      value={field.value ?? ''}
+                      onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       disabled={isFormDisabled || isSubmitting}
                       step="0.01"
                     />
@@ -503,67 +402,28 @@ Para gerenciar, acesse: ${saleEditLink}
           />
         </div>
 
-        <div className="space-y-4">
-           <FormField
-              control={form.control}
-              name="summary"
-              render={({ field }) => (
-                  <FormItem>
-                  <FormLabel>Resumo da Venda/Serviço</FormLabel>
-                  <FormControl>
-                      <Textarea
-                      placeholder="Insira um resumo rápido da venda e do serviço a ser executado..."
-                      {...field}
-                      disabled={isFormDisabled || isSubmitting}
-                      rows={4}
-                      />
-                  </FormControl>
-                  <FormMessage />
-                  </FormItem>
-              )}
-          />
-
-          {!editMode && (
-            <FormField
-              control={form.control}
-              name="sendSaleNotification"
-              render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-muted/30">
-                  <FormControl>
-                  <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isFormDisabled || isSubmitting || loadingSettings || !appSettings.enableSalesEmailNotifications}
-                  />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                  <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" />ENVIAR E-MAIL COM A NOVA VENDA</FormLabel>
-                  <FormDescription>
-                      {loadingSettings ? "Carregando config..." : 
-                      !appSettings.enableSalesEmailNotifications ? "Notificações de vendas desabilitadas em Configurações." :
-                      "Se marcado, um e-mail com os dados da venda será preparado para envio à equipe."
-                      }
-                  </FormDescription>
-                  </div>
-              </FormItem>
-              )}
-            />
+        <FormField
+          control={form.control}
+          name="summary"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Resumo</FormLabel>
+              <FormControl>
+                <Textarea {...field} disabled={isFormDisabled || isSubmitting} rows={4} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
-        </div>
-
+        />
 
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
-          <Button type="button" variant="ghost" onClick={() => {
-              form.reset({ date: new Date(), company: '', project: '', os: '', area: '', clientService: '', salesValue: undefined, status: '', payment: 0, summary: '', sendSaleNotification: appSettings.enableSalesEmailNotifications });
-              if (onFormSubmit) onFormSubmit();
-            }}
-            disabled={isSubmitting} className="w-full sm:w-auto">
+          <Button type="button" variant="ghost" onClick={() => resetForm()} disabled={isSubmitting} className="w-full sm:w-auto">
             <RotateCcw className="mr-2 h-4 w-4" />
-            {editMode ? 'Cancelar Edição' : 'Limpar Formulário'}
+            Limpar
           </Button>
-          <Button type="submit" disabled={isFormDisabled || isSubmitting || isSaved} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+          <Button type="submit" disabled={isFormDisabled || isSubmitting || isSaved} className="w-full sm:w-auto">
             {isSaved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
-            {isSubmitting ? 'Salvando...' : isSaved ? 'Salvo!' : (editMode ? 'Atualizar Venda' : 'Salvar Venda')}
+            {isSubmitting ? 'Salvando...' : (editMode ? 'Atualizar Venda' : 'Salvar Venda')}
           </Button>
         </div>
       </form>
