@@ -3,20 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format, parseISO, isBefore, subDays } from 'date-fns';
 import { DollarSign, Printer, BarChart3, Filter, AlertTriangle } from 'lucide-react';
-import { Card, CardContent, <Card>
-  <CardHeader className="pb-2">
-    <CardTitle className="text-sm font-medium">Propostas</CardTitle>
-  </CardHeader>
-  <CardContent>
-    <div className="text-2xl font-bold">{stats.assertividade.toFixed(1)}%</div>
-    <p className="text-xs text-muted-foreground">
-      {stats.contractedCount} contratadas • {stats.openCount} em aberto
-    </p>
-    <p className="text-xs text-muted-foreground mt-1">
-      R$ {stats.openValue.toLocaleString('pt-BR')} em propostas pendentes
-    </p>
-  </CardContent>
-</Card>, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SalesCharts from '@/components/sales/sales-charts';
@@ -54,36 +41,36 @@ export default function DashboardPage() {
   }, [displayYear, setSalesFilters, setQuotesDashboardFilters]);
 
   const stats = useMemo(() => {
-  const totalSalesValue = filteredSales.reduce((sum, s) => sum + s.salesValue, 0);
-  const totalSalesCount = filteredSales.length;
-  
-  // Propostas contratadas (status = "Aceita")
-  const contractedQuotes = dashboardFilteredQuotes.filter(q => q.status === 'Aceita');
-  const contractedCount = contractedQuotes.length;
-  const contractedValue = contractedQuotes.reduce((sum, q) => sum + q.proposedValue, 0);
-  
-  // Propostas em aberto (status !== "Aceita")
-  const openQuotes = dashboardFilteredQuotes.filter(q => q.status !== 'Aceita');
-  const openCount = openQuotes.length;
-  const openValue = openQuotes.reduce((sum, q) => sum + q.proposedValue, 0);
-  
-  // Total de propostas
-  const totalProposalsCount = dashboardFilteredQuotes.length;
-  const totalProposedValue = dashboardFilteredQuotes.reduce((sum, q) => sum + q.proposedValue, 0);
-  
-  return {
-    totalSalesValue,
-    totalSalesCount,
-    totalProposedValue,
-    totalProposalsCount,
-    openCount,
-    openValue,
-    contractedCount,
-    contractedValue,
-    totalReceived: filteredSales.reduce((sum, s) => sum + s.payment, 0),
-    assertividade: totalProposalsCount > 0 ? (contractedCount / totalProposalsCount) * 100 : 0,
-  };
-}, [filteredSales, dashboardFilteredQuotes]);
+    const totalSalesValue = filteredSales.reduce((sum, s) => sum + s.salesValue, 0);
+    const totalSalesCount = filteredSales.length;
+    
+    // Propostas contratadas (status = "Aceita")
+    const contractedQuotes = dashboardFilteredQuotes.filter(q => q.status === 'Aceita');
+    const contractedCount = contractedQuotes.length;
+    const contractedValue = contractedQuotes.reduce((sum, q) => sum + q.proposedValue, 0);
+    
+    // Propostas em aberto (status !== "Aceita")
+    const openQuotes = dashboardFilteredQuotes.filter(q => q.status !== 'Aceita');
+    const openCount = openQuotes.length;
+    const openValue = openQuotes.reduce((sum, q) => sum + q.proposedValue, 0);
+    
+    // Total de propostas
+    const totalProposalsCount = dashboardFilteredQuotes.length;
+    const totalProposedValue = dashboardFilteredQuotes.reduce((sum, q) => sum + q.proposedValue, 0);
+    
+    return {
+      totalSalesValue,
+      totalSalesCount,
+      totalProposedValue,
+      totalProposalsCount,
+      openCount,
+      openValue,
+      contractedCount,
+      contractedValue,
+      totalReceived: filteredSales.reduce((sum, s) => sum + s.payment, 0),
+      assertividade: totalProposalsCount > 0 ? (contractedCount / totalProposalsCount) * 100 : 0,
+    };
+  }, [filteredSales, dashboardFilteredQuotes]);
 
   const pendingCount = useMemo(() => {
     const limit = subDays(new Date(), 30);
@@ -118,33 +105,43 @@ export default function DashboardPage() {
                 <CardTitle className="text-sm font-medium">Cobranças Pendentes</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
               </CardHeader>
-              <Card>
-  <CardHeader className="pb-2">
-    <CardTitle className="text-sm font-medium">Propostas</CardTitle>
-  </CardHeader>
-  <CardContent>
-    <div className="text-2xl font-bold">{stats.assertividade.toFixed(1)}%</div>
-    <p className="text-xs text-muted-foreground">
-      {stats.contractedCount} contratadas • {stats.openCount} em aberto
-    </p>
-    <p className="text-xs text-muted-foreground mt-1">
-      R$ {stats.openValue.toLocaleString('pt-BR')} em propostas pendentes
-    </p>
-  </CardContent>
-</Card>
+              <CardContent>
+                <div className="text-2xl font-bold">{pendingCount}</div>
+                <p className="text-xs text-muted-foreground">Vendas +30 dias sem pgto.</p>
+              </CardContent>
+            </Card>
+          </Link>
         )}
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Vendas Total</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{stats.totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div></CardContent>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Vendas Total</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          </CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Propostas Total</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{stats.totalProposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div></CardContent>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Propostas Total</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalProposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          </CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle></CardHeader>
-  <CardContent>
-    <div className="text-2xl font-bold">{stats.convCount.toFixed(1)}%</div>
-    <p className="text-xs text-muted-foreground">{stats.totalSalesCount} de {stats.totalProposalsCount} propostas</p>
-  </CardContent>
-</Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Propostas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.assertividade.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.contractedCount} contratadas • {stats.openCount} em aberto
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              R$ {stats.openValue.toLocaleString('pt-BR')} em propostas pendentes
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <SalesCharts salesData={filteredSales} />
