@@ -1,5 +1,3 @@
-
-
 // src/app/(app)/propostas/gerenciar/page.tsx
 "use client";
 import type { ChangeEvent } from 'react';
@@ -98,6 +96,7 @@ export default function GerenciarPropostasPage() {
   const handlePrint = () => {
     window.print();
   };
+
 // Helpers CSV (Excel PT-BR usa ';')
 const escapeCsv = (value: any) => {
   const v = String(value ?? '');
@@ -163,6 +162,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
   a.remove();
   URL.revokeObjectURL(url);
 };
+
   const handleExport = async () => {
     const dataToExport = managementFilteredQuotes.map(q => ({
       'Cliente': q.clientName || '',
@@ -179,7 +179,8 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
       'Data Follow-up': q.followUpDate || '',
       'Follow-up Realizado?': q.followUpDone ? 'Sim' : 'Não',
     }));
-        const csv = rowsToCsv(dataToExport);
+    
+    const csv = rowsToCsv(dataToExport);
     downloadTextFile(csv, "Dados_Propostas.csv", "text/csv;charset=utf-8;");
   };
 
@@ -190,8 +191,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-      
-                const text = String(e.target?.result ?? '');
+        const text = String(e.target?.result ?? '');
         const json: any[] = csvToRows(text);
 
         if (json.length === 0) {
@@ -399,6 +399,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
             </DialogHeader>
             <div className="p-4">
               <QuoteForm 
+                key={editingQuote?.id || 'new-quote'}  {/* FORÇAR REMOUNT AQUI! */}
                 quoteToEdit={editingQuote} 
                 onFormSubmit={handleFormSubmitted}
                 showReadOnlyAlert={true} 
