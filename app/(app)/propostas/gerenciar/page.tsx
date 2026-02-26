@@ -97,71 +97,70 @@ export default function GerenciarPropostasPage() {
     window.print();
   };
 
-// Helpers CSV (Excel PT-BR usa ';')
-const escapeCsv = (value: any) => {
-  const v = String(value ?? '');
-  return /[",\n\r;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-};
+  const escapeCsv = (value: any) => {
+    const v = String(value ?? '');
+    return /[",\n\r;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
 
-const rowsToCsv = (rows: Record<string, any>[]) => {
-  if (!rows || rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const lines = [
-    headers.join(';'),
-    ...rows.map(r => headers.map(h => escapeCsv((r as any)[h])).join(';')),
-  ];
-  return lines.join('\n');
-};
+  const rowsToCsv = (rows: Record<string, any>[]) => {
+    if (!rows || rows.length === 0) return '';
+    const headers = Object.keys(rows[0]);
+    const lines = [
+      headers.join(';'),
+      ...rows.map(r => headers.map(h => escapeCsv((r as any)[h])).join(';')),
+    ];
+    return lines.join('\n');
+  };
 
-const csvToRows = (csvText: string) => {
-  const text = (csvText || '').replace(/^\uFEFF/, '');
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let inQuotes = false;
+  const csvToRows = (csvText: string) => {
+    const text = (csvText || '').replace(/^\uFEFF/, '');
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
 
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    const next = text[i + 1];
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i + 1];
 
-    if (inQuotes) {
-      if (c === '"' && next === '"') { field += '"'; i++; continue; }
-      if (c === '"') { inQuotes = false; continue; }
+      if (inQuotes) {
+        if (c === '"' && next === '"') { field += '"'; i++; continue; }
+        if (c === '"') { inQuotes = false; continue; }
+        field += c;
+        continue;
+      }
+
+      if (c === '"') { inQuotes = true; continue; }
+      if (c === ';') { row.push(field.trim()); field = ''; continue; }
+      if (c === '\r') continue;
+      if (c === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; continue; }
       field += c;
-      continue;
     }
+    row.push(field.trim());
+    rows.push(row);
 
-    if (c === '"') { inQuotes = true; continue; }
-    if (c === ';') { row.push(field.trim()); field = ''; continue; }
-    if (c === '\r') continue;
-    if (c === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; continue; }
-    field += c;
-  }
-  row.push(field.trim());
-  rows.push(row);
+    const cleaned = rows.filter(r => r.some(v => (v ?? '').trim() !== ''));
+    if (cleaned.length === 0) return [];
 
-  const cleaned = rows.filter(r => r.some(v => (v ?? '').trim() !== ''));
-  if (cleaned.length === 0) return [];
+    const headers = cleaned[0].map(h => (h ?? '').trim());
+    return cleaned.slice(1).map(r => {
+      const obj: Record<string, string> = {};
+      headers.forEach((h, idx) => { obj[h] = r[idx] ?? ''; });
+      return obj;
+    });
+  };
 
-  const headers = cleaned[0].map(h => (h ?? '').trim());
-  return cleaned.slice(1).map(r => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = r[idx] ?? ''; });
-    return obj;
-  });
-};
-
-const downloadTextFile = (content: string, filename: string, mime: string) => {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-};
+  const downloadTextFile = (content: string, filename: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const handleExport = async () => {
     const dataToExport = managementFilteredQuotes.map(q => ({
@@ -399,7 +398,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
             </DialogHeader>
             <div className="p-4">
               <QuoteForm 
-                key={editingQuote?.id || 'new-quote'}  {/* FORÇAR REMOUNT AQUI! */}
+                key={editingQuote?.id || 'new-quote'}
                 quoteToEdit={editingQuote} 
                 onFormSubmit={handleFormSubmitted}
                 showReadOnlyAlert={true} 
