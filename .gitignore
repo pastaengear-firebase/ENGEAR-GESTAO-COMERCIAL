@@ -3,3 +3,15 @@ node_modules/
 
 # Local environment variables file
 .env.local
+
+# Build artifacts
+build.log
+estrutura.txt
+.next/
+
+# Backup files
+*.bak
+*.bak_*
+
+# Pull request metadata
+pull_requests/
