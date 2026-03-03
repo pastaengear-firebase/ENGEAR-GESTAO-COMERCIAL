@@ -35,6 +35,7 @@ import {
   FileUp,
   Loader2,
   Link as LinkIcon,
+  Mail,
   Paperclip,
   UploadCloud,
 } from "lucide-react";
@@ -297,6 +298,18 @@ export default function QuotesTable({
                             <Edit3 className="mr-2 h-4 w-4" /> Modificar
                           </DropdownMenuItem>
                         )}
+
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const value = quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                            const subject = `Proposta: ${quote.clientName} (${value}) - ${quote.seller}`;
+                            const body = `Dados da Proposta:\nVendedor: ${quote.seller}\nCliente: ${quote.clientName}\nEmpresa: ${quote.company || '-'}\nÁrea: ${quote.area || '-'}\nDescrição: ${quote.description}\nValor: ${value}\nStatus: ${quote.status}`;
+                            window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+                          }}
+                          disabled={areActionsDisabled}
+                        >
+                          <Mail className="mr-2 h-4 w-4" /> Reenviar E-mail
+                        </DropdownMenuItem>
 
                         {!isAccepted && (
                           <DropdownMenuItem onClick={() => handleConvertToSale(quote)} disabled={areActionsDisabled}>

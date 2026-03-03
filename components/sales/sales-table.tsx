@@ -1,5 +1,6 @@
-﻿// src/components/sales/sales-table.tsx
+// src/components/sales/sales-table.tsx
 "use client";
+import { useRef, useState } from 'react';
 import type { Sale } from '@/lib/types';
 import {
   Table,
@@ -12,21 +13,26 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit3, Trash2, Eye, Link as LinkIcon } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, Eye, Link as LinkIcon, UploadCloud, Loader2, Mail } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useSales } from '@/hooks/use-sales';
+import { useToast } from '@/hooks/use-toast';
 
 interface SalesTableProps {
   salesData: Sale[];
   onEdit?: (sale: Sale) => void;
   onDelete?: (saleId: string) => void;
-  disabledActions?: boolean; // Prop global para desabilitar
+  disabledActions?: boolean;
 }
 
 export default function SalesTable({ salesData, onEdit, onDelete, disabledActions: globalDisabled }: SalesTableProps) {
-  const { userRole } = useSales();
+  const { userRole, uploadAttachment } = useSales();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedSaleForUpload, setSelectedSaleForUpload] = useState<Sale | null>(null);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
     switch (status) {
@@ -59,6 +65,27 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
 
   return (
     <>
+    <input
+      type="file"
+      ref={fileInputRef}
+      onChange={async (e) => {
+        if (!e.target.files?.length || !selectedSaleForUpload) return;
+        const file = e.target.files[0];
+        setIsUploading(selectedSaleForUpload.id);
+        try {
+          await uploadAttachment(selectedSaleForUpload.id, file);
+          toast({ title: "PDF enviado com sucesso!" });
+        } catch (err: any) {
+          toast({ title: "Erro ao enviar PDF", description: err.message, variant: "destructive" });
+        } finally {
+          setIsUploading(null);
+          setSelectedSaleForUpload(null);
+          if (e.target) e.target.value = '';
+        }
+      }}
+      className="hidden"
+      accept="application/pdf"
+    />
     <ScrollArea className="whitespace-nowrap rounded-md border" id="sales-table-printable-area">
       <Table className="min-w-full">
         <TableHeader>
@@ -80,7 +107,8 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
         <TableBody>
           {salesData.map((sale) => {
             const areActionsDisabled = globalDisabled || userRole !== sale.seller;
-            const attachmentUrl = (sale as any).attachmentUrl as string | undefined;
+            const attachmentUrl = sale.attachmentUrl;
+            const uploading = isUploading === sale.id;
 
             return (
             <TableRow key={sale.id} className="hover:bg-muted/50 transition-colors">
@@ -110,7 +138,17 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                     </a>
                   </Button>
                 ) : (
-                  <span className="text-xs text-muted-foreground/70 italic">—</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={areActionsDisabled || uploading}
+                    onClick={() => {
+                      setSelectedSaleForUpload(sale);
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                  </Button>
                 )}
               </TableCell>
               {showActions && (
@@ -125,6 +163,17 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onEdit(sale)} disabled={areActionsDisabled}>
                         <Edit3 className="mr-2 h-4 w-4" /> Modificar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const value = sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                          const subject = `Venda: ${sale.project} (${value}) - ${sale.seller}`;
+                          const body = `Dados da Venda:\nVendedor: ${sale.seller}\nEmpresa: ${sale.company}\nProjeto: ${sale.project}\nO.S.: ${sale.os || '-'}\nÁrea: ${sale.area}\nCliente/Serviço: ${sale.clientService}\nValor: ${value}\nStatus: ${sale.status}\nPagamento: ${sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                          window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+                        }}
+                        disabled={areActionsDisabled}
+                      >
+                        <Mail className="mr-2 h-4 w-4" /> Reenviar E-mail
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => onDelete(sale.id)} className="text-destructive" disabled={areActionsDisabled}>

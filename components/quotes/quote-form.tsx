@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { QuoteFormSchema, type QuoteFormData } from '@/lib/schemas';
 import { AREA_OPTIONS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, COMPANY_OPTIONS, SELLERS, FOLLOW_UP_OPTIONS, ALL_SELLERS_OPTION } from '@/lib/constants';
-import type { Seller, FollowUpOptionValue } from '@/lib/constants';
+import type { Seller } from '@/lib/constants';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
@@ -22,7 +22,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CalendarIcon, DollarSign, Save, RotateCcw, Info, BellRing, Check, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parseISO, addDays, differenceInDays } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Quote } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -66,50 +66,31 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
 
   useEffect(() => {
     if (editMode && quoteToEdit) {
-      let followUpOptionValue: FollowUpOptionValue = '0';
-      if (quoteToEdit.followUpSequence) {
-        followUpOptionValue = quoteToEdit.followUpSequence as FollowUpOptionValue;
-      } else if (quoteToEdit.followUpDate) {
-        const proposalD = parseISO(quoteToEdit.proposalDate);
-        const followUpD = parseISO(quoteToEdit.followUpDate);
-        const diff = differenceInDays(followUpD, proposalD);
-        const closestOption = FOLLOW_UP_OPTIONS.find(opt => !opt.value.includes(',') && parseInt(opt.value) === diff);
-        if (closestOption) {
-          followUpOptionValue = closestOption.value;
-        }
-      }
-
       form.reset({
-        clientName: quoteToEdit.clientName,
-        proposalDate: parseISO(quoteToEdit.proposalDate),
-        validityDate: quoteToEdit.validityDate ? parseISO(quoteToEdit.validityDate) : undefined,
-        company: quoteToEdit.company,
-        area: quoteToEdit.area,
-        contactSource: quoteToEdit.contactSource,
-        description: quoteToEdit.description,
-        proposedValue: quoteToEdit.proposedValue,
-        status: quoteToEdit.status,
+        clientName: quoteToEdit.clientName || '',
+        description: quoteToEdit.description || '',
+        proposedValue: quoteToEdit.proposedValue || 0,
         notes: quoteToEdit.notes || '',
-        followUpOption: followUpOptionValue,
+        status: (quoteToEdit.status as any) || 'Enviada',
+        company: (quoteToEdit.company?.trim() as any) || undefined,
+        area: (quoteToEdit.area?.trim() as any) || undefined,
+        contactSource: (quoteToEdit.contactSource?.trim() as any) || undefined,
+        proposalDate: quoteToEdit.proposalDate ? parseISO(quoteToEdit.proposalDate) : new Date(),
+        validityDate: quoteToEdit.validityDate ? parseISO(quoteToEdit.validityDate) : undefined,
+        followUpOption: (quoteToEdit.followUpSequence || '0') as any,
         sendProposalNotification: false,
       });
-    } else if (!editMode) {
-      form.reset({ 
+    } else {
+      form.reset({
         clientName: '',
-        proposalDate: new Date(), 
-        validityDate: undefined,
-        company: undefined,
-        area: undefined,
-        contactSource: undefined,
-        description: '',
-        proposedValue: undefined,
-        status: "Enviada",
-        notes: '',
+        proposalDate: new Date(),
+        status: 'Enviada',
+        proposedValue: 0,
         followUpOption: '0',
-        sendProposalNotification: appSettings.enableProposalsEmailNotifications,
+        sendProposalNotification: appSettings?.enableProposalsEmailNotifications ?? false,
       });
     }
-  }, [quoteToEdit, editMode, form, appSettings.enableProposalsEmailNotifications]);
+  }, [quoteToEdit, editMode, appSettings?.enableProposalsEmailNotifications]);
 
   const triggerProposalEmailNotification = (quote: Quote) => {
     if (loadingSettings) {

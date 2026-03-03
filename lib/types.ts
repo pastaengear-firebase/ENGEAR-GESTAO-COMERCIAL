@@ -34,6 +34,8 @@ export interface Sale {
   status: StatusOption;
   payment: number;
   summary?: string;
+  attachmentUrl?: string;
+  attachmentPath?: string;
   createdAt: any; // Can be a server timestamp
   updatedAt?: any; // Can be a server timestamp
 }
@@ -58,6 +60,8 @@ export type SalesContextType = {
   addBulkSales: (newSales: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>[]) => Promise<void>;
   updateSale: (id: string, saleData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
   deleteSale: (id: string) => Promise<void>;
+  uploadAttachment: (saleId: string, file: File) => Promise<void>;
+  deleteAttachment: (sale: Sale) => Promise<void>;
   getSaleById: (id: string) => Sale | undefined;
   setFilters: (filters: Partial<SalesFilters>) => void;
   filters: SalesFilters;

@@ -5,7 +5,8 @@ import { createContext, useState, useEffect, useCallback, useMemo, useRef } from
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { collection, serverTimestamp, setDoc, doc, writeBatch, updateDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useAuth } from '../firebase/provider';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { useFirestore, useAuth, useStorage } from '../firebase/provider';
 import { useCollection } from '../firebase/firestore/use-collection';
 import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '../lib/constants';
 import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '../lib/types';
@@ -16,6 +17,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
+  const storage = useStorage();
   
   const [user, setUser] = useState<AppUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(ALL_SELLERS_OPTION);
@@ -103,6 +105,24 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await deleteDoc(doc(salesCollection, id));
   }, [salesCollection]);
 
+  const uploadAttachment = useCallback(async (saleId: string, file: File) => {
+    if (!storage || !salesCollection) throw new Error("Storage ou Firestore não inicializado.");
+    const filePath = `sales/${saleId}/${file.name}`;
+    const fileRef = ref(storage, filePath);
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+    const saleRef = doc(salesCollection, saleId);
+    await updateDoc(saleRef, { attachmentUrl: url, attachmentPath: filePath, updatedAt: serverTimestamp() });
+  }, [storage, salesCollection]);
+
+  const deleteAttachment = useCallback(async (sale: Sale) => {
+    if (!storage || !salesCollection || !sale.attachmentPath) return;
+    const fileRef = ref(storage, sale.attachmentPath);
+    await deleteObject(fileRef).catch(() => {});
+    const saleRef = doc(salesCollection, sale.id);
+    await updateDoc(saleRef, { attachmentUrl: null, attachmentPath: null, updatedAt: serverTimestamp() });
+  }, [storage, salesCollection]);
+
   const getSaleById = useCallback((id: string) => sales?.find(sale => sale.id === id), [sales]);
 
   const setFilters = useCallback((newFilters: Partial<SalesFilters>) => {
@@ -122,8 +142,8 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const contextValue = useMemo(() => ({
     user, userRole, loadingAuth, logout, sales: sales || [], filteredSales, viewingAsSeller, setViewingAsSeller,
-    addSale, addBulkSales, updateSale, deleteSale, getSaleById, setFilters, filters, loading: salesLoading
-  }), [user, userRole, loadingAuth, logout, sales, filteredSales, viewingAsSeller, addSale, addBulkSales, updateSale, deleteSale, getSaleById, setFilters, filters, salesLoading]);
+    addSale, addBulkSales, updateSale, deleteSale, uploadAttachment, deleteAttachment, getSaleById, setFilters, filters, loading: salesLoading
+  }), [user, userRole, loadingAuth, logout, sales, filteredSales, viewingAsSeller, addSale, addBulkSales, updateSale, deleteSale, uploadAttachment, deleteAttachment, getSaleById, setFilters, filters, salesLoading]);
 
   return <SalesContext.Provider value={contextValue}>{children}</SalesContext.Provider>;
 };

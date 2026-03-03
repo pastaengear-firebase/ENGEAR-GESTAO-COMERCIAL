@@ -113,6 +113,7 @@ export default function SalesForm({
           company: data.company || undefined,
           area: data.area || undefined,
           status: data.status || undefined,
+          sendSaleNotification: data.sendSaleNotification ?? false,
         });
       } else {
         form.reset({
