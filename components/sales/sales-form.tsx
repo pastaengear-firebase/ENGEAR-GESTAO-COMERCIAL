@@ -181,8 +181,8 @@ export default function SalesForm({
           sendSaleNotification: appSettings?.enableSalesEmailNotifications || false,
         });
 
-        // Sem PDF herdado da proposta (é PDF da venda)
-        resetPdfStateFromSale(undefined);
+        // Herda PDF da proposta, se houver
+        resetPdfStateFromSale(quoteToConvert);
 
         prefillDoneRef.current = true;
       }
