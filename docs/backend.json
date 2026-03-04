@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "Sale": {
+      "title": "Sale",
+      "description": "Represents a single sale record.",
+      "type": "object",
+      "properties": {
+        "seller": { "type": "string", "enum": ["SERGIO", "RODRIGO"] },
+        "sellerUid": { "type": "string", "description": "The Firebase UID of the user who created the sale." },
+        "date": { "type": "string", "format": "date" },
+        "company": { "type": "string", "enum": ["ENGEAR", "CLIMAZONE"] },
+        "project": { "type": "string" },
+        "os": { "type": "string" },
+        "area": { "type": "string", "enum": ["INST. AC", "MANUT. AC", "PRÉ", "CI", "GÁS", "SAS", "AQG", "EXAUST", "LOCAÇÃO"] },
+        "clientService": { "type": "string" },
+        "salesValue": { "type": "number" },
+        "status": { "type": "string", "enum": ["Á INICAR", "EM ANDAMENTO", "AGUARDANDO PAGAMENTO", "FINALIZADO", "CANCELADO"] },
+        "payment": { "type": "number" },
+        "summary": { "type": "string", "description": "A quick summary of the sale and service to be performed." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["seller", "sellerUid", "date", "company", "project", "area", "clientService", "salesValue", "status", "payment", "createdAt"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "Represents a single quote record.",
+      "type": "object",
+      "properties": {
+        "seller": { "type": "string", "enum": ["SERGIO", "RODRIGO"] },
+        "sellerUid": { "type": "string", "description": "The Firebase UID of the user who created the quote." },
+        "clientName": { "type": "string" },
+        "proposalDate": { "type": "string", "format": "date" },
+        "validityDate": { "type": "string", "format": "date" },
+        "company": { "type": "string", "enum": ["ENGEAR", "CLIMAZONE"] },
+        "area": { "type": "string", "enum": ["INST. AC", "MANUT. AC", "PRÉ", "CI", "GÁS", "SAS", "AQG", "EXAUST", "LOCAÇÃO"] },
+        "contactSource": { "type": "string", "enum": ["E-mail", "Telefone", "Presencial", "Indicação", "Website", "Outro"] },
+        "description": { "type": "string" },
+        "proposedValue": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pendente", "Enviada", "Em Negociação", "Aceita", "Recusada", "Cancelada"] },
+        "notes": { "type": "string" },
+        "followUpDate": { "type": "string", "format": "date" },
+        "followUpDone": { "type": "boolean" },
+        "followUpSequence": { "type": "string", "description": "A comma-separated string of day offsets for a follow-up sequence, e.g., '5,15,30'." },
+        "attachmentUrl": { "type": "string", "description": "Public URL of the attached file in Firebase Storage." },
+        "attachmentPath": { "type": "string", "description": "The path to the attached file in Firebase Storage." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["seller", "sellerUid", "proposalDate", "status", "createdAt"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Application settings.",
+      "type": "object",
+      "properties": {
+        "enableSalesEmailNotifications": { "type": "boolean" },
+        "salesNotificationEmails": { "type": "array", "items": { "type": "string" } },
+        "enableProposalsEmailNotifications": { "type": "boolean", "description": "Enable email notifications for new proposals." },
+        "proposalsNotificationEmails": { "type": "array", "items": { "type": "string" }, "description": "List of emails to notify for new proposals." },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "BillingLog": {
+        "title": "Billing Log",
+        "description": "Represents a log entry for a billing request email.",
+        "type": "object",
+        "properties": {
+            "saleId": { "type": "string", "description": "The ID of the related sale." },
+            "saleData": { "$ref": "#/entities/Sale" },
+            "billingInfo": { "type": "string", "description": "Additional billing information provided." },
+            "billingAmount": { "type": "number", "description": "The amount that was requested for billing." },
+            "recipientEmail": { "type": "string", "format": "email", "description": "The email address the request was sent to." },
+            "requestedBy": { "type": "string", "description": "The name of the seller who made the request." },
+            "requestedByUid": { "type": "string", "description": "The UID of the seller who made the request." },
+            "requestedAt": { "type": "string", "format": "date-time", "description": "The timestamp of the request." }
+        },
+        "required": ["saleId", "saleData", "billingAmount", "recipientEmail", "requestedBy", "requestedByUid", "requestedAt"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "Collection of sales documents."
+    },
+    "/quotes/{quoteId}": {
+      "schema": { "$ref": "#/entities/Quote" },
+      "description": "Collection of quote documents."
+    },
+    "/settings/{settingId}": {
+        "schema": { "$ref": "#/entities/Setting" },
+        "description": "Application settings documents."
+    },
+    "/billing-logs/{logId}": {
+      "schema": { "$ref": "#/entities/BillingLog" },
+      "description": "Collection of billing request log documents."
+    }
+  },
+  "storage": {
+    "/proposals/{quoteId}/{fileName}": {
+      "description": "Proposal attachment files. Only the quote owner can upload/delete."
+    }
+  }
+}

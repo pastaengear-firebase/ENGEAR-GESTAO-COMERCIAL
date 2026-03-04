@@ -1,29 +1,16 @@
-﻿{
-  "hosting": {
-    "source": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      ".git",
-      ".gitignore",
-      "node_modules",
-      "npm-debug.*",
-      ".next",
-      "out"
-    ]
-  },
-  "apphosting": {
-    "backends": [
-      {
-        "codebase": "default"
-      }
-    ]
-  },
+{
   "firestore": {
     "rules": "firestore.rules"
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "apphosting": {
+    "backends": [
+      {
+        "codebase": "default",
+        "region": "us-central1"
+      }
+    ]
   }
 }

@@ -1,0 +1,12 @@
+{
+  "name": "ENGEAR - Node 20",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}

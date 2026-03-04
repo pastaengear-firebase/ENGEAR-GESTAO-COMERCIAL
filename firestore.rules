@@ -1,17 +1,60 @@
-// Firestore security rules
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Allow logged-in users to read all documents.
     match /{document=**} {
+      allow read: if request.auth != null;
+    }
+
+    // Sales Collection: Secure write operations based on user identity.
+    match /sales/{saleId} {
+      // Allow create if the user is authenticated and the seller UID on the new document matches their own UID.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerUid;
+
+      // Allow update only if the user owns the document AND is not changing ownership (sellerUid).
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.sellerUid
+        && request.resource.data.sellerUid == resource.data.sellerUid;
+
+      // Allow delete if the user owns the document.
+      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerUid;
+    }
+
+    // Quotes Collection: Secure write operations based on user identity.
+    match /quotes/{quoteId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerUid;
+
+      // Allow update only if the user owns the document AND is not changing ownership (sellerUid).
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.sellerUid
+        && request.resource.data.sellerUid == resource.data.sellerUid;
+
+      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerUid;
+    }
+
+    // Settings Collection: Allow any authenticated user to manage settings.
+    match /settings/{settingId} {
       allow read, write: if request.auth != null;
     }
 
-    match /settings/{settingId} {
+    // Billing Logs Collection: Allow authenticated users to create logs.
+    match /billing-logs/{logId} {
+      allow create: if request.auth != null;
+    }
+  }
+}
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /proposals/{quoteId}/{allPaths=**} {
+      // Allow read for any authenticated user
       allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        (request.auth.token.email == 'sergio@engearpb.com.br' || 
-         request.auth.token.email == 'rodrigobarros@engearpb.com.br' ||
-         request.auth.token.email == 'pastaengear@gmail.com');
+
+      // Allow write (create, update, delete) only if the user is the owner of the quote
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/quotes/$(quoteId)).data.sellerUid == request.auth.uid;
     }
   }
 }

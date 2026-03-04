@@ -1,24 +1,125 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Theme - Maroon & Golden Yellow */
+    --background: 0 0% 96%; /* Light Gray */
+    --foreground: 0 0% 15%; /* Dark Gray for text */
+    
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    --primary: 345 55% 30%; /* Maroon */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 0 0% 90%; /* Lighter Gray */
+    --secondary-foreground: 0 0% 25%;
+
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 43 88% 63%; /* Golden Yellow */
+    --accent-foreground: 345 55% 15%; /* Dark Maroon for text on accent */
+
+    --destructive: 0 72.2% 50.6%; /* Standard Red */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 85%;
+    --input: 0 0% 90%;
+    --ring: 345 55% 35%; /* Maroon for focus rings (slightly lighter for visibility) */
+    
+    --radius: 0.5rem;
+
+    /* Chart Colors - Light Theme */
+    --chart-1: 345 55% 30%; /* Maroon */
+    --chart-2: 43 88% 63%; /* Golden Yellow */
+    --chart-3: 150 45% 45%; /* Complementary Teal/Green */
+    --chart-4: 200 60% 50%; /* Complementary Blue */
+    --chart-5: 25 70% 55%;  /* Complementary Orange */
+
+    /* Sidebar specific colors (always white background) */
+    --sidebar-background: 0 0% 100%; /* White */
+    --sidebar-foreground: 353 60% 25%;    /* Dark Maroon #661923 */
+    --sidebar-primary: 43 88% 63%;     /* Golden Yellow for active/selection */
+    --sidebar-primary-foreground: 353 60% 25%; /* Dark Maroon #661923 for text on yellow */
+    --sidebar-accent: 0 0% 92%;     /* Light Gray for hover background */
+    --sidebar-accent-foreground: 353 60% 25%;  /* Dark Maroon #661923 for hover text */
+    --sidebar-border: 0 0% 85%; /* Light Gray border */
+    --sidebar-ring: 43 88% 63%;        /* Golden Yellow ring */
+  }
+
+  .dark {
+    /* Dark Theme - Maroon & Golden Yellow */
+    --background: 220 10% 12%; /* Dark Cool Gray */
+    --foreground: 0 0% 95%;    /* Light Gray/Off-white */
+
+    --card: 220 10% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 220 10% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 345 55% 55%; /* Brighter Maroon for dark mode */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 220 10% 20%;
+    --secondary-foreground: 0 0% 85%;
+
+    --muted: 220 10% 20%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 43 88% 70%; /* Brighter Golden Yellow for dark mode */
+    --accent-foreground: 345 55% 15%; /* Dark Maroon */
+    
+    --destructive: 0 62.8% 40.6%; /* Adjusted Red for dark mode */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 10% 25%;
+    --input: 220 10% 22%;
+    --ring: 345 55% 55%; /* Brighter Maroon ring */
+
+    /* Chart Colors - Dark Theme */
+    --chart-1: 345 55% 55%; /* Brighter Maroon */
+    --chart-2: 43 88% 70%; /* Brighter Golden Yellow */
+    --chart-3: 150 50% 60%; /* Adjusted Teal/Green */
+    --chart-4: 200 65% 65%; /* Adjusted Blue */
+    --chart-5: 25 75% 68%;  /* Adjusted Orange */
+
+    /* Sidebar specific colors (always white background, consistent with light theme) */
+    --sidebar-background: 0 0% 100%; 
+    --sidebar-foreground: 353 60% 25%;   /* Dark Maroon #661923 */
+    --sidebar-primary: 43 88% 63%;    
+    --sidebar-primary-foreground: 353 60% 25%; /* Dark Maroon #661923 for text on yellow */
+    --sidebar-accent: 0 0% 92%;    
+    --sidebar-accent-foreground: 353 60% 25%; /* Dark Maroon #661923 for hover text */
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 43 88% 63%;
+  }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-body {
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgb(var(--background-end-rgb))
-  ) rgb(var(--background-start-rgb));
-}
-
-:root {
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* Hide spinners from number inputs */
+@layer utilities {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+  }
 }

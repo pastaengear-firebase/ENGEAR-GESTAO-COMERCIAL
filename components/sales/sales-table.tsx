@@ -1,0 +1,215 @@
+// src/components/sales/sales-table.tsx
+"use client";
+import { useRef, useState } from 'react';
+import type { Sale } from '@/lib/types';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Edit3, Trash2, Eye, Link as LinkIcon, UploadCloud, Loader2, Mail } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useSales } from '@/hooks/use-sales';
+import { useToast } from '@/hooks/use-toast';
+
+interface SalesTableProps {
+  salesData: Sale[];
+  onEdit?: (sale: Sale) => void;
+  onDelete?: (saleId: string) => void;
+  disabledActions?: boolean;
+}
+
+export default function SalesTable({ salesData, onEdit, onDelete, disabledActions: globalDisabled }: SalesTableProps) {
+  const { userRole, uploadAttachment } = useSales();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedSaleForUpload, setSelectedSaleForUpload] = useState<Sale | null>(null);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
+
+  const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
+    switch (status) {
+      case 'FINALIZADO':
+        return 'default';
+      case 'A INICIAR':
+      case 'EM ANDAMENTO':
+      case 'AGUARDANDO PAGAMENTO':
+        return 'secondary';
+      case 'CANCELADO':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
+
+  const showActions = onEdit && onDelete;
+
+  if (!salesData.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center p-4">
+        <Eye className="h-12 w-12 text-muted-foreground mb-3" />
+        <h3 className="text-lg font-semibold text-foreground">Nenhuma Venda Encontrada</h3>
+        <p className="text-sm text-muted-foreground">
+          Não há vendas que correspondam aos filtros atuais ou nenhum registro foi adicionado.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+    <input
+      type="file"
+      ref={fileInputRef}
+      onChange={async (e) => {
+        if (!e.target.files?.length || !selectedSaleForUpload) return;
+        const file = e.target.files[0];
+        setIsUploading(selectedSaleForUpload.id);
+        try {
+          await uploadAttachment(selectedSaleForUpload.id, file);
+          toast({ title: "PDF enviado com sucesso!" });
+        } catch (err: any) {
+          toast({ title: "Erro ao enviar PDF", description: err.message, variant: "destructive" });
+        } finally {
+          setIsUploading(null);
+          setSelectedSaleForUpload(null);
+          if (e.target) e.target.value = '';
+        }
+      }}
+      className="hidden"
+      accept="application/pdf"
+    />
+    <ScrollArea className="whitespace-nowrap rounded-md border" id="sales-table-printable-area">
+      <Table className="min-w-full">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Data</TableHead>
+            <TableHead>Vendedor</TableHead>
+            <TableHead>Empresa</TableHead>
+            <TableHead>Projeto</TableHead>
+            <TableHead>O.S.</TableHead>
+            <TableHead>Área</TableHead>
+            <TableHead>Cliente/Serviço</TableHead>
+            <TableHead className="text-right">Valor Venda</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Pagamento</TableHead>
+            <TableHead>PDF</TableHead>
+            {showActions && <TableHead className="text-right print-hide">Ações</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {salesData.map((sale) => {
+            const areActionsDisabled = globalDisabled || userRole !== sale.seller;
+            const attachmentUrl = sale.attachmentUrl;
+            const uploading = isUploading === sale.id;
+
+            return (
+            <TableRow key={sale.id} className="hover:bg-muted/50 transition-colors">
+              <TableCell>{format(parseISO(sale.date), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{sale.seller}</TableCell>
+              <TableCell className="font-medium max-w-[200px] truncate" title={sale.company}>{sale.company}</TableCell>
+              <TableCell className="max-w-[200px] truncate" title={sale.project}>{sale.project}</TableCell>
+              <TableCell>{sale.os}</TableCell>
+              <TableCell>{sale.area}</TableCell>
+              <TableCell className="max-w-[200px] truncate" title={sale.clientService}>{sale.clientService}</TableCell>
+              <TableCell className="text-right">
+                {sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </TableCell>
+              <TableCell>
+                <Badge variant={getStatusBadgeVariant(sale.status)} className="capitalize">
+                  {sale.status}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                {sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </TableCell>
+              <TableCell>
+                {attachmentUrl ? (
+                  <Button asChild variant="outline" size="sm">
+                    <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                      <LinkIcon className="mr-2 h-4 w-4" /> Ver PDF
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={areActionsDisabled || uploading}
+                    onClick={() => {
+                      setSelectedSaleForUpload(sale);
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                  </Button>
+                )}
+              </TableCell>
+              {showActions && (
+                <TableCell className="text-right print-hide">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0" disabled={areActionsDisabled}>
+                        <span className="sr-only">Abrir menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(sale)} disabled={areActionsDisabled}>
+                        <Edit3 className="mr-2 h-4 w-4" /> Modificar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const value = sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                          const subject = `Venda: ${sale.project} (${value}) - ${sale.seller}`;
+                          const body = `Dados da Venda:\nVendedor: ${sale.seller}\nEmpresa: ${sale.company}\nProjeto: ${sale.project}\nO.S.: ${sale.os || '-'}\nÁrea: ${sale.area}\nCliente/Serviço: ${sale.clientService}\nValor: ${value}\nStatus: ${sale.status}\nPagamento: ${sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                          window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+                        }}
+                        disabled={areActionsDisabled}
+                      >
+                        <Mail className="mr-2 h-4 w-4" /> Reenviar E-mail
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onDelete(sale.id)} className="text-destructive" disabled={areActionsDisabled}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              )}
+            </TableRow>
+          )})}
+        </TableBody>
+      </Table>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #sales-table-printable-area, #sales-table-printable-area * { visibility: visible; }
+          #sales-table-printable-area {
+            position: absolute;
+            left: 0; top: 0; width: 100%;
+            font-size: 8pt;
+          }
+          .print-hide { display: none !important; }
+          table { width: 100% !important; border-collapse: collapse !important; }
+          th, td {
+            border: 1px solid #ccc !important;
+            padding: 4px !important;
+            white-space: normal !important;
+            word-break: break-word;
+          }
+          .max-w-\\[200px\\] { max-width: 100px !important; }
+          @page { size: A4 landscape; margin: 10mm; }
+        }
+      `}</style>
+    </>
+  );
+}
