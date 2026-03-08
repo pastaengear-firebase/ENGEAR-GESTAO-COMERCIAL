@@ -36,6 +36,7 @@ export interface Sale {
   summary?: string;
   attachmentUrl?: string;
   attachmentPath?: string;
+  attachmentName?: string;
   createdAt: any; // Can be a server timestamp
   updatedAt?: any; // Can be a server timestamp
 }
@@ -80,6 +81,8 @@ export interface AppSettings {
   salesNotificationEmails: string[];
   enableProposalsEmailNotifications: boolean;
   proposalsNotificationEmails: string[];
+  enableBillingEmailNotifications: boolean;
+  billingNotificationEmails: string[];
 }
 
 export type SettingsContextType = {
@@ -110,6 +113,7 @@ export interface Quote {
   followUpSequence?: string;
   attachmentUrl?: string;
   attachmentPath?: string;
+  attachmentName?: string;
   createdAt: any; // Can be a server timestamp
   updatedAt?: any; // Can be a server timestamp
 }

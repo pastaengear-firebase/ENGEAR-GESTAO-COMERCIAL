@@ -5,12 +5,12 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "apphosting": {
-    "backends": [
-      {
-        "codebase": "default",
-        "region": "us-central1"
-      }
-    ]
-  }
+  "apphosting": [
+    {
+      "backendId": "studio",
+      "codebase": "default",
+      "region": "us-central1",
+      "alwaysDeployFromSource": true
+    }
+  ]
 }

@@ -3,7 +3,7 @@
 // src/app/(app)/propostas/gerenciar/page.tsx
 "use client";
 import type { ChangeEvent } from 'react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useSales } from '@/hooks/use-sales'; 
 import QuoteForm from '@/components/quotes/quote-form';
@@ -41,6 +41,14 @@ export default function GerenciarPropostasPage() {
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
 
   const isUserReadOnly = userRole === ALL_SELLERS_OPTION;
+
+  const proposalStats = useMemo(() => {
+    const total = managementFilteredQuotes.length;
+    const accepted = managementFilteredQuotes.filter(q => q.status === 'Aceita').length;
+    const pending = managementFilteredQuotes.filter(q => q.status !== 'Aceita').length;
+    const totalValue = managementFilteredQuotes.reduce((sum, q) => sum + (q.proposedValue || 0), 0);
+    return { total, accepted, pending, totalValue };
+  }, [managementFilteredQuotes]);
 
   const handleEditClick = (quote: Quote) => {
     if (userRole !== quote.seller) {
@@ -327,9 +335,28 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
         </Alert>
       )}
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-hide">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardDescription>Total de Propostas</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{proposalStats.total}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm border-emerald-300/50">
+          <CardHeader className="pb-2"><CardDescription>Aceitas</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold text-emerald-700">{proposalStats.accepted}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm border-amber-300/50">
+          <CardHeader className="pb-2"><CardDescription>Em Aberto</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold text-amber-700">{proposalStats.pending}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardDescription>Valor Proposto</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{proposalStats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></CardContent>
+        </Card>
+      </div>
+
       <Card className="shadow-lg" id="propostas-printable-area">
         <CardHeader className="print-hide">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <CardTitle>Buscar Propostas</CardTitle>
               <CardDescription>Digite o nome do cliente, descrição, área ou valor para filtrar.</CardDescription>
@@ -381,8 +408,9 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
             />
           )}
         </CardContent>
-         <CardFooter className="border-t p-4 text-sm text-muted-foreground print-hide">
+        <CardFooter className="border-t p-4 text-sm text-muted-foreground print-hide flex flex-col sm:flex-row sm:justify-between gap-1">
             Total de Propostas Encontradas: <span className="font-semibold text-foreground">{managementFilteredQuotes.length}</span>
+          <span>Valor no filtro: <span className="font-semibold text-foreground">{proposalStats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></span>
         </CardFooter>
       </Card>
 
@@ -438,7 +466,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
             left: 0;
             top: 0;
             width: 100%;
-            font-size: 8pt;
+            font-size: 9pt;
           }
           .print-hide {
             display: none !important;

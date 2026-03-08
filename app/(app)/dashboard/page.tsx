@@ -11,6 +11,7 @@ import { useSales } from '@/hooks/use-sales';
 import { useQuotes } from '@/hooks/use-quotes';
 import { ALL_SELLERS_OPTION } from '@/lib/constants';
 import type { Sale, Quote } from '@/lib/types';
+import { normalizeSaleStatus } from '@/lib/normalizers';
 
 type AgingBucketKey = '0-30' | '31-60' | '61-90' | '90+';
 type AgingBucket = { key: AgingBucketKey; label: string; count: number; pendingValue: number };
@@ -120,7 +121,8 @@ export default function DashboardPage() {
     const limit = subDays(new Date(), 30);
     return allSales.filter(s => {
       const matchesSeller = viewingAsSeller === ALL_SELLERS_OPTION || s.seller === viewingAsSeller;
-      return matchesSeller && s.payment < s.salesValue && (s.status === 'A INICIAR' || s.status === 'EM ANDAMENTO') && isBefore(parseISO(s.date), limit);
+      const normalizedStatus = normalizeSaleStatus(s.status);
+      return matchesSeller && s.payment < s.salesValue && (normalizedStatus === 'A INICIAR' || normalizedStatus === 'EM ANDAMENTO') && isBefore(parseISO(s.date), limit);
     }).length;
   }, [allSales, viewingAsSeller]);
 
@@ -142,7 +144,7 @@ export default function DashboardPage() {
       // consideramos pendente apenas quando falta receber algo e não está cancelado
       const pending = Math.max(0, (s.salesValue || 0) - (s.payment || 0));
       if (pending <= 0) return;
-      if (s.status === 'CANCELADO') return;
+      if (normalizeSaleStatus(s.status) === 'CANCELADO') return;
 
       const days = Math.max(0, differenceInDays(now, parseISO(s.date)));
       let key: AgingBucketKey = '0-30';
@@ -163,13 +165,13 @@ export default function DashboardPage() {
   }, [dashboardRange, stats.businessDays]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div className="space-y-6" id="dashboard-printable-area">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 print-hide">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Comercial</h1>
           <p className="text-muted-foreground">{viewingAsSeller} • {rangeLabel}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={displayYear} onValueChange={setDisplayYear}>
             <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
@@ -292,6 +294,22 @@ export default function DashboardPage() {
 
       {/* Gráficos existentes (sem regra de paleta) */}
       <SalesCharts salesData={filteredSales} />
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #dashboard-printable-area, #dashboard-printable-area * { visibility: visible; }
+          #dashboard-printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            font-size: 9pt;
+          }
+          .print-hide { display: none !important; }
+          @page { size: A4 landscape; margin: 10mm; }
+        }
+      `}</style>
     </div>
   );
 }

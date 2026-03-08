@@ -15,17 +15,19 @@ export type CompanyOption = (typeof COMPANY_OPTIONS)[number];
 export const AREA_OPTIONS = [
   'INST. AC',
   'MANUT. AC',
-  'PRÉ',
+  'PRÉ-INSTALAÇÃO',
   'CI',
   'GÁS',
   'SAS',
   'AQG',
-  'EXAUST',
+  'EXAUSTÃO',
   'LOCAÇÃO',
+  'PROJETO',
+  'GASES MEDICINAIS',
 ] as const;
 export type AreaOption = (typeof AREA_OPTIONS)[number];
 
-export const STATUS_OPTIONS = ["Á INICAR", "EM ANDAMENTO", "AGUARDANDO PAGAMENTO", "FINALIZADO", "CANCELADO"] as const;
+export const STATUS_OPTIONS = ["A INICIAR", "EM ANDAMENTO", "AGUARDANDO PAGAMENTO", "FINALIZADO", "CANCELADO"] as const;
 export type StatusOption = (typeof STATUS_OPTIONS)[number];
 
 export const PROPOSAL_STATUS_OPTIONS = ["Pendente", "Enviada", "Em Negociação", "Aceita", "Recusada", "Cancelada"] as const;

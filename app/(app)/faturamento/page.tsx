@@ -1,8 +1,8 @@
 ﻿'use client';
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
 import { useFirestore } from '@/firebase/provider';
@@ -19,6 +19,42 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { Sale, BillingLog } from '@/lib/types';
 import { ALL_SELLERS_OPTION } from '@/lib/constants';
+import { normalizeSaleStatus } from '@/lib/normalizers';
+
+type MeasurementMode = 'SERVICOS' | 'PRECO_GLOBAL_COM_ABATIMENTO';
+
+type MaterialDeductionRow = {
+  id: string;
+  docNumber: string;
+  description: string;
+  value: number;
+};
+
+const COMPANY_PROFILE: Record<'ENGEAR' | 'CLIMAZONE', { legalName: string; taxId: string; address: string; bankData: string }> = {
+  ENGEAR: {
+    legalName: 'Engear Engenharia de Aquecimento e Refrigeração LTDA',
+    taxId: 'CNPJ: 00.976.914/0001-92 | Inscrição Estadual PB: 16.137.828-5',
+    address: 'Avenida Cel. Estevão D\'avila Lins, N. 780\nCruz das Armas - João Pessoa PB\nCEP: 58085-010',
+    bankData: 'ENGEAR ENGENHARIA DE AQ. E REF. LTDA - CNPJ: 00.976.914./0001-92\nBanco N. 104 - Caixa Econômica Federal - Agência: 1033 - Conta Corrente 1024-0 Operação: 003\nOu via PIX, chave CNPJ: 00.976.914./0001-92',
+  },
+  CLIMAZONE: {
+    legalName: 'Engear Climazone Comercio e Serviços Térmicos LTDA',
+    taxId: 'CNPJ: 09.575.551/0001-58 | Inscrição Estadual PB: 16.156.531-0',
+    address: 'Avenida Jose Vasconcelos Maia, N. 134\nParque Esperança - Cabedelo, PB\nCEP: 58108-540',
+    bankData: 'ENGEAR CLIMAZONE COM. E SERV. TÉRMICOS LTDA - CNPJ: 09.575.551/0001-58\nBanco 104 - Caixa Econômica Federal - Agência: 1033 Conta Corrente: 2678-3 Operação: 03\nOu via PIX, chave CNPJ: 09.575.551/0001-58',
+  },
+};
+
+const MEASUREMENT_RESPONSIBLE = {
+  SERGIO: {
+    email: 'sergio@engearpb.com.br',
+    phone: '(83) 9 9979.2102',
+  },
+  RODRIGO: {
+    email: 'rodrigobarros@engearpb.com.br',
+    phone: '(83) 9 9951-0804',
+  },
+} as const;
 
 export default function FaturamentoPage() {
   const { sales, updateSale, userRole, user } = useSales();
@@ -32,6 +68,27 @@ export default function FaturamentoPage() {
   const [billingAmount, setBillingAmount] = useState<string>('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Medicao (beta) - implementacao segura para validacao em campo.
+  const [measurementSaleId, setMeasurementSaleId] = useState('');
+  const [measurementNumber, setMeasurementNumber] = useState('01');
+  const [measurementRevision, setMeasurementRevision] = useState('rev0');
+  const [measurementDate, setMeasurementDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('SERVICOS');
+  const [measurementClient, setMeasurementClient] = useState('');
+  const [measurementWork, setMeasurementWork] = useState('');
+  const [measurementContractRef, setMeasurementContractRef] = useState('');
+  const [measurementService, setMeasurementService] = useState('');
+  const [measurementContractValue, setMeasurementContractValue] = useState<number>(0);
+  const [measurementExecPercent, setMeasurementExecPercent] = useState<number>(100);
+  const [measurementPrevPercent, setMeasurementPrevPercent] = useState<number>(0);
+  const [measurementResponsible, setMeasurementResponsible] = useState<'SERGIO' | 'RODRIGO'>('SERGIO');
+  const [companyAddress, setCompanyAddress] = useState('');
+  const [companyBankData, setCompanyBankData] = useState('');
+  const [materialRows, setMaterialRows] = useState<MaterialDeductionRow[]>([
+    { id: '1', docNumber: '', description: '', value: 0 },
+  ]);
+
 
   const billingEnabled = settings?.enableBillingEmailNotifications ?? false;
   const billingEmails = settings?.billingNotificationEmails ?? [];
@@ -49,7 +106,8 @@ export default function FaturamentoPage() {
     return sales
       .filter(s => {
         const isPending = s.payment < s.salesValue;
-        const isProcess = s.status === 'A INICIAR' || s.status === 'EM ANDAMENTO';
+        const normalizedStatus = normalizeSaleStatus(s.status);
+        const isProcess = normalizedStatus === 'A INICIAR' || normalizedStatus === 'EM ANDAMENTO';
         return isPending && isProcess && isBefore(parseISO(s.date), limit);
       })
       .map(s => ({ ...s, daysPending: differenceInDays(new Date(), parseISO(s.date)) }))
@@ -75,9 +133,192 @@ export default function FaturamentoPage() {
   }, [sales, searchTerm]);
 
   const canRequestBilling = userRole !== ALL_SELLERS_OPTION;
+  const measurementSale = useMemo(() => {
+    if (measurementSaleId) return sales.find(s => s.id === measurementSaleId) || null;
+    return sales[0] || null;
+  }, [sales, measurementSaleId]);
+
+  useEffect(() => {
+    if (!measurementSale) return;
+    setMeasurementClient((prev) => prev || measurementSale.clientService || '');
+    setMeasurementWork((prev) => prev || measurementSale.project || '');
+    setMeasurementContractRef((prev) => prev || measurementSale.os || '');
+    setMeasurementService((prev) => prev || measurementSale.clientService || '');
+    setMeasurementContractValue((prev) => (prev > 0 ? prev : measurementSale.salesValue || 0));
+    setMeasurementResponsible(measurementSale.seller === 'RODRIGO' ? 'RODRIGO' : 'SERGIO');
+
+    const companyKey = measurementSale.company === 'CLIMAZONE' ? 'CLIMAZONE' : 'ENGEAR';
+    setCompanyAddress((prev) => prev || COMPANY_PROFILE[companyKey].address);
+    setCompanyBankData((prev) => prev || COMPANY_PROFILE[companyKey].bankData);
+  }, [measurementSale]);
+
+  const measurementUnitValue = measurementContractValue;
+  const measurementProject = measurementWork;
+  const measurementAccumulatedPercent = Math.max(0, Math.min(100, measurementPrevPercent + measurementExecPercent));
+  const measurementServicePeriodValue = Math.max(0, measurementUnitValue * (measurementExecPercent / 100));
+  const measurementDeductionPeriod = measurementMode === 'PRECO_GLOBAL_COM_ABATIMENTO'
+    ? materialRows.reduce((sum, row) => sum + Math.max(0, row.value || 0), 0)
+    : 0;
+  const measurementTotalPeriod = Math.max(0, measurementServicePeriodValue - measurementDeductionPeriod);
+  const measurementCompanyKey: 'ENGEAR' | 'CLIMAZONE' = measurementSale?.company === 'CLIMAZONE' ? 'CLIMAZONE' : 'ENGEAR';
+  const measurementCompany = COMPANY_PROFILE[measurementCompanyKey];
+  const responsibleContact = MEASUREMENT_RESPONSIBLE[measurementResponsible];
+
+  const handleAddMaterialRow = () => {
+    setMaterialRows((prev) => [...prev, { id: String(Date.now()), docNumber: '', description: '', value: 0 }]);
+  };
+
+  const handleRemoveMaterialRow = (id: string) => {
+    setMaterialRows((prev) => (prev.length <= 1 ? prev : prev.filter((row) => row.id !== id)));
+  };
+
+  const handleMaterialRowChange = (id: string, field: keyof MaterialDeductionRow, value: string | number) => {
+    setMaterialRows((prev) => prev.map((row) => {
+      if (row.id !== id) return row;
+      if (field === 'docNumber') {
+        const onlyDigits = String(value).replace(/\D/g, '').slice(0, 8);
+        return { ...row, docNumber: onlyDigits };
+      }
+      if (field === 'value') {
+        return { ...row, value: Number(value || 0) };
+      }
+      return { ...row, [field]: value };
+    }));
+  };
+
+  const handlePrintMeasurementPdf = () => {
+    const w = window.open('', '_blank', 'width=1024,height=768');
+    if (!w) return;
+
+    const materialRowsHtml = materialRows
+      .filter((row) => row.docNumber || row.description || row.value > 0)
+      .map((row) => `
+        <tr>
+          <td>${row.docNumber || '-'}</td>
+          <td>${row.description || '-'}</td>
+          <td style="text-align:right;">${row.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+        </tr>
+      `)
+      .join('');
+
+    const html = `
+      <html>
+        <head>
+          <title>Boletim de Medição ${measurementNumber}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111; margin: 24px; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
+            .logo { width: 180px; }
+            .title { text-align: right; }
+            .title h1 { margin: 0; font-size: 20px; }
+            .title p { margin: 4px 0 0; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+            .box { border: 1px solid #999; border-radius: 6px; padding: 10px; }
+            .box h3 { margin: 0 0 6px; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border: 1px solid #999; padding: 6px; font-size: 12px; }
+            th { background: #f3f4f6; text-align: left; }
+            .totals { margin-top: 12px; width: 360px; margin-left: auto; }
+            .totals td { font-size: 13px; }
+            .bold { font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <img class="logo" src="${window.location.origin}/novologoe.png" alt="Logo" />
+            <div class="title">
+              <h1>BOLETIM DE MEDIÇÃO Nº ${measurementNumber}</h1>
+              <p>Revisão: ${measurementRevision.toUpperCase()} | Data: ${format(parseISO(measurementDate), 'dd/MM/yyyy')}</p>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="box">
+              <h3>Dados da Medição</h3>
+              <p><strong>Cliente:</strong> ${measurementClient || '-'}</p>
+              <p><strong>Obra:</strong> ${measurementProject || '-'}</p>
+              <p><strong>Contrato/O.S.:</strong> ${measurementContractRef || '-'}</p>
+              <p><strong>Serviço:</strong> ${measurementService || '-'}</p>
+            </div>
+            <div class="box">
+              <h3>Responsável pela Medição</h3>
+              <p><strong>${measurementResponsible}</strong></p>
+              <p><strong>E-mail:</strong> ${responsibleContact.email}</p>
+              <p><strong>Contato:</strong> ${responsibleContact.phone}</p>
+            </div>
+            <div class="box">
+              <h3>Empresa Executora</h3>
+              <p><strong>${measurementCompany.legalName}</strong></p>
+              <p>${measurementCompany.taxId}</p>
+              <p>${companyAddress.replace(/\n/g, '<br/>')}</p>
+            </div>
+            <div class="box">
+              <h3>DADOS BANCÁRIOS PARA PAGAMENTO</h3>
+              <p>${companyBankData.replace(/\n/g, '<br/>')}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>% Anterior</th>
+                <th>% Período</th>
+                <th>% Acumulado</th>
+                <th>Valor Contrato</th>
+                <th>Valor Serviços (Período)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${measurementPrevPercent.toFixed(2)}%</td>
+                <td>${measurementExecPercent.toFixed(2)}%</td>
+                <td>${measurementAccumulatedPercent.toFixed(2)}%</td>
+                <td>${measurementUnitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td>${measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          ${measurementMode === 'PRECO_GLOBAL_COM_ABATIMENTO' ? `
+          <table>
+            <thead>
+              <tr>
+                <th>NF/Pedido (8 dígitos)</th>
+                <th>Descrição do Material</th>
+                <th style="text-align:right;">Valor a Abater</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${materialRowsHtml || '<tr><td>-</td><td>-</td><td style="text-align:right;">R$ 0,00</td></tr>'}
+            </tbody>
+          </table>
+          ` : ''}
+
+          <table class="totals">
+            <tbody>
+              <tr><td>Valor serviços (período)</td><td style="text-align:right;">${measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+              <tr><td>Abatimento materiais</td><td style="text-align:right;">${measurementDeductionPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+              <tr><td class="bold">Total da medição</td><td class="bold" style="text-align:right;">${measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+  const pendingTotalValue = useMemo(
+    () => pendingSales.reduce((sum, s: any) => sum + Math.max(0, (s.salesValue || 0) - (s.payment || 0)), 0),
+    [pendingSales]
+  );
 
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
-    switch (status) {
+    const normalizedStatus = normalizeSaleStatus(status);
+    switch (normalizedStatus) {
       case 'FINALIZADO':
         return 'default';
       case 'A INICIAR':
@@ -170,27 +411,52 @@ export default function FaturamentoPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold flex items-center"><Receipt className="mr-2" /> FATURAMENTO</h1>
+    <div className="space-y-6" id="faturamento-printable-area">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 print-hide">
+        <h1 className="text-3xl font-bold flex items-center"><Receipt className="mr-2" /> FATURAMENTO</h1>
+        <Button variant="outline" size="icon" onClick={() => window.print()} aria-label="Imprimir faturamento">
+          <Printer className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-hide">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Vendas na Lista</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{filteredSales.length}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Solicitações</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{billingLogs?.length || 0}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm border-amber-300/50">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Pendentes +30 dias</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-semibold text-amber-700">{pendingSales.length}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm border-amber-300/50">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Saldo Pendente</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-semibold text-amber-700">{pendingTotalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></CardContent>
+        </Card>
+      </div>
 
       <Tabs defaultValue="request">
-        <TabsList className="w-full grid grid-cols-2">
+        <TabsList className="w-full grid grid-cols-3 print-hide">
           <TabsTrigger value="request">Solicitar</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
+          <TabsTrigger value="measurement">Boletim (beta)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="request" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Vendas (lista)</CardTitle>
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2 flex-wrap print-hide">
                 <Input
                   placeholder="Buscar por projeto, empresa, O.S., cliente..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
-                <Button variant="secondary" type="button">
-                  <Search className="h-4 w-4 mr-2" /> Filtrar
+                <Button variant="outline" type="button" onClick={() => setSearchTerm('')}>
+                  <RotateCcw className="h-4 w-4 mr-2" /> Limpar
                 </Button>
               </div>
               {!canRequestBilling && (
@@ -238,7 +504,7 @@ export default function FaturamentoPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant={getStatusBadgeVariant(s.status)} className="capitalize">
-                              {s.status}
+                              {normalizeSaleStatus(s.status) || s.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
@@ -349,6 +615,194 @@ export default function FaturamentoPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="measurement" className="space-y-4">
+          <Card className="border-amber-400/40 bg-amber-50/50">
+            <CardHeader>
+              <CardTitle className="text-base">Boletim de Medição (beta)</CardTitle>
+              <p className="text-sm text-amber-700 font-medium">Em construção e testes</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Esta versão já permite montar uma medição básica para conferência do documento.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Dados da Medição</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Venda base</Label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={measurementSale?.id || ''}
+                    onChange={(e) => setMeasurementSaleId(e.target.value)}
+                  >
+                    {sales.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.project} - {s.clientService}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data da medição</Label>
+                  <Input type="date" value={measurementDate} onChange={(e) => setMeasurementDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nº medição</Label>
+                  <Input value={measurementNumber} onChange={(e) => setMeasurementNumber(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Revisão</Label>
+                  <Input value={measurementRevision} onChange={(e) => setMeasurementRevision(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Modalidade</Label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={measurementMode}
+                    onChange={(e) => setMeasurementMode(e.target.value as 'SERVICOS' | 'PRECO_GLOBAL_COM_ABATIMENTO')}
+                  >
+                    <option value="SERVICOS">Só serviços</option>
+                    <option value="PRECO_GLOBAL_COM_ABATIMENTO">Preço global com abatimento</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>% acumulado anterior</Label>
+                  <Input type="number" min={0} max={100} value={measurementPrevPercent} onChange={(e) => setMeasurementPrevPercent(Number(e.target.value || 0))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>% executado no período</Label>
+                  <Input type="number" min={0} max={100} value={measurementExecPercent} onChange={(e) => setMeasurementExecPercent(Number(e.target.value || 0))} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Cliente (editável)</Label>
+                  <Input value={measurementClient} onChange={(e) => setMeasurementClient(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Obra (editável)</Label>
+                  <Input value={measurementWork} onChange={(e) => setMeasurementWork(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contrato/O.S. (editável)</Label>
+                  <Input value={measurementContractRef} onChange={(e) => setMeasurementContractRef(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Serviço (editável)</Label>
+                  <Input value={measurementService} onChange={(e) => setMeasurementService(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor do contrato/venda (editável)</Label>
+                  <Input type="number" min={0} value={measurementContractValue} onChange={(e) => setMeasurementContractValue(Number(e.target.value || 0))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Responsável pela medição</Label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={measurementResponsible}
+                    onChange={(e) => setMeasurementResponsible(e.target.value as 'SERGIO' | 'RODRIGO')}
+                  >
+                    <option value="SERGIO">SERGIO</option>
+                    <option value="RODRIGO">RODRIGO</option>
+                  </select>
+                </div>
+              </div>
+
+              {measurementMode === 'PRECO_GLOBAL_COM_ABATIMENTO' && (
+                <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <Label>Materiais comprados pelo cliente - a abater</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddMaterialRow}>Adicionar linha</Button>
+                  </div>
+                  <div className="space-y-2">
+                    {materialRows.map((row) => (
+                      <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                        <div className="md:col-span-2">
+                          <Input
+                            placeholder="NF/Pedido (8)"
+                            value={row.docNumber}
+                            onChange={(e) => handleMaterialRowChange(row.id, 'docNumber', e.target.value)}
+                          />
+                        </div>
+                        <div className="md:col-span-7">
+                          <Input
+                            placeholder="Descrição do material"
+                            value={row.description}
+                            onChange={(e) => handleMaterialRowChange(row.id, 'description', e.target.value)}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Valor"
+                            value={row.value}
+                            onChange={(e) => handleMaterialRowChange(row.id, 'value', Number(e.target.value || 0))}
+                          />
+                        </div>
+                        <div className="md:col-span-1">
+                          <Button type="button" variant="destructive" size="sm" onClick={() => handleRemoveMaterialRow(row.id)}>X</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Endereço completo da empresa (editável)</Label>
+                  <Textarea rows={4} value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Dados bancários para pagamento (editável)</Label>
+                  <Textarea rows={4} value={companyBankData} onChange={(e) => setCompanyBankData(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="button" onClick={handlePrintMeasurementPdf}>Gerar PDF</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Prévia do Documento</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="rounded-md border p-3 space-y-2">
+                <p className="font-semibold">Boletim de Medição Nº {measurementNumber} - {measurementRevision.toUpperCase()}</p>
+                <p><span className="font-medium">Projeto:</span> {measurementProject || '-'}</p>
+                <p><span className="font-medium">Contrato/O.S.:</span> {measurementContractRef || '-'}</p>
+                <p><span className="font-medium">Cliente:</span> {measurementClient || '-'}</p>
+                <p><span className="font-medium">Serviço:</span> {measurementService || '-'}</p>
+                <p><span className="font-medium">Modalidade:</span> {measurementMode === 'SERVICOS' ? 'Só serviços' : 'Preço global com abatimento'}</p>
+                <p><span className="font-medium">% acumulado:</span> {measurementAccumulatedPercent.toFixed(2)}%</p>
+                <p><span className="font-medium">Responsável:</span> {measurementResponsible} | {responsibleContact.email} | {responsibleContact.phone}</p>
+                <p><span className="font-medium">Valor serviços (período):</span> {measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p><span className="font-medium">Abatimento materiais:</span> {measurementDeductionPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p className="font-semibold border-t pt-2"><span>Total da medição:</span> {measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p><span className="font-medium">Empresa:</span> {measurementCompany.legalName}</p>
+                <p><span className="font-medium">Documento:</span> {measurementCompany.taxId}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Card id="cobranca" className="border-amber-500/20">
@@ -378,6 +832,22 @@ export default function FaturamentoPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #faturamento-printable-area, #faturamento-printable-area * { visibility: visible; }
+          #faturamento-printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            font-size: 9pt;
+          }
+          .print-hide { display: none !important; }
+          @page { size: A4 landscape; margin: 10mm; }
+        }
+      `}</style>
     </div>
   );
 }

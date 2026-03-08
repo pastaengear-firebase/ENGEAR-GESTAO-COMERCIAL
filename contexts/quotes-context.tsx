@@ -9,6 +9,7 @@ import { ALL_SELLERS_OPTION } from '../lib/constants';
 import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '../lib/types';
 import { useSales } from '../hooks/use-sales';
 import { format, parseISO, addDays } from 'date-fns';
+import { normalizeArea, normalizeCompany } from '../lib/normalizers';
 
 export const QuotesContext = createContext<QuotesContextType | undefined>(undefined);
 
@@ -58,6 +59,8 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const docRef = doc(quotesCollection);
     const newQuoteData = {
       ...restOfQuoteData,
+      company: normalizeCompany(restOfQuoteData.company),
+      area: normalizeArea(restOfQuoteData.area),
       seller: userRole as Seller,
       sellerUid: user.uid,
       followUpDate: date,
@@ -94,7 +97,11 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const quoteRef = doc(quotesCollection, id);
     const { followUpOption, ...restOfUpdateData } = quoteUpdateData;
-    let updatePayload: Partial<Quote> = restOfUpdateData;
+    let updatePayload: Partial<Quote> = {
+      ...restOfUpdateData,
+      company: normalizeCompany(restOfUpdateData.company),
+      area: normalizeArea(restOfUpdateData.area),
+    };
 
     const originalQuote = quotes?.find(q => q.id === id);
     if (originalQuote && (followUpOption || quoteUpdateData.proposalDate)) {
@@ -125,7 +132,8 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const uploadAttachment = useCallback(async (quoteId: string, file: File) => {
     if (!storage || !quotesCollection) throw new Error("Storage ou Firestore não inicializado.");
     
-    const filePath = `proposals/${quoteId}/${file.name}`;
+    const safeName = file.name.replace(/[^\w.\-() ]+/g, '_');
+    const filePath = `proposals/${quoteId}/${Date.now()}-${safeName}`;
     const fileRef = ref(storage, filePath);
     await uploadBytes(fileRef, file);
     const url = await getDownloadURL(fileRef);
@@ -134,6 +142,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await updateDoc(quoteRef, {
         attachmentUrl: url,
         attachmentPath: filePath,
+        attachmentName: file.name,
         updatedAt: serverTimestamp()
     });
   }, [storage, quotesCollection]);
@@ -147,6 +156,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await updateDoc(quoteRef, {
           attachmentUrl: null,
           attachmentPath: null,
+          attachmentName: null,
           updatedAt: serverTimestamp()
       });
   }, [storage, quotesCollection]);
@@ -204,10 +214,13 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .filter(quote => {
         if (!managementSearchTerm.trim()) return true;
         const lowerSearchTerm = managementSearchTerm.toLowerCase();
+        const clientName = (quote.clientName || '').toLowerCase();
+        const description = (quote.description || '').toLowerCase();
+        const area = (quote.area || '').toLowerCase();
         return (
-          quote.clientName.toLowerCase().includes(lowerSearchTerm) ||
-          quote.description.toLowerCase().includes(lowerSearchTerm) ||
-          quote.area.toLowerCase().includes(lowerSearchTerm) ||
+          clientName.includes(lowerSearchTerm) ||
+          description.includes(lowerSearchTerm) ||
+          area.includes(lowerSearchTerm) ||
           String(quote.proposedValue).includes(lowerSearchTerm)
         );
       });

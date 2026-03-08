@@ -10,6 +10,7 @@ import { useFirestore, useAuth, useStorage } from '../firebase/provider';
 import { useCollection } from '../firebase/firestore/use-collection';
 import { ALL_SELLERS_OPTION, SELLER_EMAIL_MAP } from '../lib/constants';
 import type { Sale, SalesContextType, SalesFilters, AppUser, UserRole, Seller } from '../lib/types';
+import { normalizeArea, normalizeCompany, normalizeSaleStatus } from '../lib/normalizers';
 
 export const SalesContext = createContext<SalesContextType | undefined>(undefined);
 
@@ -76,7 +77,14 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addSale = useCallback(async (saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>): Promise<Sale> => {
     if (!salesCollection || !user || userRole === ALL_SELLERS_OPTION) throw new Error("Sem permissão para adicionar.");
     const docRef = doc(salesCollection);
-    const newSaleData = { ...saleData, seller: userRole as Seller, sellerUid: user.uid };
+    const newSaleData = {
+      ...saleData,
+      company: normalizeCompany(saleData.company),
+      area: normalizeArea(saleData.area),
+      status: normalizeSaleStatus(saleData.status),
+      seller: userRole as Seller,
+      sellerUid: user.uid,
+    };
     const cleanedData = Object.fromEntries(Object.entries(newSaleData).filter(([_, v]) => v !== undefined));
     await setDoc(docRef, { ...cleanedData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     return { ...cleanedData, id: docRef.id, createdAt: new Date().toISOString() } as Sale;
@@ -87,7 +95,13 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const batch = writeBatch(firestore);
     newSalesData.forEach(saleData => {
         const docRef = doc(salesCollection);
-        const cleanedData = Object.fromEntries(Object.entries(saleData).filter(([_, v]) => v !== undefined));
+        const normalizedSale = {
+          ...saleData,
+          company: normalizeCompany(saleData.company),
+          area: normalizeArea(saleData.area),
+          status: normalizeSaleStatus(saleData.status),
+        };
+        const cleanedData = Object.fromEntries(Object.entries(normalizedSale).filter(([_, v]) => v !== undefined));
         batch.set(docRef, { ...cleanedData, seller: userRole, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
@@ -96,7 +110,13 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateSale = useCallback(async (id: string, saleUpdateData: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt'>>) => {
     if (!salesCollection) return;
     const saleRef = doc(salesCollection, id);
-    const cleanedData = Object.fromEntries(Object.entries(saleUpdateData).filter(([_, v]) => v !== undefined));
+    const normalizedUpdateData = {
+      ...saleUpdateData,
+      company: normalizeCompany(saleUpdateData.company),
+      area: normalizeArea(saleUpdateData.area),
+      status: normalizeSaleStatus(saleUpdateData.status),
+    };
+    const cleanedData = Object.fromEntries(Object.entries(normalizedUpdateData).filter(([_, v]) => v !== undefined));
     await updateDoc(saleRef, { ...cleanedData, updatedAt: serverTimestamp() });
   }, [salesCollection]);
 
@@ -107,12 +127,18 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const uploadAttachment = useCallback(async (saleId: string, file: File) => {
     if (!storage || !salesCollection) throw new Error("Storage ou Firestore não inicializado.");
-    const filePath = `sales/${saleId}/${file.name}`;
+    const safeName = file.name.replace(/[^\w.\-() ]+/g, '_');
+    const filePath = `sales/${saleId}/${Date.now()}-${safeName}`;
     const fileRef = ref(storage, filePath);
     await uploadBytes(fileRef, file);
     const url = await getDownloadURL(fileRef);
     const saleRef = doc(salesCollection, saleId);
-    await updateDoc(saleRef, { attachmentUrl: url, attachmentPath: filePath, updatedAt: serverTimestamp() });
+    await updateDoc(saleRef, {
+      attachmentUrl: url,
+      attachmentPath: filePath,
+      attachmentName: file.name,
+      updatedAt: serverTimestamp(),
+    });
   }, [storage, salesCollection]);
 
   const deleteAttachment = useCallback(async (sale: Sale) => {
@@ -120,7 +146,12 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const fileRef = ref(storage, sale.attachmentPath);
     await deleteObject(fileRef).catch(() => {});
     const saleRef = doc(salesCollection, sale.id);
-    await updateDoc(saleRef, { attachmentUrl: null, attachmentPath: null, updatedAt: serverTimestamp() });
+    await updateDoc(saleRef, {
+      attachmentUrl: null,
+      attachmentPath: null,
+      attachmentName: null,
+      updatedAt: serverTimestamp(),
+    });
   }, [storage, salesCollection]);
 
   const getSaleById = useCallback((id: string) => sales?.find(sale => sale.id === id), [sales]);

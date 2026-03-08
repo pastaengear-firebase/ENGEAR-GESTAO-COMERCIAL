@@ -38,11 +38,12 @@ import {
   Mail,
   Paperclip,
   UploadCloud,
+  Download,
 } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
@@ -129,6 +130,7 @@ export default function QuotesTable({
         description: "O arquivo deve ter no máximo 5MB.",
         variant: "destructive",
       });
+      event.target.value = "";
       return;
     }
     if (file.type !== "application/pdf") {
@@ -137,6 +139,7 @@ export default function QuotesTable({
         description: "Por favor, anexe apenas arquivos PDF.",
         variant: "destructive",
       });
+      event.target.value = "";
       return;
     }
 
@@ -147,7 +150,7 @@ export default function QuotesTable({
     } catch (error: any) {
       toast({
         title: "Erro no Upload",
-        description: error?.message || "Não foi possível enviar o anexo.",
+        description: getFriendlyPdfErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -164,7 +167,7 @@ export default function QuotesTable({
     } catch (error: any) {
       toast({
         title: "Erro ao Remover",
-        description: error?.message || "Não foi possível remover o anexo.",
+        description: getFriendlyPdfErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -232,17 +235,31 @@ export default function QuotesTable({
                     </Badge>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="space-y-2">
                     {isUploading === quote.id ? (
                       <Button variant="outline" size="sm" disabled>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
                       </Button>
                     ) : quote.attachmentUrl ? (
-                      <Button asChild variant="outline" size="sm">
-                        <a href={quote.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                          <LinkIcon className="mr-2 h-4 w-4" /> Ver PDF
-                        </a>
-                      </Button>
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Button asChild variant="outline" size="sm">
+                            <a href={quote.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                              <LinkIcon className="mr-2 h-4 w-4" /> Ver PDF
+                            </a>
+                          </Button>
+                          <Button asChild variant="secondary" size="sm">
+                            <a href={quote.attachmentUrl} download={quote.attachmentName || undefined}>
+                              <Download className="mr-2 h-4 w-4" /> Download
+                            </a>
+                          </Button>
+                        </div>
+                        {quote.attachmentName && (
+                          <p className="text-xs text-muted-foreground truncate" title={quote.attachmentName}>
+                            {quote.attachmentName}
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <Button variant="secondary" size="sm" onClick={() => handleAttachClick(quote)} disabled={areActionsDisabled}>
                         <UploadCloud className="mr-2 h-4 w-4" /> Anexar

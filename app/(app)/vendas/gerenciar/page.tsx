@@ -37,10 +37,10 @@ export default function GerenciarVendasPage() {
     if (searchTerm) {
         const lowerSearchTerm = searchTerm.toLowerCase();
         filtered = filtered.filter(sale =>
-            sale.project.toLowerCase().includes(lowerSearchTerm) ||
-            (sale.os && sale.os.toLowerCase().includes(lowerSearchTerm)) ||
-            sale.clientService.toLowerCase().includes(lowerSearchTerm) ||
-            sale.company.toLowerCase().includes(lowerSearchTerm)
+        (sale.project || '').toLowerCase().includes(lowerSearchTerm) ||
+        (sale.os || '').toLowerCase().includes(lowerSearchTerm) ||
+        (sale.clientService || '').toLowerCase().includes(lowerSearchTerm) ||
+        (sale.company || '').toLowerCase().includes(lowerSearchTerm)
         );
     }
     return filtered;
@@ -48,6 +48,7 @@ export default function GerenciarVendasPage() {
 
   const totalSalesValue = displaySales.reduce((sum, sale) => sum + sale.salesValue, 0);
   const totalPayments = displaySales.reduce((sum, sale) => sum + sale.payment, 0);
+  const totalPending = Math.max(0, totalSalesValue - totalPayments);
   const isUserReadOnly = userRole === ALL_SELLERS_OPTION;
   
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -282,9 +283,35 @@ export default function GerenciarVendasPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-lg">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print-hide">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Gerenciar Vendas</h1>
+          <p className="text-muted-foreground">Visualize, filtre e mantenha seus registros de vendas com mais clareza.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-hide">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardDescription>Total de Registros</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{displaySales.length}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardDescription>Valor Total</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardDescription>Total Recebido</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold">{totalPayments.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm border-amber-300/50">
+          <CardHeader className="pb-2"><CardDescription>Saldo Pendente</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold text-amber-700">{totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-lg" id="vendas-printable-area">
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 print-hide">
             <div>
               <CardTitle className="text-2xl flex items-center">
                 <Wrench className="mr-3 h-6 w-6" />
@@ -292,7 +319,7 @@ export default function GerenciarVendasPage() {
               </CardTitle>
               <CardDescription>Visualize, filtre e gerencie os registros de vendas.</CardDescription>
             </div>
-            <div className="flex items-center gap-2 print-hide w-full sm:w-auto">
+            <div className="flex items-center gap-2 print-hide w-full sm:w-auto flex-wrap justify-end">
               <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" disabled={isUserReadOnly}>
                 <FileUp className="mr-2 h-4 w-4" /> Importar
               </Button>
@@ -301,7 +328,7 @@ export default function GerenciarVendasPage() {
               <Button onClick={() => window.print()} variant="outline" size="icon" className="print-hide"> <Printer className="h-4 w-4" /> </Button>
             </div>
           </div>
-           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 print-hide">
             <div className="relative flex-grow w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input type="search" placeholder="Buscar por projeto, empresa, O.S..." value={searchTerm} onChange={handleSearchChange} className="pl-10 w-full" />
@@ -344,6 +371,22 @@ export default function GerenciarVendasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #vendas-printable-area, #vendas-printable-area * { visibility: visible; }
+          #vendas-printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            font-size: 9pt;
+          }
+          .print-hide { display: none !important; }
+          @page { size: A4 landscape; margin: 10mm; }
+        }
+      `}</style>
     </div>
   );
 }

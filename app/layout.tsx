@@ -9,6 +9,11 @@ import { ThemeProvider } from "next-themes";
 export const metadata: Metadata = {
   title: 'CONTROLE DE VENDAS – EQUIPE COMERCIAL ENGEAR',
   description: 'Sistema de controle de vendas para a equipe comercial ENGEAR.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

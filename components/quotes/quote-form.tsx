@@ -26,6 +26,22 @@ import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Quote } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeArea, normalizeCompany } from '@/lib/normalizers';
+
+const normalizeExactOption = <T extends readonly string[]>(rawValue: unknown, options: T): T[number] | undefined => {
+  if (typeof rawValue !== 'string') return undefined;
+  const trimmed = rawValue.trim();
+  if (!trimmed) return undefined;
+  const exact = options.find(opt => opt === trimmed);
+  if (exact) return exact;
+  return options.find(opt => opt.toLowerCase() === trimmed.toLowerCase());
+};
+
+const sanitizeSelectValue = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
 
 interface QuoteFormProps {
   quoteToEdit?: Quote | null;
@@ -52,8 +68,8 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       clientName: '',
       proposalDate: new Date(), 
       validityDate: undefined,
-      company: undefined,
-      area: undefined,
+      company: COMPANY_OPTIONS[0],
+      area: AREA_OPTIONS[0],
       contactSource: undefined,
       description: '',
       proposedValue: undefined,
@@ -71,24 +87,28 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         description: quoteToEdit.description || '',
         proposedValue: quoteToEdit.proposedValue || 0,
         notes: quoteToEdit.notes || '',
-        status: (quoteToEdit.status as any) || 'Enviada',
-        company: (quoteToEdit.company?.trim() as any) || undefined,
-        area: (quoteToEdit.area?.trim() as any) || undefined,
-        contactSource: (quoteToEdit.contactSource?.trim() as any) || undefined,
+        status: (normalizeExactOption(quoteToEdit.status, PROPOSAL_STATUS_OPTIONS) || 'Enviada') as any,
+        company: normalizeCompany(quoteToEdit.company) || COMPANY_OPTIONS[0],
+        area: normalizeArea(quoteToEdit.area) || AREA_OPTIONS[0],
+        contactSource: normalizeExactOption(quoteToEdit.contactSource, CONTACT_SOURCE_OPTIONS) as any,
         proposalDate: quoteToEdit.proposalDate ? parseISO(quoteToEdit.proposalDate) : new Date(),
         validityDate: quoteToEdit.validityDate ? parseISO(quoteToEdit.validityDate) : undefined,
         followUpOption: (quoteToEdit.followUpSequence || '0') as any,
         sendProposalNotification: false,
       });
+      form.clearErrors();
     } else {
       form.reset({
         clientName: '',
         proposalDate: new Date(),
+        company: COMPANY_OPTIONS[0],
+        area: AREA_OPTIONS[0],
         status: 'Enviada',
         proposedValue: 0,
         followUpOption: '0',
         sendProposalNotification: appSettings?.enableProposalsEmailNotifications ?? false,
       });
+      form.clearErrors();
     }
   }, [quoteToEdit, editMode, appSettings?.enableProposalsEmailNotifications]);
 
@@ -195,8 +215,8 @@ Para gerenciar, acesse: ${quoteLink}
           clientName: '',
           proposalDate: new Date(), 
           validityDate: undefined,
-          company: undefined,
-          area: undefined,
+          company: COMPANY_OPTIONS[0],
+          area: AREA_OPTIONS[0],
           contactSource: undefined,
           description: '',
           proposedValue: undefined,
@@ -205,6 +225,7 @@ Para gerenciar, acesse: ${quoteLink}
           followUpOption: '0',
           sendProposalNotification: appSettings.enableProposalsEmailNotifications,
         });
+        form.clearErrors();
       }
       
       if (onFormSubmit) {
@@ -340,7 +361,7 @@ Para gerenciar, acesse: ${quoteLink}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Empresa da Proposta</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled || isSubmitting}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Empresa" /></SelectTrigger></FormControl>
                   <SelectContent>{COMPANY_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                 </Select>
@@ -355,7 +376,7 @@ Para gerenciar, acesse: ${quoteLink}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Área de Atuação</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled || isSubmitting}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Área" /></SelectTrigger></FormControl>
                   <SelectContent>{AREA_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                 </Select>
@@ -370,7 +391,7 @@ Para gerenciar, acesse: ${quoteLink}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Fonte do Contato</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled || isSubmitting}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Fonte" /></SelectTrigger></FormControl>
                   <SelectContent>{CONTACT_SOURCE_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                 </Select>
@@ -415,7 +436,7 @@ Para gerenciar, acesse: ${quoteLink}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status da Proposta</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled || isSubmitting}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Status" /></SelectTrigger></FormControl>
                   <SelectContent>{PROPOSAL_STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                 </Select>
@@ -513,8 +534,8 @@ Para gerenciar, acesse: ${quoteLink}
                 clientName: '',
                 proposalDate: new Date(),
                 validityDate: undefined,
-                company: undefined,
-                area: undefined,
+                company: COMPANY_OPTIONS[0],
+                area: AREA_OPTIONS[0],
                 contactSource: undefined,
                 description: '',
                 proposedValue: undefined,
@@ -523,6 +544,7 @@ Para gerenciar, acesse: ${quoteLink}
                 followUpOption: '0',
                 sendProposalNotification: appSettings.enableProposalsEmailNotifications,
               });
+              form.clearErrors();
               if (onFormSubmit && editMode) onFormSubmit(); 
             }}
             disabled={isSubmitting}

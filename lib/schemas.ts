@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, SELLERS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, FOLLOW_UP_OPTIONS } from './constants';
 
+const emptyStringToUndefined = (value: unknown) => {
+  if (typeof value !== 'string') return value;
+  return value.trim() === '' ? undefined : value;
+};
+
 export const LoginSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
   password: z.string().min(6, { message: "A senha deve ter no mínimo 6 caracteres." }),
@@ -9,13 +14,13 @@ export type LoginFormData = z.infer<typeof LoginSchema>;
 
 export const SalesFormSchema = z.object({
   date: z.date({ required_error: 'Data é obrigatória.' }),
-  company: z.enum(COMPANY_OPTIONS, { required_error: 'Empresa é obrigatória.' }),
+  company: z.preprocess(emptyStringToUndefined, z.enum(COMPANY_OPTIONS).default(COMPANY_OPTIONS[0])),
   project: z.string().min(1, 'Projeto é obrigatório.').max(5, 'O projeto deve ter no máximo 5 dígitos.'),
   os: z.string().max(5, 'A O.S. deve ter no máximo 5 dígitos.').optional(),
-  area: z.enum(AREA_OPTIONS, { required_error: 'Área é obrigatória.' }),
+  area: z.preprocess(emptyStringToUndefined, z.enum(AREA_OPTIONS).default(AREA_OPTIONS[0])),
   clientService: z.string().min(1, 'Cliente/Serviço é obrigatório.'),
   salesValue: z.coerce.number().positive('Valor da Venda deve ser positivo.'),
-  status: z.enum(STATUS_OPTIONS, { required_error: 'Status é obrigatório.' }),
+  status: z.preprocess(emptyStringToUndefined, z.enum(STATUS_OPTIONS).default(STATUS_OPTIONS[0])),
   payment: z.coerce.number().min(0, 'Valor do Pagamento não pode ser negativo.').optional().default(0),
   summary: z.string().optional(),
   sendSaleNotification: z.boolean().optional().default(false),
@@ -28,12 +33,12 @@ export const QuoteFormSchema = z.object({
   clientName: z.string().optional(),
   proposalDate: z.date().optional(),
   validityDate: z.date().optional(),
-  company: z.enum(COMPANY_OPTIONS).optional(),
-  area: z.enum(AREA_OPTIONS).optional(),
-  contactSource: z.enum(CONTACT_SOURCE_OPTIONS).optional(),
+  company: z.preprocess(emptyStringToUndefined, z.enum(COMPANY_OPTIONS).default(COMPANY_OPTIONS[0])),
+  area: z.preprocess(emptyStringToUndefined, z.enum(AREA_OPTIONS).default(AREA_OPTIONS[0])),
+  contactSource: z.preprocess(emptyStringToUndefined, z.enum(CONTACT_SOURCE_OPTIONS).optional()),
   description: z.string().optional(),
   proposedValue: z.coerce.number().optional(),
-  status: z.enum(PROPOSAL_STATUS_OPTIONS).default('Enviada'),
+  status: z.preprocess(emptyStringToUndefined, z.enum(PROPOSAL_STATUS_OPTIONS).default('Enviada')),
   notes: z.string().optional(),
   followUpOption: z.string()
     .refine(val => followUpValues.includes(val as any), {

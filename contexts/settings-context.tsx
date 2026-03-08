@@ -11,6 +11,8 @@ const defaultSettings: AppSettings = {
   salesNotificationEmails: [],
   enableProposalsEmailNotifications: true,
   proposalsNotificationEmails: [],
+  enableBillingEmailNotifications: true,
+  billingNotificationEmails: [],
 };
 
 const SETTINGS_DOC_ID = 'global';

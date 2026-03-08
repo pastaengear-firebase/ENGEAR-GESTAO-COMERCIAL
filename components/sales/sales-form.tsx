@@ -19,12 +19,19 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2, Download } from "lucide-react";
+import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import type { Sale } from "@/lib/types";
+import { normalizeArea, normalizeCompany, normalizeSaleStatus } from "@/lib/normalizers";
+
+const sanitizeSelectValue = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
 
 interface SalesFormProps {
   saleToEdit?: Sale | null;
@@ -71,13 +78,13 @@ export default function SalesForm({
     resolver: zodResolver(SalesFormSchema),
     defaultValues: {
       date: new Date(),
-      company: undefined,
+      company: COMPANY_OPTIONS[0],
       project: "",
       os: "",
-      area: undefined,
+      area: AREA_OPTIONS[0],
       clientService: "",
       salesValue: 0,
-      status: undefined,
+      status: STATUS_OPTIONS[0],
       payment: 0,
       summary: "",
       sendSaleNotification: false,
@@ -110,25 +117,27 @@ export default function SalesForm({
           os: data.os || "",
           summary: data.summary || "",
           payment: data.payment || 0,
-          company: data.company || undefined,
-          area: data.area || undefined,
-          status: data.status || undefined,
+          company: normalizeCompany(data.company) ?? COMPANY_OPTIONS[0],
+          area: normalizeArea(data.area) ?? AREA_OPTIONS[0],
+          status: normalizeSaleStatus(data.status) ?? STATUS_OPTIONS[0],
           sendSaleNotification: data.sendSaleNotification ?? false,
         });
+        form.clearErrors();
       } else {
         form.reset({
           date: new Date(),
-          company: undefined,
+          company: COMPANY_OPTIONS[0],
           project: "",
           os: "",
-          area: undefined,
+          area: AREA_OPTIONS[0],
           clientService: "",
           salesValue: undefined,
-          status: undefined,
+          status: STATUS_OPTIONS[0],
           payment: 0,
           summary: "",
           sendSaleNotification: appSettings?.enableSalesEmailNotifications || false,
         });
+        form.clearErrors();
       }
     },
     [form, appSettings?.enableSalesEmailNotifications]
@@ -373,7 +382,7 @@ export default function SalesForm({
       setIsSaved(true);
       if (onFormSubmit) onFormSubmit();
     } catch (e: any) {
-      toast({ title: "Erro", description: e?.message || "Erro ao salvar.", variant: "destructive" });
+      toast({ title: "Erro", description: getFriendlyPdfErrorMessage(e), variant: "destructive" });
     } finally {
       setPdfUploading(false);
       setIsSubmitting(false);
@@ -442,7 +451,7 @@ export default function SalesForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Empresa</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""} disabled={isFormDisabled || isSubmitting || pdfUploading}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting || pdfUploading}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a Empresa" />
@@ -495,7 +504,7 @@ export default function SalesForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Área</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""} disabled={isFormDisabled || isSubmitting || pdfUploading}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting || pdfUploading}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a Área" />
@@ -558,7 +567,7 @@ export default function SalesForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""} disabled={isFormDisabled || isSubmitting || pdfUploading}>
+                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting || pdfUploading}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o Status" />
@@ -622,12 +631,19 @@ export default function SalesForm({
           )}
 
           {!pdfFile && existingPdfUrl && !deleteExistingPdf && (
-            <div className="flex items-center justify-between gap-3">
-              <Button asChild variant="outline" size="sm">
-                <a href={existingPdfUrl} target="_blank" rel="noopener noreferrer">
-                  <LinkIcon className="mr-2 h-4 w-4" /> Ver PDF{existingPdfName ? ` (${existingPdfName})` : ""}
-                </a>
-              </Button>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <a href={existingPdfUrl} target="_blank" rel="noopener noreferrer">
+                    <LinkIcon className="mr-2 h-4 w-4" /> Ver PDF
+                  </a>
+                </Button>
+                <Button asChild variant="secondary" size="sm">
+                  <a href={existingPdfUrl} download={existingPdfName || undefined}>
+                    <Download className="mr-2 h-4 w-4" /> Download
+                  </a>
+                </Button>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -638,6 +654,11 @@ export default function SalesForm({
               >
                 <Trash2 className="mr-2 h-4 w-4" /> Remover PDF
               </Button>
+              {existingPdfName && (
+                <p className="text-xs text-muted-foreground basis-full truncate" title={existingPdfName}>
+                  {existingPdfName}
+                </p>
+              )}
             </div>
           )}
 
