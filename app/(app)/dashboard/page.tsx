@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
-import { Printer, Filter, AlertTriangle, ClipboardList, TrendingUp, CalendarDays, BadgeDollarSign, Layers } from 'lucide-react';
+import { Printer, Filter, AlertTriangle, ClipboardList, TrendingUp, CalendarDays, BadgeDollarSign, Layers, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -92,6 +92,7 @@ export default function DashboardPage() {
     const totalProposedValue = dashboardFilteredQuotes.reduce((sum, q) => sum + (q.proposedValue || 0), 0);
 
     const assertividade = totalProposalsCount > 0 ? (contractedCount / totalProposalsCount) * 100 : 0;
+    const avgTicket = totalSalesCount > 0 ? totalSalesValue / totalSalesCount : 0;
 
     // Produtividade por dia útil (quantitativos)
     const businessDays = dashboardRange?.businessDays || 0;
@@ -113,6 +114,7 @@ export default function DashboardPage() {
       businessDays,
       proposalsPerBusinessDay,
       salesPerBusinessDay,
+      avgTicket,
     };
   }, [filteredSales, dashboardFilteredQuotes, dashboardRange]);
 
@@ -183,57 +185,100 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPIs principais */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {pendingCount > 0 && (
-          <Link href="/faturamento#cobranca" className="col-span-full lg:col-span-1">
-            <Card className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+      {/* KPI hero + KPIs compactos */}
+      <div className="grid gap-4 grid-cols-1 xl:grid-cols-12">
+        <Card className="xl:col-span-7 border-2 border-sky-500/20 bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/20 dark:to-cyan-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <BadgeDollarSign className="h-4 w-4 text-sky-700" />
+              Valor Vendido no Período
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-3xl md:text-4xl font-bold text-sky-900 dark:text-sky-200">
+              {stats.totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
+                <p className="text-muted-foreground">Vendas</p>
+                <p className="font-bold text-base">{stats.totalSalesCount}</p>
+              </div>
+              <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
+                <p className="text-muted-foreground">Recebido</p>
+                <p className="font-bold text-base">{stats.totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              </div>
+              <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
+                <p className="text-muted-foreground">Pendente</p>
+                <p className="font-bold text-base">{stats.totalPendingValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              </div>
+              <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
+                <p className="text-muted-foreground">Assertividade</p>
+                <p className="font-bold text-base">{stats.assertividade.toFixed(1)}%</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="xl:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">Recebido (R$)</CardTitle>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+              <p className="text-xs text-muted-foreground">Valor já liquidado no período</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">Propostas</CardTitle>
+              <ClipboardList className="h-4 w-4 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalProposalsCount}</div>
+              <p className="text-xs text-muted-foreground">{stats.contractedCount} aceitas • {stats.openCount} abertas</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">Ticket Médio (R$)</CardTitle>
+              <Wallet className="h-4 w-4 text-violet-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{stats.avgTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+              <p className="text-xs text-muted-foreground">Média por venda no período</p>
+            </CardContent>
+          </Card>
+
+          {pendingCount > 0 ? (
+            <Link href="/faturamento#cobranca">
+              <Card className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20 h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium">Cobranças Pendentes</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pendingCount}</div>
+                  <p className="text-xs text-muted-foreground">Vendas +30 dias sem pgto.</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ) : (
+            <Card className="h-full">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium">Cobranças Pendentes</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{pendingCount}</div>
-                <p className="text-xs text-muted-foreground">Vendas +30 dias sem pgto.</p>
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">Sem alertas de cobrança crítica</p>
               </CardContent>
             </Card>
-          </Link>
-        )}
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Vendas (R$)</CardTitle>
-            <BadgeDollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
-            <p className="text-xs text-muted-foreground">{stats.totalSalesCount} vendas no período</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Recebido (R$)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
-            <p className="text-xs text-muted-foreground">Pendente: {stats.totalPendingValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Propostas</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProposalsCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.contractedCount} aceitas • {stats.openCount} em aberto • {stats.assertividade.toFixed(1)}% aceitação
-            </p>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
 
       {/* Produtividade (dia útil) + Aging */}

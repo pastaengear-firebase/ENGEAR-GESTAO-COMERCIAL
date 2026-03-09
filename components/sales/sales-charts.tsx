@@ -3,7 +3,7 @@
 "use client";
 import type { Sale } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, BarChart, Bar } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
@@ -40,18 +40,6 @@ const categoryColorsArray = [
 ];
 
 export default function SalesCharts({ salesData }: SalesChartsProps) {
-  const salesBySeller = useMemo(() => {
-    const data = salesData.reduce((acc, sale) => {
-      const seller = sale.seller;
-      if (!acc[seller]) {
-        acc[seller] = { name: seller, totalValue: 0, count: 0 };
-      }
-      acc[seller].totalValue += sale.salesValue;
-      acc[seller].count += 1;
-      return acc;
-    }, {} as Record<string, { name: string; totalValue: number; count: number }>);
-    return Object.values(data);
-  }, [salesData]);
 
   const salesByStatus = useMemo(() => {
     const data = salesData.reduce((acc, sale) => {
@@ -69,11 +57,12 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
     const data = salesData.reduce((acc, sale) => {
       const monthYear = format(parseISO(sale.date), 'MMM/yy', { locale: ptBR });
       if (!acc[monthYear]) {
-        acc[monthYear] = { name: monthYear, totalValue: 0 };
+        acc[monthYear] = { name: monthYear, totalValue: 0, totalReceived: 0 };
       }
       acc[monthYear].totalValue += sale.salesValue;
+      acc[monthYear].totalReceived += sale.payment || 0;
       return acc;
-    }, {} as Record<string, { name: string; totalValue: number }>);
+    }, {} as Record<string, { name: string; totalValue: number; totalReceived: number }>);
     
     return Object.values(data).sort((a, b) => {
         const [aMonthStr, aYear] = a.name.split('/');
@@ -112,8 +101,9 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
   }, [salesData]);
 
 
-  const barChartConfig = {
-    totalValue: { label: "Valor Total" },
+  const lineChartConfig = {
+    totalValue: { label: "Vendido", color: 'hsl(198 93% 46%)' },
+    totalReceived: { label: "Recebido", color: 'hsl(160 84% 39%)' },
   } satisfies ChartConfig;
 
   const pieChartConfigStatus = {
@@ -140,7 +130,6 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
     }, {} as Record<string, {label: string, color: string}>)
   } satisfies ChartConfig;
 
-  const currencyFormatter = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const compactCurrencyFormatter = (value: number) => {
     if (value >= 1000000) return `R$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `R$${(value / 1000).toFixed(0)}K`;
@@ -165,29 +154,27 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
   const chartHeight = "h-[280px]"; // Altura reduzida para melhor adaptação
 
   return (
-    <div className="grid gap-6 grid-cols-1 md:grid-cols-2"> {/* Ajustado para md:grid-cols-2 para telas um pouco maiores */}
+    <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Vendas por Vendedor</CardTitle>
-          <CardDescription>Valor total de vendas por vendedor.</CardDescription>
+          <CardTitle>Evolução de Vendas (Mês a Mês)</CardTitle>
+          <CardDescription>Curva dinâmica de vendido e recebido no período.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={barChartConfig} className={`${chartHeight} w-full`}>
+          <ChartContainer config={lineChartConfig} className={`${chartHeight} w-full`}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={salesBySeller} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}> {/* Reduzido left margin */}
-                <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={10} /> {/* Reduzido font-size */}
-                <YAxis stroke="hsl(var(--foreground))" fontSize={10} tickFormatter={compactCurrencyFormatter} /> {/* Reduzido font-size */}
+              <LineChart data={monthlySales} margin={{ top: 5, right: 20, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={10} interval={0} angle={-25} textAnchor="end" height={40} />
+                <YAxis stroke="hsl(var(--foreground))" fontSize={10} tickFormatter={compactCurrencyFormatter} />
                 <Tooltip
                   content={<ChartTooltipContent />}
                   cursor={{ fill: "hsl(var(--muted))" }}
                 />
-                <Legend wrapperStyle={{ fontSize: "10px" }} /> {/* Reduzido font-size da legenda */}
-                <Bar dataKey="totalValue" name="Valor Total" radius={[4, 4, 0, 0]} >
-                   {salesBySeller.map((entry) => (
-                    <Cell key={`cell-seller-${entry.name}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] || CHART_COLORS.default} />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Legend wrapperStyle={{ fontSize: '10px' }} />
+                <Line type="monotone" dataKey="totalValue" name="Vendido" stroke="hsl(198 93% 46%)" strokeWidth={2.8} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="totalReceived" name="Recebido" stroke="hsl(160 84% 39%)" strokeWidth={2.2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+              </LineChart>
             </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
@@ -227,26 +214,23 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
       
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Vendas Mensais</CardTitle>
-          <CardDescription>Valor total de vendas ao longo dos meses.</CardDescription>
+          <CardTitle>Tendência de Ritmo Comercial</CardTitle>
+          <CardDescription>Curva de volume vendido por mês (ondas).</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={barChartConfig} className={`${chartHeight} w-full`}>
+          <ChartContainer config={lineChartConfig} className={`${chartHeight} w-full`}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlySales} margin={{ top: 5, right: 20, left: 20, bottom: 30 }}> {/* Aumentado bottom margin para XAxis labels */}
-                <XAxis dataKey="name" interval={0} angle={-45} textAnchor="end" height={40} stroke="hsl(var(--foreground))" fontSize={9} /> {/* Ajustado ângulo e font-size */}
+              <LineChart data={monthlySales} margin={{ top: 5, right: 20, left: 20, bottom: 30 }}>
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" interval={0} angle={-45} textAnchor="end" height={40} stroke="hsl(var(--foreground))" fontSize={9} />
                 <YAxis stroke="hsl(var(--foreground))" fontSize={10} tickFormatter={compactCurrencyFormatter} />
                 <Tooltip
                   content={<ChartTooltipContent />}
                   cursor={{ fill: "hsl(var(--muted))" }}
                 />
                 <Legend wrapperStyle={{ fontSize: "10px" }} />
-                <Bar dataKey="totalValue" name="Valor Total Mensal" radius={[4, 4, 0, 0]}>
-                   {monthlySales.map((entry, index) => ( 
-                    <Cell key={`cell-month-${entry.name}-${index}`} fill={categoryColorsArray[monthlySales.indexOf(entry) % categoryColorsArray.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Line type="monotone" dataKey="totalValue" name="Vendido" stroke="hsl(198 93% 46%)" strokeWidth={2.8} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
             </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
@@ -279,7 +263,7 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
         </CardContent>
       </Card>
 
-      <Card className="col-span-1 md:col-span-2 shadow-sm"> 
+      <Card className="col-span-1 md:col-span-2 shadow-sm">
         <CardHeader>
           <CardTitle>Distribuição de Vendas por Empresa</CardTitle>
           <CardDescription>Participação de ENGEAR e CLIMAZONE no valor total de vendas.</CardDescription>
