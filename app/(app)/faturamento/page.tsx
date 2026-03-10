@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { Sale, BillingLog } from '@/lib/types';
 import { ALL_SELLERS_OPTION } from '@/lib/constants';
@@ -68,6 +69,9 @@ export default function FaturamentoPage() {
   const [billingAmount, setBillingAmount] = useState<string>('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isBillingHistoryOpen, setIsBillingHistoryOpen] = useState(false);
+  const [billingHistory, setBillingHistory] = useState<BillingLog[]>([]);
 
   // Medicao (beta) - implementacao segura para validacao em campo.
   const [measurementSaleId, setMeasurementSaleId] = useState('');
@@ -335,6 +339,12 @@ export default function FaturamentoPage() {
   const handleSelectSale = (s: Sale) => {
     setSelectedSale(s);
     setBillingAmount(String(s.salesValue - s.payment));
+
+    const history = (billingLogs || []).filter((log) => log.saleId === s.id);
+    setBillingHistory(history);
+    if (history.length > 0) {
+      setIsBillingHistoryOpen(true);
+    }
   };
 
   const handleSendEmail = async () => {
@@ -374,25 +384,31 @@ export default function FaturamentoPage() {
       await updateSale(selectedSale.id, { status: "AGUARDANDO PAGAMENTO" });
 
       const amountBRL = Number(billingAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      const requestDate = format(new Date(), 'dd/MM/yyyy');
+      const appBaseUrl = window.location.origin;
+      const billingLink = `${appBaseUrl}/faturamento`;
+      const hasMeasurement = /medição|medicao/i.test(billingInfo || '');
 
-      const subject = `FATURAMENTO - OS ${selectedSale.os || 'NÃO INFORMADO'} - ${selectedSale.project || 'NÃO INFORMADO'} - Empresa ${selectedSale.company || 'NÃO INFORMADO'}`;
+      const subject = `SOLICITAÇÃO DE FATURAMENTO! ${selectedSale.company || 'NÃO INFORMADO'} PROJETO ${selectedSale.project || 'NÃO INFORMADO'} - O.S. N. ${selectedSale.os || 'NÃO INFORMADO'} - VALOR A FATURAR: ${amountBRL} - CLIENTE ${selectedSale.clientService || 'NÃO INFORMADO'} - VENDEDOR: ${selectedSale.seller || 'NÃO INFORMADO'}`;
 
-      const pdfUrl = (selectedSale as any).attachmentUrl as string | undefined;
-      const pdfLine = pdfUrl ? `PDF: ${pdfUrl}` : `PDF: (sem)`;
+      const hasPdf = Boolean((selectedSale as any).attachmentUrl);
 
       const body = [
-        `Solicitação de faturamento`,
-        ``,
-        `Projeto: ${selectedSale.project || 'NÃO INFORMADO'}`,
-        `OS: ${selectedSale.os || 'NÃO INFORMADO'}`,
-        `Cliente/Serviço: ${selectedSale.clientService || 'NÃO INFORMADO'}`,
+        `Cliente: ${selectedSale.clientService || 'NÃO INFORMADO'}`,
+        `Dados do Cliente: `,
+        `Valor a faturar: ${amountBRL}`,
         `Área: ${selectedSale.area || 'NÃO INFORMADA'}`,
+        `Data: ${requestDate}`,
+        `Projeto: ${selectedSale.project || 'NÃO INFORMADO'}`,
+        `O.S.: ${selectedSale.os || 'NÃO INFORMADO'}`,
+        `Descrição: ${selectedSale.summary || ''}`,
+        `PDF da Proposta: ${hasPdf ? 'Sim' : 'Não'}`,
+        `Medição: ${hasMeasurement ? 'Sim' : 'Não'}`,
         `Vendedor: ${selectedSale.seller || 'NÃO INFORMADO'}`,
         ``,
-        `Valor a faturar: ${amountBRL}`,
-        pdfLine,
+        `Observações e orientações: ${billingInfo?.trim() || ''}`,
         ``,
-        billingInfo?.trim() ? `Observações: ${billingInfo.trim()}` : `Observações: (sem)`,
+        `Para consultar, acesse: ${billingLink}`,
       ].join('\n');
 
       const mailtoLink = `mailto:${resolvedRecipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -438,15 +454,30 @@ export default function FaturamentoPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="request">
-        <TabsList className="w-full grid grid-cols-3 print-hide">
-          <TabsTrigger value="request">Solicitar</TabsTrigger>
-          <TabsTrigger value="history">Histórico</TabsTrigger>
-          <TabsTrigger value="measurement">Boletim (beta)</TabsTrigger>
+      <Tabs defaultValue="request" className="space-y-4">
+        <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 h-auto print-hide">
+          <TabsTrigger
+            value="request"
+            className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+          >
+            Solicitar
+          </TabsTrigger>
+          <TabsTrigger
+            value="history"
+            className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+          >
+            Histórico
+          </TabsTrigger>
+          <TabsTrigger
+            value="measurement"
+            className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+          >
+            Boletim (beta)
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="request" className="space-y-6">
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Vendas (lista)</CardTitle>
               <div className="flex gap-2 mt-2 flex-wrap print-hide">
@@ -468,21 +499,21 @@ export default function FaturamentoPage() {
 
             <CardContent>
               <ScrollArea className="whitespace-nowrap rounded-md border">
-                <Table className="min-w-full">
+                <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">Data</TableHead>
-                      <TableHead>Vendedor</TableHead>
-                      <TableHead>Empresa</TableHead>
-                      <TableHead>Projeto</TableHead>
-                      <TableHead>O.S.</TableHead>
-                      <TableHead>Área</TableHead>
-                      <TableHead>Cliente/Serviço</TableHead>
-                      <TableHead className="text-right">Valor Venda</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Pagamento</TableHead>
-                      <TableHead>PDF</TableHead>
-                      <TableHead className="text-right">Faturar</TableHead>
+                      <TableHead className="h-9 px-2 w-[7%]">Data</TableHead>
+                      <TableHead className="h-9 px-2 w-[8%]">Vendedor</TableHead>
+                      <TableHead className="h-9 px-2 w-[9%]">Empresa</TableHead>
+                      <TableHead className="h-9 px-2 w-[7%]">Projeto</TableHead>
+                      <TableHead className="h-9 px-2 w-[6%]">O.S.</TableHead>
+                      <TableHead className="h-9 px-2 w-[8%]">Área</TableHead>
+                      <TableHead className="h-9 px-2 w-[16%]">Cliente/Serviço</TableHead>
+                      <TableHead className="h-9 px-2 text-right w-[11%]">Valor Venda</TableHead>
+                      <TableHead className="h-9 px-2 w-[11%]">Status</TableHead>
+                      <TableHead className="h-9 px-2 text-right w-[11%]">Pagamento</TableHead>
+                      <TableHead className="h-9 px-2 w-[3%] text-center">PDF</TableHead>
+                      <TableHead className="h-9 px-2 text-right w-[4%]">Faturar</TableHead>
                     </TableRow>
                   </TableHeader>
 
@@ -492,42 +523,44 @@ export default function FaturamentoPage() {
 
                       return (
                         <TableRow key={s.id} className="hover:bg-muted/50 transition-colors">
-                          <TableCell>{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
-                          <TableCell>{s.seller}</TableCell>
-                          <TableCell className="font-medium max-w-[200px] truncate" title={s.company}>{s.company}</TableCell>
-                          <TableCell className="max-w-[140px] truncate" title={s.project}>{s.project}</TableCell>
-                          <TableCell className="max-w-[120px] truncate" title={s.os}>{s.os}</TableCell>
-                          <TableCell className="max-w-[140px] truncate" title={s.area}>{s.area}</TableCell>
-                          <TableCell className="max-w-[240px] truncate" title={s.clientService}>{s.clientService}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="px-2 py-2 whitespace-nowrap">{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap">{s.seller}</TableCell>
+                          <TableCell className="px-2 py-2 font-medium truncate" title={s.company}>{s.company}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={s.project}>{s.project}</TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap" title={s.os}>{s.os}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={s.area}>{s.area}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={s.clientService}>{s.clientService}</TableCell>
+                          <TableCell className="px-2 py-2 text-right whitespace-nowrap">
                             {s.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
-                          <TableCell>
-                            <Badge variant={getStatusBadgeVariant(s.status)} className="capitalize">
+                          <TableCell className="px-2 py-2">
+                            <Badge variant={getStatusBadgeVariant(s.status)} className="capitalize text-[11px] px-2 py-0.5">
                               {normalizeSaleStatus(s.status) || s.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="px-2 py-2 text-right whitespace-nowrap">
                             {s.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-2 py-2 text-center">
                             {pdfUrl ? (
-                              <Button asChild variant="outline" size="sm">
+                              <Button asChild variant="outline" size="icon" className="h-7 w-7" title="Ver PDF">
                                 <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                                  <LinkIcon className="mr-2 h-4 w-4" /> Ver PDF
+                                  <LinkIcon className="h-3.5 w-3.5" />
                                 </a>
                               </Button>
                             ) : (
                               <span className="text-xs text-muted-foreground/70 italic">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="px-2 py-2 text-right">
                             <Button
                               type="button"
                               onClick={() => handleSelectSale(s)}
                               disabled={!canRequestBilling}
+                              size="sm"
+                              className="h-8 px-2 text-xs"
                             >
-                              <Send className="mr-2 h-4 w-4" /> Faturar
+                              <Send className="mr-1 h-3.5 w-3.5" /> Faturar
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -832,6 +865,46 @@ export default function FaturamentoPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={isBillingHistoryOpen} onOpenChange={setIsBillingHistoryOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Histórico de faturamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Já existem solicitações anteriores para esta venda. Revise os valores e datas antes de continuar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            {billingHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum histórico encontrado.</p>
+            ) : (
+              <div className="space-y-2">
+                {billingHistory.map((log) => (
+                  <div key={log.id} className="rounded-md border p-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Solicitação em {log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yyyy HH:mm') : '---'}</p>
+                        <p className="text-xs text-muted-foreground">Solicitado por: {log.requestedBy}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{log.billingAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="text-xs text-muted-foreground">Para: {log.recipientEmail}</p>
+                      </div>
+                    </div>
+                    {log.billingInfo && (
+                      <p className="mt-2 text-xs text-muted-foreground">Obs: {log.billingInfo}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setIsBillingHistoryOpen(false)}>Continuar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <style jsx global>{`
         @media print {

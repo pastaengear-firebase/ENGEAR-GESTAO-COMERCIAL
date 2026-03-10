@@ -192,8 +192,25 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                       <DropdownMenuItem
                         onClick={() => {
                           const value = sale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                          const subject = `Venda: ${sale.project} (${value}) - ${sale.seller}`;
-                          const body = `Dados da Venda:\nVendedor: ${sale.seller}\nEmpresa: ${sale.company}\nProjeto: ${sale.project}\nO.S.: ${sale.os || '-'}\nÁrea: ${sale.area}\nCliente/Serviço: ${sale.clientService}\nValor: ${value}\nStatus: ${sale.status}\nPagamento: ${sale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                          const appBaseUrl = window.location.origin;
+                          const salesLink = `${appBaseUrl}/vendas/gerenciar`;
+                          const subject = `NOVA VENDA REALIZADA! - ${sale.company || 'NÃO INFORMADO'} PROJETO ${sale.project || 'NÃO INFORMADO'} - O.S. N. ${sale.os || 'NÃO INFORMADO'} - VALOR: ${value} - CLIENTE ${sale.clientService || 'NÃO INFORMADO'} - VENDEDOR: ${sale.seller || 'NÃO INFORMADO'}`;
+                          const body = [
+                            `Cliente: ${sale.clientService || 'NÃO INFORMADO'}`,
+                            `Dados do Cliente: `,
+                            `Valor Proposto: ${value}`,
+                            `Área: ${sale.area || 'NÃO INFORMADA'}`,
+                            `Data: ${sale.date ? new Date(sale.date).toLocaleDateString('pt-BR') : '-'}`,
+                            `Projeto: ${sale.project || 'NÃO INFORMADO'}`,
+                            `O.S.: ${sale.os || 'NÃO INFORMADO'}`,
+                            `Descrição: ${sale.summary || ''}`,
+                            `PDF da Proposta: ${sale.attachmentUrl ? 'Sim' : 'Não'}`,
+                            `Vendedor: ${sale.seller || 'NÃO INFORMADO'}`,
+                            ``,
+                            `Resumo: ${sale.summary || ''}`,
+                            ``,
+                            `Para consultar, acesse: ${salesLink}`,
+                          ].join('\n');
                           window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
                         }}
                         disabled={areActionsDisabled}

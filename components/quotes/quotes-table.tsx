@@ -319,8 +319,24 @@ export default function QuotesTable({
                         <DropdownMenuItem
                           onClick={() => {
                             const value = quote.proposedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                            const subject = `Proposta: ${quote.clientName} (${value}) - ${quote.seller}`;
-                            const body = `Dados da Proposta:\nVendedor: ${quote.seller}\nCliente: ${quote.clientName}\nEmpresa: ${quote.company || '-'}\nÁrea: ${quote.area || '-'}\nDescrição: ${quote.description}\nValor: ${value}\nStatus: ${quote.status}`;
+                            const appBaseUrl = window.location.origin;
+                            const quotesLink = `${appBaseUrl}/propostas/gerenciar`;
+                            const followUp = quote.followUpDate ? 'Sim' : 'Não';
+                            const subject = `NOVA PROPOSTA EMITIDA! - VALOR: ${value} - CLIENTE ${quote.clientName || 'NÃO INFORMADO'} - VENDEDOR: ${quote.seller || 'NÃO INFORMADO'}`;
+                            const body = [
+                              `Cliente: ${quote.clientName || 'NÃO INFORMADO'}`,
+                              `Valor Proposto: ${value}`,
+                              `Data: ${quote.proposalDate ? new Date(quote.proposalDate).toLocaleDateString('pt-BR') : '-'}`,
+                              `Área: ${quote.area || 'NÃO INFORMADA'}`,
+                              `Status: ${quote.status || 'NÃO INFORMADO'}`,
+                              `Descrição: ${quote.description || ''}`,
+                              `Vendedor: ${quote.seller || 'NÃO INFORMADO'}`,
+                              `Follow-Up: ${followUp}`,
+                              ``,
+                              `Observações: ${quote.notes || ''}`,
+                              ``,
+                              `Para consultar, acesse: ${quotesLink}`,
+                            ].join('\n');
                             window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
                           }}
                           disabled={areActionsDisabled}

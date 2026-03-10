@@ -134,25 +134,26 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
     }
     
     const subjectValue = (quote.proposedValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const subject = `Nova Proposta: ${quote.clientName || 'Cliente não informado'} (${subjectValue}) - ${quote.seller}`;
+    const subject = `NOVA PROPOSTA EMITIDA! - VALOR: ${subjectValue} - CLIENTE ${quote.clientName || 'NÃO INFORMADO'} - VENDEDOR: ${quote.seller || 'NÃO INFORMADO'}`;
     
     const appBaseUrl = window.location.origin;
     const quoteLink = `${appBaseUrl}/propostas/gerenciar`;
 
-    const body = `
-Uma nova proposta foi registrada no sistema.
-
-Vendedor: ${quote.seller}
-Cliente: ${quote.clientName || 'Não informado'}
-Valor Proposto: ${subjectValue}
-Status: ${quote.status}
-Data: ${format(parseISO(quote.proposalDate), 'dd/MM/yyyy', { locale: ptBR })}
-
-Descrição:
-${quote.description || "Nenhuma descrição fornecida."}
-
-Para gerenciar, acesse: ${quoteLink}
-    `;
+    const hasFollowUp = Boolean(quote.followUpDate);
+    const body = [
+      `Cliente: ${quote.clientName || 'NÃO INFORMADO'}`,
+      `Valor Proposto: ${subjectValue}`,
+      `Data: ${format(parseISO(quote.proposalDate), 'dd/MM/yyyy', { locale: ptBR })}`,
+      `Área: ${quote.area || 'NÃO INFORMADA'}`,
+      `Status: ${quote.status || 'NÃO INFORMADO'}`,
+      `Descrição: ${quote.description || ''}`,
+      `Vendedor: ${quote.seller || 'NÃO INFORMADO'}`,
+      `Follow-Up: ${hasFollowUp ? 'Sim' : 'Não'}`,
+      ``,
+      `Observações: ${quote.notes || ''}`,
+      ``,
+      `Para consultar, acesse: ${quoteLink}`,
+    ].join('\n');
 
     const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     

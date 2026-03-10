@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2, Download } from "lucide-react";
 import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -46,7 +47,7 @@ export default function SalesForm({
   onFormSubmit,
   showReadOnlyAlert,
 }: SalesFormProps) {
-  const { addSale, updateSale, userRole } = useSales();
+  const { addSale, updateSale, userRole, sales } = useSales();
   const { getQuoteById: getQuoteByIdFromContext, updateQuote: updateQuoteStatus, loadingQuotes } = useQuotes();
   const { settings: appSettings } = useSettings();
   const firestore = useFirestore();
@@ -56,6 +57,10 @@ export default function SalesForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [originatingSeller, setOriginatingSeller] = useState<string | null>(null);
+
+  const [duplicateSales, setDuplicateSales] = useState<Sale[]>([]);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const pendingSaleRef = useRef<SalesFormData | null>(null);
 
   // PDF (vendas)
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -299,33 +304,51 @@ export default function SalesForm({
     setExistingPdfName(null);
   };
 
-  const triggerEmailNotification = async (sale: Sale & any) => {
+  const triggerEmailNotification = async (
+    sale: Sale & any,
+    options?: { isConversion?: boolean; sourceQuote?: any }
+  ) => {
     if (!appSettings.enableSalesEmailNotifications) return;
 
     const recipients = appSettings.salesNotificationEmails.join(",");
     const subjectValue = sale.salesValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    const subject = `Nova Venda: ${sale.project} (${subjectValue}) - ${sale.seller}`;
+    const company = sale.company || "NÃO INFORMADO";
+    const project = sale.project || "NÃO INFORMADO";
+    const os = sale.os || "NÃO INFORMADO";
+    const client = sale.clientService || "NÃO INFORMADO";
+    const seller = sale.seller || "NÃO INFORMADO";
+    const dateValue = sale.date ? format(parseISO(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : format(new Date(), 'dd/MM/yyyy', { locale: ptBR });
+    const sourceQuote = options?.sourceQuote;
+    const hasProposalPdf = Boolean(sourceQuote?.attachmentUrl || sourceQuote?.attachmentPath || sale.attachmentUrl);
+    const appBaseUrl = window.location.origin;
+    const salesLink = `${appBaseUrl}/vendas/gerenciar`;
 
-    const pdfLine = sale.attachmentUrl ? `\nPDF: ${sale.attachmentUrl}` : "";
-    const body =
-      `Nova venda registrada.\n` +
-      `Vendedor: ${sale.seller}\n` +
-      `Projeto: ${sale.project}\n` +
-      `O.S.: ${sale.os}\n` +
-      `Cliente: ${sale.clientService}\n` +
-      `Valor: ${subjectValue}` +
-      pdfLine;
+    const subject = options?.isConversion
+      ? `A PROPOSTA FOI ACEITA! CONVERTIDA EM VENDA! - ${company} PROJETO ${project} - O.S. N. ${os} - VALOR: ${subjectValue} - CLIENTE ${client} - VENDEDOR: ${seller}`
+      : `NOVA VENDA REALIZADA! - ${company} PROJETO ${project} - O.S. N. ${os} - VALOR: ${subjectValue} - CLIENTE ${client} - VENDEDOR: ${seller}`;
+
+    const body = [
+      `Cliente: ${client}`,
+      `Dados do Cliente: `,
+      `Valor Proposto: ${subjectValue}`,
+      `Área: ${sale.area || 'NÃO INFORMADA'}`,
+      `Data: ${dateValue}`,
+      `Projeto: ${project}`,
+      `O.S.: ${os}`,
+      `Descrição: ${sale.summary || ''}`,
+      `PDF da Proposta: ${hasProposalPdf ? 'Sim' : 'Não'}`,
+      `Vendedor: ${seller}`,
+      ``,
+      `Resumo: ${sale.summary || ''}`,
+      ``,
+      `Para consultar, acesse: ${salesLink}`,
+    ].join("\n");
 
     const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, "_blank");
   };
 
-  const onSubmit = async (data: SalesFormData) => {
-    if (isFormDisabled) {
-      toast({ title: "Ação Não Permitida", description: "Sem permissão para salvar.", variant: "destructive" });
-      return;
-    }
-
+  const doSubmit = useCallback(async (data: SalesFormData) => {
     setIsSubmitting(true);
     setIsSaved(false);
 
@@ -373,7 +396,11 @@ export default function SalesForm({
         }
 
         if (savedSale && data.sendSaleNotification) {
-          await triggerEmailNotification(savedSale);
+          const sourceQuote = fromQuoteId ? getQuoteByIdFromContext(fromQuoteId) : undefined;
+          await triggerEmailNotification(savedSale, {
+            isConversion: Boolean(fromQuoteId),
+            sourceQuote,
+          });
         }
 
         toast({ title: "Sucesso", description: "Venda cadastrada com sucesso!" });
@@ -388,6 +415,42 @@ export default function SalesForm({
       setIsSubmitting(false);
       setTimeout(() => setIsSaved(false), 2000);
     }
+  }, [addSale, deleteExistingPdf, deleteSalePdf, editMode, existingPdfPath, existingPdfUrl, fileInputRef, fromQuoteId, getQuoteByIdFromContext, onFormSubmit, pdfFile, toast, triggerEmailNotification, updateQuoteStatus, updateSale, userRole]);
+
+  const onSubmit = async (data: SalesFormData) => {
+    if (isFormDisabled) {
+      toast({ title: "Ação Não Permitida", description: "Sem permissão para salvar.", variant: "destructive" });
+      return;
+    }
+
+    const normalizedProject = (data.project || "").trim().toLowerCase();
+    const normalizedOs = (data.os || "").trim().toLowerCase();
+    const normalizedClient = (data.clientService || "").trim().toLowerCase();
+
+    const duplicates = (sales || []).filter((s) => {
+      if (editMode && saleToEdit && s.id === saleToEdit.id) return false;
+      return (
+        (s.project || "").trim().toLowerCase() === normalizedProject &&
+        (s.os || "").trim().toLowerCase() === normalizedOs &&
+        (s.clientService || "").trim().toLowerCase() === normalizedClient
+      );
+    });
+
+    if (duplicates.length > 0) {
+      pendingSaleRef.current = data;
+      setDuplicateSales(duplicates);
+      setIsDuplicateDialogOpen(true);
+      return;
+    }
+
+    await doSubmit(data);
+  };
+
+  const handleConfirmDuplicate = async () => {
+    if (!pendingSaleRef.current) return;
+    setIsDuplicateDialogOpen(false);
+    await doSubmit(pendingSaleRef.current);
+    pendingSaleRef.current = null;
   };
 
   return (
@@ -404,6 +467,35 @@ export default function SalesForm({
             </AlertDescription>
           </Alert>
         )}
+
+        <AlertDialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Vendas semelhantes encontradas</AlertDialogTitle>
+              <AlertDialogDescription>
+                Já existe(m) cadastro(s) com os mesmos Projeto / O.S. / Cliente. Confirme se deseja prosseguir.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-2">
+              {duplicateSales.map((dup) => (
+                <div key={dup.id} className="rounded-md border p-3">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">{dup.project} • {dup.os}</p>
+                      <p className="text-xs text-muted-foreground">{dup.clientService}</p>
+                    </div>
+                    <p className="text-sm font-semibold">{dup.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Status: {dup.status} • Pagamento: {dup.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                </div>
+              ))}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDuplicate}>Prosseguir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
