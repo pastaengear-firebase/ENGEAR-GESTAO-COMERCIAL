@@ -12,17 +12,21 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const isRedirecting = useRef(false);
 
   useEffect(() => {
+    console.log('AuthGate effect:', { user: !!user, loadingAuth, pathname });
     if (!loadingAuth) {
       if (!user && pathname !== '/login' && !isRedirecting.current) {
+        console.log('Redirecting to login');
         isRedirecting.current = true;
         router.replace('/login');
       } else if (user && pathname === '/login' && !isRedirecting.current) {
+        console.log('Redirecting to dashboard');
         isRedirecting.current = true;
         router.replace('/dashboard');
       }
     }
   }, [user, loadingAuth, router, pathname]);
 
+  console.log('AuthGate render:', { user: !!user, loadingAuth, pathname });
   if (loadingAuth || (!user && pathname !== '/login')) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">

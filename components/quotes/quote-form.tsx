@@ -26,7 +26,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Quote } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { normalizeArea, normalizeCompany } from '@/lib/normalizers';
+import { normalizeArea, normalizeCompany, normalizeProposalStatus } from '@/lib/normalizers';
 
 const normalizeExactOption = <T extends readonly string[]>(rawValue: unknown, options: T): T[number] | undefined => {
   if (typeof rawValue !== 'string') return undefined;
@@ -87,7 +87,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
         description: quoteToEdit.description || '',
         proposedValue: quoteToEdit.proposedValue || 0,
         notes: quoteToEdit.notes || '',
-        status: (normalizeExactOption(quoteToEdit.status, PROPOSAL_STATUS_OPTIONS) || 'Enviada') as any,
+        status: (normalizeProposalStatus(quoteToEdit.status) || 'Enviada') as any,
         company: normalizeCompany(quoteToEdit.company) || COMPANY_OPTIONS[0],
         area: normalizeArea(quoteToEdit.area) || AREA_OPTIONS[0],
         contactSource: normalizeExactOption(quoteToEdit.contactSource, CONTACT_SOURCE_OPTIONS) as any,
@@ -195,7 +195,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       ...restOfData,
       proposalDate: format(proposalDate, 'yyyy-MM-dd'),
       ...(validityDate && { validityDate: format(validityDate, 'yyyy-MM-dd') }),
-      proposedValue: Number(Math.round(+(data.proposedValue || 0) + 'e+2') + 'e-2'),
+      proposedValue: Math.round((+(data.proposedValue ?? 0)) * 100) / 100,
       status: data.status || 'Enviada', // Ensure status has a default
     };
 

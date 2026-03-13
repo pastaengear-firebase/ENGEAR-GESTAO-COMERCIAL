@@ -11,7 +11,7 @@ import { useSales } from '@/hooks/use-sales';
 import { useQuotes } from '@/hooks/use-quotes';
 import { ALL_SELLERS_OPTION } from '@/lib/constants';
 import type { Sale, Quote } from '@/lib/types';
-import { normalizeSaleStatus } from '@/lib/normalizers';
+import { normalizeSaleStatus, normalizeProposalStatus } from '@/lib/normalizers';
 
 type AgingBucketKey = '0-30' | '31-60' | '61-90' | '90+';
 type AgingBucket = { key: AgingBucketKey; label: string; count: number; pendingValue: number };
@@ -77,13 +77,13 @@ export default function DashboardPage() {
     const totalReceived = filteredSales.reduce((sum, s) => sum + (s.payment || 0), 0);
     const totalPendingValue = filteredSales.reduce((sum, s) => sum + Math.max(0, (s.salesValue || 0) - (s.payment || 0)), 0);
 
-    // Propostas contratadas (status = "Aceita")
-    const contractedQuotes = dashboardFilteredQuotes.filter(q => q.status === 'Aceita');
+    // Propostas em negociação (status atualizado de 'Aceita')
+    const contractedQuotes = dashboardFilteredQuotes.filter(q => normalizeProposalStatus(q.status) === 'Em Negociação');
     const contractedCount = contractedQuotes.length;
     const contractedValue = contractedQuotes.reduce((sum, q) => sum + (q.proposedValue || 0), 0);
 
-    // Propostas em aberto (status !== "Aceita")
-    const openQuotes = dashboardFilteredQuotes.filter(q => q.status !== 'Aceita');
+    // Propostas em aberto (qualquer status diferente de 'Em Negociação')
+    const openQuotes = dashboardFilteredQuotes.filter(q => normalizeProposalStatus(q.status) !== 'Em Negociação');
     const openCount = openQuotes.length;
     const openValue = openQuotes.reduce((sum, q) => sum + (q.proposedValue || 0), 0);
 

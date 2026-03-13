@@ -27,10 +27,10 @@ export const AREA_OPTIONS = [
 ] as const;
 export type AreaOption = (typeof AREA_OPTIONS)[number];
 
-export const STATUS_OPTIONS = ["A INICIAR", "EM ANDAMENTO", "AGUARDANDO PAGAMENTO", "FINALIZADO", "CANCELADO"] as const;
+export const STATUS_OPTIONS = ["A INICIAR", "EM ANDAMENTO", "FINALIZADA", "CANCELADA", "RECEBIDA"] as const;
 export type StatusOption = (typeof STATUS_OPTIONS)[number];
 
-export const PROPOSAL_STATUS_OPTIONS = ["Pendente", "Enviada", "Em Negociação", "Aceita", "Recusada", "Cancelada"] as const;
+export const PROPOSAL_STATUS_OPTIONS = ["Enviada", "Em Negociação", "Recusada", "Cancelada"] as const;
 export type ProposalStatusOption = (typeof PROPOSAL_STATUS_OPTIONS)[number];
 
 export const CONTACT_SOURCE_OPTIONS = ["E-mail", "Telefone", "Presencial", "Indicação", "Website", "Outro"] as const;

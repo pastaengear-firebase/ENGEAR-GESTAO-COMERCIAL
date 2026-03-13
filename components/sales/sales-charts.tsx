@@ -3,6 +3,7 @@
 "use client";
 import type { Sale } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { normalizeSaleStatus } from '@/lib/normalizers';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, BarChart, Bar } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
@@ -19,9 +20,9 @@ const CHART_COLORS = {
   RODRIGO: 'hsl(var(--chart-2))',
   "A INICIAR": 'hsl(var(--chart-3))',
   "EM ANDAMENTO": 'hsl(var(--chart-4))',
-  "AGUARDANDO PAGAMENTO": 'hsl(var(--chart-2))',
-  "FINALIZADO": 'hsl(var(--chart-5))', 
-  "CANCELADO": 'hsl(var(--destructive))', 
+  "FINALIZADA": 'hsl(var(--chart-5))',
+  "RECEBIDA": 'hsl(var(--chart-6))',
+  "CANCELADO": 'hsl(var(--destructive))',
   ENGEAR: 'hsl(var(--chart-1))',
   CLIMAZONE: 'hsl(var(--chart-2))',
   default: 'hsl(var(--muted-foreground))'
@@ -43,11 +44,11 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
 
   const salesByStatus = useMemo(() => {
     const data = salesData.reduce((acc, sale) => {
-      const status = sale.status;
+      const status = normalizeSaleStatus(sale.status) ?? sale.status;
       if (!acc[status]) {
         acc[status] = { name: status, value: 0 };
       }
-      acc[status].value += 1; 
+      acc[status].value += 1;
       return acc;
     }, {} as Record<string, { name: string; value: number }>);
     return Object.values(data);

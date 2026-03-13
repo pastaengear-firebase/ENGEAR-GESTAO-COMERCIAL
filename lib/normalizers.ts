@@ -1,4 +1,4 @@
-import { AREA_OPTIONS, COMPANY_OPTIONS, STATUS_OPTIONS } from "./constants";
+import { AREA_OPTIONS, COMPANY_OPTIONS, STATUS_OPTIONS, PROPOSAL_STATUS_OPTIONS } from "./constants";
 
 const simplify = (value: string): string =>
   value
@@ -101,10 +101,30 @@ export const normalizeSaleStatus = (rawValue: unknown) => {
   const key = normalizeToKey(rawValue);
   if (!key) return undefined;
   if (key.includes("CANCEL")) return "CANCELADO";
-  if (key.includes("FINAL")) return "FINALIZADO";
-  if (key.includes("AGUARD") || key.includes("PAGAMENTO")) return "AGUARDANDO PAGAMENTO";
+  if (key.includes("FINAL")) return "FINALIZADA";
+  if (key.includes("AGUARD") || key.includes("PAGAMENTO")) return "FINALIZADA";
+  if (key.includes("RECEB")) return "RECEBIDA";
   if (key.includes("ANDAMENTO")) return "EM ANDAMENTO";
   if (key.includes("INIC")) return "A INICIAR";
 
+  return undefined;
+};
+
+export const normalizeProposalStatus = (rawValue: unknown) => {
+  if (!rawValue || typeof rawValue !== 'string') return undefined;
+  const normalized = rawValue.trim();
+  if (!normalized) return undefined;
+  const key = normalizeToKey(normalized);
+
+  // Legacy statuses: map to current allowed set
+  if (key === 'PENDENTE') return 'Enviada';
+  if (key === 'ACEITA') return 'Em Negociação';
+
+  const options = PROPOSAL_STATUS_OPTIONS as readonly string[];
+  const exact = options.find(o => o === normalized);
+  if (exact) return exact as (typeof PROPOSAL_STATUS_OPTIONS)[number];
+
+  const matched = options.find(o => normalizeToKey(o) === key);
+  if (matched) return matched as (typeof PROPOSAL_STATUS_OPTIONS)[number];
   return undefined;
 };

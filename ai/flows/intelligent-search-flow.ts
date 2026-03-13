@@ -110,7 +110,6 @@ const intelligentSearchFlow = ai.defineFlow(
     name: 'intelligentSearchFlow',
     inputSchema: SearchInputSchema,
     outputSchema: SearchOutputSchema,
-    enforceAppCheck: false,
   },
   async (input) => {
     const llmResponse = await searchPrompt(input);

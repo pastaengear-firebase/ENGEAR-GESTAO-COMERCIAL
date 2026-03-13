@@ -61,6 +61,7 @@ export default function SalesForm({
   const [duplicateSales, setDuplicateSales] = useState<Sale[]>([]);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const pendingSaleRef = useRef<SalesFormData | null>(null);
+  const mailWindowRef = useRef<Window | null>(null);
 
   // PDF (vendas)
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -306,7 +307,8 @@ export default function SalesForm({
 
   const triggerEmailNotification = async (
     sale: Sale & any,
-    options?: { isConversion?: boolean; sourceQuote?: any }
+    options?: { isConversion?: boolean; sourceQuote?: any },
+    mailWindow?: Window | null
   ) => {
     if (!appSettings.enableSalesEmailNotifications) return;
 
@@ -324,7 +326,7 @@ export default function SalesForm({
     const salesLink = `${appBaseUrl}/vendas/gerenciar`;
 
     const subject = options?.isConversion
-      ? `A PROPOSTA FOI ACEITA! CONVERTIDA EM VENDA! - ${company} PROJETO ${project} - O.S. N. ${os} - VALOR: ${subjectValue} - CLIENTE ${client} - VENDEDOR: ${seller}`
+      ? `PROPOSTA EM NEGOCIAÇÃO CONVERTIDA EM VENDA! - ${company} PROJETO ${project} - O.S. N. ${os} - VALOR: ${subjectValue} - CLIENTE ${client} - VENDEDOR: ${seller}`
       : `NOVA VENDA REALIZADA! - ${company} PROJETO ${project} - O.S. N. ${os} - VALOR: ${subjectValue} - CLIENTE ${client} - VENDEDOR: ${seller}`;
 
     const body = [
@@ -345,7 +347,25 @@ export default function SalesForm({
     ].join("\n");
 
     const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink, "_blank");
+
+    try {
+      if (mailWindow && !mailWindow.closed) {
+        // Usamos a janela já aberta para evitar bloqueio de pop-up.
+        mailWindow.location.href = mailtoLink;
+      } else {
+        const opened = window.open(mailtoLink, "_blank");
+        if (!opened) throw new Error('Popup blocked');
+      }
+    } catch (e) {
+      toast({
+        title: "Ação Necessária",
+        description: "Não foi possível abrir seu programa de e-mail. Verifique se o bloqueador de pop-ups está desativado.",
+        variant: "destructive",
+        duration: 9000,
+      });
+    } finally {
+      mailWindowRef.current = null;
+    }
   };
 
   const doSubmit = useCallback(async (data: SalesFormData) => {
@@ -355,9 +375,18 @@ export default function SalesForm({
     const salePayload = {
       ...data,
       date: format(data.date, "yyyy-MM-dd"),
+      // Ensure required fields are not undefined for Firestore schema
+      os: data.os || '',
       salesValue: Number(data.salesValue || 0),
       payment: Number(data.payment || 0),
     };
+
+    const shouldSendEmail = data.sendSaleNotification && appSettings.enableSalesEmailNotifications;
+    const sourceQuote = fromQuoteId ? getQuoteByIdFromContext(fromQuoteId) : undefined;
+    if (shouldSendEmail) {
+      // Abre uma janela em branco logo ao clicar em salvar para evitar bloqueio de pop-up.
+      mailWindowRef.current = window.open('about:blank', '_blank');
+    }
 
     try {
       let saleId: string;
@@ -386,7 +415,7 @@ export default function SalesForm({
         savedSale = { ...newSale };
 
         if (fromQuoteId) {
-          await updateQuoteStatus(fromQuoteId, { status: "Aceita" } as any);
+          await updateQuoteStatus(fromQuoteId, { status: "Em Negociação" } as any);
         }
 
         if (pdfFile) {
@@ -395,12 +424,11 @@ export default function SalesForm({
           savedSale.attachmentUrl = url;
         }
 
-        if (savedSale && data.sendSaleNotification) {
-          const sourceQuote = fromQuoteId ? getQuoteByIdFromContext(fromQuoteId) : undefined;
+        if (savedSale && shouldSendEmail) {
           await triggerEmailNotification(savedSale, {
             isConversion: Boolean(fromQuoteId),
             sourceQuote,
-          });
+          }, mailWindowRef.current);
         }
 
         toast({ title: "Sucesso", description: "Venda cadastrada com sucesso!" });
@@ -409,6 +437,10 @@ export default function SalesForm({
       setIsSaved(true);
       if (onFormSubmit) onFormSubmit();
     } catch (e: any) {
+      if (mailWindowRef.current && !mailWindowRef.current.closed) {
+        mailWindowRef.current.close();
+      }
+      mailWindowRef.current = null;
       toast({ title: "Erro", description: getFriendlyPdfErrorMessage(e), variant: "destructive" });
     } finally {
       setPdfUploading(false);

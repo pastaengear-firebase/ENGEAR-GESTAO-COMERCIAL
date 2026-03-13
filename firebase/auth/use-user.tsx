@@ -23,6 +23,7 @@ export function useUser() {
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified ?? false,
         };
         setUser(appUser);
       } else {

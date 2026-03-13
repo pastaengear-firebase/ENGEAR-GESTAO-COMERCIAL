@@ -19,6 +19,7 @@ import { Search, RotateCcw, Info, Printer, FileUp, FileDown } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 import type { Quote, Seller, CompanyOption, AreaOption, ProposalStatusOption, ContactSourceOption } from '@/lib/types';
 import { SELLERS, COMPANY_OPTIONS, AREA_OPTIONS, PROPOSAL_STATUS_OPTIONS, CONTACT_SOURCE_OPTIONS, ALL_SELLERS_OPTION } from '@/lib/constants';
+import { normalizeProposalStatus } from '@/lib/normalizers';
 import { format, parseISO, isValid } from 'date-fns';
 
 export default function GerenciarPropostasPage() {
@@ -44,10 +45,10 @@ export default function GerenciarPropostasPage() {
 
   const proposalStats = useMemo(() => {
     const total = managementFilteredQuotes.length;
-    const accepted = managementFilteredQuotes.filter(q => q.status === 'Aceita').length;
-    const pending = managementFilteredQuotes.filter(q => q.status !== 'Aceita').length;
+    const inNegotiation = managementFilteredQuotes.filter(q => normalizeProposalStatus(q.status) === 'Em Negociação').length;
+    const pending = total - inNegotiation;
     const totalValue = managementFilteredQuotes.reduce((sum, q) => sum + (q.proposedValue || 0), 0);
-    return { total, accepted, pending, totalValue };
+    return { total, inNegotiation, pending, totalValue };
   }, [managementFilteredQuotes]);
 
   const handleEditClick = (quote: Quote) => {
@@ -274,7 +275,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
             area: area as AreaOption,
             contactSource: contactSource as ContactSourceOption,
             description,
-            proposedValue: Number(Math.round(+(proposedValue || 0) + 'e+2') + 'e-2'),
+            proposedValue: Math.round((+proposedValue || 0) * 100) / 100,
             status: status as ProposalStatusOption,
             notes: String(row['Notas'] ?? ''),
             followUpDate: followUpDate ? format(followUpDate, 'yyyy-MM-dd') : undefined,
@@ -341,8 +342,8 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
           <CardContent><p className="text-2xl font-semibold">{proposalStats.total}</p></CardContent>
         </Card>
         <Card className="shadow-sm border-emerald-300/50">
-          <CardHeader className="pb-2"><CardDescription>Aceitas</CardDescription></CardHeader>
-          <CardContent><p className="text-2xl font-semibold text-emerald-700">{proposalStats.accepted}</p></CardContent>
+          <CardHeader className="pb-2"><CardDescription>Em Negociação</CardDescription></CardHeader>
+          <CardContent><p className="text-2xl font-semibold text-emerald-700">{proposalStats.inNegotiation}</p></CardContent>
         </Card>
         <Card className="shadow-sm border-amber-300/50">
           <CardHeader className="pb-2"><CardDescription>Em Aberto</CardDescription></CardHeader>

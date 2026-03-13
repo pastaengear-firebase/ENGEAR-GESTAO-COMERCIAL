@@ -44,6 +44,7 @@ import { format, isPast, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
+import { normalizeProposalStatus } from '@/lib/normalizers';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,16 +73,15 @@ export default function QuotesTable({
   const getStatusBadgeVariant = (
     status: Quote["status"]
   ): React.ComponentProps<typeof Badge>["variant"] => {
-    switch (status) {
-      case "Aceita":
+    const normalized = normalizeProposalStatus(status) ?? status;
+    switch (normalized) {
+      case "Em Negociação":
         return "default";
       case "Enviada":
-      case "Em Negociação":
         return "secondary";
       case "Recusada":
       case "Cancelada":
         return "destructive";
-      case "Pendente":
       default:
         return "outline";
     }
@@ -213,7 +213,8 @@ export default function QuotesTable({
           <TableBody>
             {quotesData.map((quote) => {
               const areActionsDisabled = !!globalDisabled || userRole !== quote.seller;
-              const isAccepted = quote.status === "Aceita";
+              const normalizedStatus = normalizeProposalStatus(quote.status) ?? quote.status;
+              const canConvertToSale = normalizedStatus === "Enviada" || normalizedStatus === "Em Negociação";
 
               return (
                 <TableRow key={quote.id} className="hover:bg-muted/50 transition-colors">
@@ -231,7 +232,7 @@ export default function QuotesTable({
 
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(quote.status)} className="capitalize text-xs px-2 py-0.5">
-                      {quote.status}
+                      {normalizeProposalStatus(quote.status) ?? quote.status}
                     </Badge>
                   </TableCell>
 
@@ -310,7 +311,7 @@ export default function QuotesTable({
                       </DropdownMenuTrigger>
 
                       <DropdownMenuContent align="end">
-                        {!isAccepted && (
+                        {!areActionsDisabled && (
                           <DropdownMenuItem onClick={() => onEdit(quote)} disabled={areActionsDisabled}>
                             <Edit3 className="mr-2 h-4 w-4" /> Modificar
                           </DropdownMenuItem>
@@ -344,7 +345,7 @@ export default function QuotesTable({
                           <Mail className="mr-2 h-4 w-4" /> Reenviar E-mail
                         </DropdownMenuItem>
 
-                        {!isAccepted && (
+                        {canConvertToSale && (
                           <DropdownMenuItem onClick={() => handleConvertToSale(quote)} disabled={areActionsDisabled}>
                             <FileUp className="mr-2 h-4 w-4" /> Converter em Venda
                           </DropdownMenuItem>

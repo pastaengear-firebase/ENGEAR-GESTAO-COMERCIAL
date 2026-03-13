@@ -30,9 +30,10 @@ export function useCollection<T extends DocumentData>(
     const unsubscribe = onSnapshot(
       memoizedQuery,
       (querySnapshot) => {
-        const docs = querySnapshot.docs.map(
-          (doc) => ({ ...doc.data(), id: doc.id } as T)
-        );
+        const docs = querySnapshot.docs.map((doc) => {
+          const dataWithId = { ...doc.data(), id: doc.id };
+          return dataWithId as unknown as T;
+        });
         setData(docs);
         setLoading(false);
       },
@@ -44,7 +45,7 @@ export function useCollection<T extends DocumentData>(
     );
 
     return () => unsubscribe();
-  }, [memoizedQuery?.path]); // Use path for dependency to avoid object reference issues
+  }, [memoizedQuery]); // Use query reference for dependency to avoid object reference issues
 
   return { data, loading, error };
 }

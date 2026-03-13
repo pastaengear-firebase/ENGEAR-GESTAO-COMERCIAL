@@ -33,16 +33,33 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   useEffect(() => {
     if (!auth) {
+        console.log('Auth not initialized');
         setLoadingAuth(false);
         return;
     };
+    console.log('Setting up auth listener');
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
-      if (firebaseUser) {
+      try {
+        console.log('Auth state changed:', firebaseUser ? 'user' : 'no user');
+        if (firebaseUser) {
+        const isVerified = firebaseUser.emailVerified ?? false;
+
+        if (!isVerified) {
+          // Não concedemos acesso completo até o e-mail ser verificado.
+          setUser(null);
+          setUserRole(ALL_SELLERS_OPTION);
+          setViewingAsSeller(ALL_SELLERS_OPTION);
+          initialSetupDone.current = true;
+          setLoadingAuth(false);
+          return;
+        }
+
         const appUser: AppUser = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
+          emailVerified: isVerified,
         };
         
         setUser(prev => {
@@ -63,7 +80,12 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setViewingAsSeller(ALL_SELLERS_OPTION);
         initialSetupDone.current = false;
       }
+      console.log('Setting loadingAuth to false');
       setLoadingAuth(false);
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        setLoadingAuth(false);
+      }
     });
     return () => unsubscribe();
   }, [auth]);

@@ -10,14 +10,15 @@ import type {
 } from './constants';
 import { ALL_SELLERS_OPTION } from './constants';
 
-// Explicitly re-exporting the type to solve build issues.
-export type { Seller };
+// Explicitly re-exporting the types to solve build issues.
+export type { Seller, CompanyOption, AreaOption, StatusOption, ProposalStatusOption, ContactSourceOption, FollowUpOptionValue };
 
 export interface AppUser {
   uid: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  emailVerified: boolean;
 }
 
 export interface Sale {
@@ -150,4 +151,33 @@ export interface BillingLog {
   requestedBy: string;
   requestedByUid: string;
   requestedAt: any; // server timestamp
+}
+
+export interface MeasurementLog {
+  id: string;
+  saleId: string;
+  saleData: Sale;
+  measurementDate: string; // ISO date
+  periodStart: string; // ISO date
+  periodEnd: string; // ISO date
+  measurementNumber: string;
+  measurementRevision: string;
+  measurementMode: 'SERVICOS' | 'PRECO_GLOBAL_COM_ABATIMENTO';
+  measurementClient: string;
+  measurementClientData?: string;
+  measurementObject?: string;
+  measurementWork: string;
+  measurementContractRef: string;
+  measurementService: string;
+  measurementContractValue: number;
+  measurementPrevPercent: number;
+  measurementExecPercent: number;
+  measurementTotalPeriod: number;
+  measurementObservations?: string;
+  measurementMaterialRows?: { id: string; docNumber: string; description: string; value: number }[];
+  responsible: 'SERGIO' | 'RODRIGO';
+  createdBy: string;
+  createdByUid: string;
+  createdAt: any; // server timestamp
+  updatedAt?: any; // server timestamp
 }

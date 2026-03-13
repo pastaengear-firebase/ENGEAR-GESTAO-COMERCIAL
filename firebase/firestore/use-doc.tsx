@@ -27,7 +27,8 @@ export function useDoc<T extends DocumentData>(
       docRef,
       (doc) => {
         if (doc.exists()) {
-          setData({ ...doc.data(), id: doc.id } as T);
+          const dataWithId = { ...doc.data(), id: doc.id };
+          setData(dataWithId as unknown as T);
         } else {
           setData(null);
         }

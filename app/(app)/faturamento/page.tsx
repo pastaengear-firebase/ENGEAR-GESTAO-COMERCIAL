@@ -1,8 +1,8 @@
 ﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
-import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw } from 'lucide-react';
+import { collection, query, orderBy, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, Mail, Download, Edit3, Trash2 } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
 import { useFirestore } from '@/firebase/provider';
@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { Sale, BillingLog } from '@/lib/types';
+import type { Sale, BillingLog, MeasurementLog } from '@/lib/types';
 import { ALL_SELLERS_OPTION } from '@/lib/constants';
 import { normalizeSaleStatus } from '@/lib/normalizers';
 
@@ -78,9 +78,13 @@ export default function FaturamentoPage() {
   const [measurementNumber, setMeasurementNumber] = useState('01');
   const [measurementRevision, setMeasurementRevision] = useState('rev0');
   const [measurementDate, setMeasurementDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [measurementPeriodStart, setMeasurementPeriodStart] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [measurementPeriodEnd, setMeasurementPeriodEnd] = useState<string>(new Date().toISOString().slice(0, 10));
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('SERVICOS');
   const [measurementClient, setMeasurementClient] = useState('');
+  const [measurementClientData, setMeasurementClientData] = useState('');
   const [measurementWork, setMeasurementWork] = useState('');
+  const [measurementObject, setMeasurementObject] = useState('');
   const [measurementContractRef, setMeasurementContractRef] = useState('');
   const [measurementService, setMeasurementService] = useState('');
   const [measurementContractValue, setMeasurementContractValue] = useState<number>(0);
@@ -89,6 +93,12 @@ export default function FaturamentoPage() {
   const [measurementResponsible, setMeasurementResponsible] = useState<'SERGIO' | 'RODRIGO'>('SERGIO');
   const [companyAddress, setCompanyAddress] = useState('');
   const [companyBankData, setCompanyBankData] = useState('');
+  const [measurementObservations, setMeasurementObservations] = useState('');
+  const [editingMeasurementId, setEditingMeasurementId] = useState<string | null>(null);
+  const [isMeasurementListOpen, setIsMeasurementListOpen] = useState(false);
+  const [measurementToDelete, setMeasurementToDelete] = useState<MeasurementLog | null>(null);
+  const [isDeleteMeasurementDialogOpen, setIsDeleteMeasurementDialogOpen] = useState(false);
+
   const [materialRows, setMaterialRows] = useState<MaterialDeductionRow[]>([
     { id: '1', docNumber: '', description: '', value: 0 },
   ]);
@@ -98,11 +108,17 @@ export default function FaturamentoPage() {
   const billingEmails = settings?.billingNotificationEmails ?? [];
   const hasBillingEmails = Array.isArray(billingEmails) && billingEmails.length > 0;
 
-  const logsQuery = useMemo(
+  const billingLogsQuery = useMemo(
     () => firestore ? query(collection(firestore, 'billing-logs'), orderBy('requestedAt', 'desc')) : null,
     [firestore]
   );
-  const { data: billingLogs } = useCollection<BillingLog>(logsQuery);
+  const { data: billingLogs } = useCollection<BillingLog>(billingLogsQuery);
+
+  const measurementLogsQuery = useMemo(
+    () => firestore ? query(collection(firestore, 'measurement-logs'), orderBy('createdAt', 'desc')) : null,
+    [firestore]
+  );
+  const { data: measurementLogs } = useCollection<MeasurementLog>(measurementLogsQuery);
 
   // ALERTA: Controle de Cobrança (+30 dias) - mantém a lógica existente
   const pendingSales = useMemo(() => {
@@ -154,7 +170,11 @@ export default function FaturamentoPage() {
     const companyKey = measurementSale.company === 'CLIMAZONE' ? 'CLIMAZONE' : 'ENGEAR';
     setCompanyAddress((prev) => prev || COMPANY_PROFILE[companyKey].address);
     setCompanyBankData((prev) => prev || COMPANY_PROFILE[companyKey].bankData);
-  }, [measurementSale]);
+
+    // Se ainda não definido pelo usuário, deixa o período igual à data da medição.
+    setMeasurementPeriodStart((prev) => prev || measurementDate);
+    setMeasurementPeriodEnd((prev) => prev || measurementDate);
+  }, [measurementSale, measurementDate]);
 
   const measurementUnitValue = measurementContractValue;
   const measurementProject = measurementWork;
@@ -190,11 +210,34 @@ export default function FaturamentoPage() {
     }));
   };
 
-  const handlePrintMeasurementPdf = () => {
-    const w = window.open('', '_blank', 'width=1024,height=768');
-    if (!w) return;
+  const buildMeasurementPdfHtml = (measurement: Partial<MeasurementLog> = {}) => {
+    const sale = measurement.saleData || measurementSale;
+    const companyKey: 'ENGEAR' | 'CLIMAZONE' = sale?.company === 'CLIMAZONE' ? 'CLIMAZONE' : 'ENGEAR';
+    const company = COMPANY_PROFILE[companyKey];
 
-    const materialRowsHtml = materialRows
+    const responsibleKey = measurement.responsible || measurementResponsible;
+    const responsibleContact = MEASUREMENT_RESPONSIBLE[responsibleKey as 'SERGIO' | 'RODRIGO'] || MEASUREMENT_RESPONSIBLE.SERGIO;
+
+    const number = measurement.measurementNumber ?? measurementNumber;
+    const revision = (measurement.measurementRevision ?? measurementRevision).toUpperCase();
+    const date = measurement.measurementDate ?? measurementDate;
+    const periodStart = measurement.periodStart ?? measurementPeriodStart;
+    const periodEnd = measurement.periodEnd ?? measurementPeriodEnd;
+    const client = measurement.measurementClient ?? measurementClient;
+    const clientData = measurement.measurementClientData ?? measurementClientData;
+    const object = measurement.measurementObject ?? measurementObject;
+    const work = measurement.measurementWork ?? measurementWork;
+    const contractRef = measurement.measurementContractRef ?? measurementContractRef;
+    const service = measurement.measurementService ?? measurementService;
+    const observations = measurement.measurementObservations ?? measurementObservations;
+    const mode = measurement.measurementMode ?? measurementMode;
+    const prevPercent = measurement.measurementPrevPercent ?? measurementPrevPercent;
+    const execPercent = measurement.measurementExecPercent ?? measurementExecPercent;
+    const contractValue = measurement.measurementContractValue ?? measurementContractValue;
+    const totalPeriod = measurement.measurementTotalPeriod ?? measurementTotalPeriod;
+
+    const materialRowsData = measurement.measurementMaterialRows ?? materialRows;
+    const materialRowsHtml = (materialRowsData || [])
       .filter((row) => row.docNumber || row.description || row.value > 0)
       .map((row) => `
         <tr>
@@ -205,10 +248,17 @@ export default function FaturamentoPage() {
       `)
       .join('');
 
-    const html = `
+    const deductionTotal = mode === 'PRECO_GLOBAL_COM_ABATIMENTO'
+      ? materialRowsData.reduce((sum, row) => sum + Math.max(0, row.value || 0), 0)
+      : 0;
+
+    const servicePeriodValue = Math.max(0, (contractValue ?? 0) * ((execPercent ?? 0) / 100));
+    const totalMeasurement = Math.max(0, servicePeriodValue - deductionTotal);
+
+    return `
       <html>
         <head>
-          <title>Boletim de Medição ${measurementNumber}</title>
+          <title>Boletim de Medição ${number}</title>
           <style>
             body { font-family: Arial, sans-serif; color: #111; margin: 24px; }
             .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
@@ -231,29 +281,33 @@ export default function FaturamentoPage() {
           <div class="header">
             <img class="logo" src="${window.location.origin}/novologoe.png" alt="Logo" />
             <div class="title">
-              <h1>BOLETIM DE MEDIÇÃO Nº ${measurementNumber}</h1>
-              <p>Revisão: ${measurementRevision.toUpperCase()} | Data: ${format(parseISO(measurementDate), 'dd/MM/yyyy')}</p>
+              <h1>BOLETIM DE MEDIÇÃO Nº ${number}</h1>
+              <p>Revisão: ${revision} | Data: ${format(parseISO(date), 'dd/MM/yyyy')}</p>
+            <p>Período: ${format(parseISO(periodStart), 'dd/MM/yyyy')} até ${format(parseISO(periodEnd), 'dd/MM/yyyy')}</p>
             </div>
           </div>
 
           <div class="grid">
             <div class="box">
               <h3>Dados da Medição</h3>
-              <p><strong>Cliente:</strong> ${measurementClient || '-'}</p>
-              <p><strong>Obra:</strong> ${measurementProject || '-'}</p>
-              <p><strong>Contrato/O.S.:</strong> ${measurementContractRef || '-'}</p>
-              <p><strong>Serviço:</strong> ${measurementService || '-'}</p>
+              <p><strong>Cliente:</strong> ${client || '-'}</p>
+              <p><strong>Dados do cliente:</strong> ${clientData || '-'}</p>
+              <p><strong>Objeto contratado:</strong> ${object || '-'}</p>
+              <p><strong>Obra:</strong> ${work || '-'}</p>
+              <p><strong>Contrato/O.S.:</strong> ${contractRef || '-'}</p>
+              <p><strong>Serviço:</strong> ${service || '-'}</p>
+              <p><strong>Observações:</strong> ${observations || '-'}</p>
             </div>
             <div class="box">
               <h3>Responsável pela Medição</h3>
-              <p><strong>${measurementResponsible}</strong></p>
+              <p><strong>${responsibleKey}</strong></p>
               <p><strong>E-mail:</strong> ${responsibleContact.email}</p>
               <p><strong>Contato:</strong> ${responsibleContact.phone}</p>
             </div>
             <div class="box">
               <h3>Empresa Executora</h3>
-              <p><strong>${measurementCompany.legalName}</strong></p>
-              <p>${measurementCompany.taxId}</p>
+              <p><strong>${company.legalName}</strong></p>
+              <p>${company.taxId}</p>
               <p>${companyAddress.replace(/\n/g, '<br/>')}</p>
             </div>
             <div class="box">
@@ -274,16 +328,16 @@ export default function FaturamentoPage() {
             </thead>
             <tbody>
               <tr>
-                <td>${measurementPrevPercent.toFixed(2)}%</td>
-                <td>${measurementExecPercent.toFixed(2)}%</td>
-                <td>${measurementAccumulatedPercent.toFixed(2)}%</td>
-                <td>${measurementUnitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                <td>${measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td>${(prevPercent ?? 0).toFixed(2)}%</td>
+                <td>${(execPercent ?? 0).toFixed(2)}%</td>
+                <td>${(Math.max(0, Math.min(100, (prevPercent ?? 0) + (execPercent ?? 0)))).toFixed(2)}%</td>
+                <td>${(contractValue ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td>${servicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
               </tr>
             </tbody>
           </table>
 
-          ${measurementMode === 'PRECO_GLOBAL_COM_ABATIMENTO' ? `
+          ${mode === 'PRECO_GLOBAL_COM_ABATIMENTO' ? `
           <table>
             <thead>
               <tr>
@@ -300,14 +354,21 @@ export default function FaturamentoPage() {
 
           <table class="totals">
             <tbody>
-              <tr><td>Valor serviços (período)</td><td style="text-align:right;">${measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
-              <tr><td>Abatimento materiais</td><td style="text-align:right;">${measurementDeductionPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
-              <tr><td class="bold">Total da medição</td><td class="bold" style="text-align:right;">${measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+              <tr><td>Valor serviços (período)</td><td style="text-align:right;">${servicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+              <tr><td>Abatimento materiais</td><td style="text-align:right;">${deductionTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+              <tr><td class="bold">Total da medição</td><td class="bold" style="text-align:right;">${totalMeasurement.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
             </tbody>
           </table>
         </body>
       </html>
     `;
+  };
+
+  const handlePrintMeasurementPdf = (measurement?: MeasurementLog) => {
+    const w = window.open('', '_blank', 'width=1024,height=768');
+    if (!w) return;
+
+    const html = buildMeasurementPdfHtml(measurement ?? {});
 
     w.document.open();
     w.document.write(html);
@@ -315,19 +376,177 @@ export default function FaturamentoPage() {
     w.focus();
     w.print();
   };
+
+  const resetMeasurementForm = () => {
+    setMeasurementNumber('01');
+    setMeasurementRevision('rev0');
+    setMeasurementDate(new Date().toISOString().slice(0, 10));
+    setMeasurementPeriodStart(new Date().toISOString().slice(0, 10));
+    setMeasurementPeriodEnd(new Date().toISOString().slice(0, 10));
+    setMeasurementMode('SERVICOS');
+    setMeasurementClient('');
+    setMeasurementClientData('');
+    setMeasurementWork('');
+    setMeasurementObject('');
+    setMeasurementContractRef('');
+    setMeasurementService('');
+    setMeasurementContractValue(0);
+    setMeasurementPrevPercent(0);
+    setMeasurementExecPercent(0);
+    setMeasurementObservations('');
+    setEditingMeasurementId(null);
+    setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
+  };
+
+  const getMeasurementPayload = () => ({
+    saleId: measurementSale?.id || '',
+    saleData: measurementSale || null,
+    measurementDate,
+    periodStart: measurementPeriodStart,
+    periodEnd: measurementPeriodEnd,
+    measurementNumber,
+    measurementRevision,
+    measurementMode,
+    measurementClient,
+    measurementClientData,
+    measurementWork,
+    measurementObject,
+    measurementContractRef,
+    measurementService,
+    measurementContractValue,
+    measurementPrevPercent,
+    measurementExecPercent,
+    measurementTotalPeriod,
+    measurementObservations: measurementObservations || null,
+    measurementMaterialRows: materialRows,
+    responsible: measurementResponsible,
+  });
+
+  const handleEditMeasurement = (measurement: MeasurementLog) => {
+    setEditingMeasurementId(measurement.id);
+    setMeasurementSaleId(measurement.saleId);
+    setMeasurementDate(measurement.measurementDate);
+    setMeasurementPeriodStart(measurement.periodStart);
+    setMeasurementPeriodEnd(measurement.periodEnd);
+    setMeasurementNumber(measurement.measurementNumber);
+    setMeasurementRevision(measurement.measurementRevision);
+    setMeasurementMode(measurement.measurementMode);
+    setMeasurementClient(measurement.measurementClient);
+    setMeasurementClientData(measurement.measurementClientData || '');
+    setMeasurementObject(measurement.measurementObject || '');
+    setMeasurementWork(measurement.measurementWork);
+    setMeasurementContractRef(measurement.measurementContractRef);
+    setMeasurementService(measurement.measurementService);
+    setMeasurementContractValue(measurement.measurementContractValue);
+    setMeasurementPrevPercent(measurement.measurementPrevPercent);
+    setMeasurementExecPercent(measurement.measurementExecPercent);
+    setMeasurementObservations(measurement.measurementObservations || '');
+    setMeasurementResponsible(measurement.responsible);
+    setMaterialRows(measurement.measurementMaterialRows ?? [{ id: '1', docNumber: '', description: '', value: 0 }]);
+    setIsMeasurementListOpen(false);
+  };
+
+  const handleSaveMeasurement = async () => {
+    if (!firestore || !user) return;
+    if (!measurementSale) {
+      toast({ title: 'Erro', description: 'Selecione uma venda para vincular a medição.', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = getMeasurementPayload();
+      if (editingMeasurementId) {
+        const docRef = doc(firestore, 'measurement-logs', editingMeasurementId);
+        await updateDoc(docRef, { ...payload, updatedAt: serverTimestamp() });
+        toast({ title: 'Sucesso', description: 'Medição atualizada.' });
+      } else {
+        const docRef = await addDoc(collection(firestore, 'measurement-logs'), {
+          ...payload,
+          createdBy: userRole,
+          createdByUid: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        setEditingMeasurementId(docRef.id);
+        toast({ title: 'Sucesso', description: 'Medição salva.' });
+      }
+      setIsMeasurementListOpen(true);
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e?.message || 'Não foi possível salvar a medição.', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSendMeasurementEmail = (measurement: MeasurementLog) => {
+    const resolvedRecipients = (billingEnabled && hasBillingEmails)
+      ? billingEmails.join(';')
+      : '';
+
+    if (!resolvedRecipients) {
+      toast({ title: 'Erro', description: 'Cadastre os e-mails em Configurações para enviar.', variant: 'destructive' });
+      return;
+    }
+
+    const subject = `BOLETIM DE MEDIÇÃO ${measurement.measurementNumber} - ${measurement.saleData.company || 'NÃO INFORMADO'} - ${measurement.saleData.project || 'NÃO INFORMADO'}`;
+    const body = [
+      `Cliente: ${measurement.measurementClient || 'NÃO INFORMADO'}`,
+      `Dados do cliente: ${measurement.measurementClientData || ''}`,
+      `Objeto contratado: ${measurement.measurementObject || ''}`,
+      `Obra: ${measurement.measurementWork || ''}`,
+      `Contrato/O.S.: ${measurement.measurementContractRef || ''}`,
+      `Serviço: ${measurement.measurementService || ''}`,
+      `Período: ${format(parseISO(measurement.periodStart), 'dd/MM/yyyy')} até ${format(parseISO(measurement.periodEnd), 'dd/MM/yyyy')}`,
+      `Percentual executado no período: ${measurement.measurementExecPercent.toFixed(2)}%`,
+      `Total da medição: ${measurement.measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+      `Responsável: ${measurement.responsible}`,
+      `Observações: ${measurement.measurementObservations || ''}`,
+      `Para consultar, acesse: ${window.location.origin}/faturamento`,
+    ].join('\n');
+
+    window.open(`mailto:${resolvedRecipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+  };
+
+  const openDeleteMeasurementDialog = (measurement: MeasurementLog) => {
+    setMeasurementToDelete(measurement);
+    setIsDeleteMeasurementDialogOpen(true);
+  };
+
+  const handleConfirmDeleteMeasurement = async () => {
+    if (!firestore || !measurementToDelete) return;
+
+    setIsSubmitting(true);
+    try {
+      await deleteDoc(doc(firestore, 'measurement-logs', measurementToDelete.id));
+      toast({ title: 'Sucesso', description: 'Medição removida.' });
+      setMeasurementToDelete(null);
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e?.message || 'Não foi possível excluir a medição.', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+      setIsDeleteMeasurementDialogOpen(false);
+    }
+  };
+
   const pendingTotalValue = useMemo(
     () => pendingSales.reduce((sum, s: any) => sum + Math.max(0, (s.salesValue || 0) - (s.payment || 0)), 0),
     [pendingSales]
   );
 
+  const measurementLogsForSale = useMemo(
+    () => (measurementLogs || []).filter((m) => m.saleId === measurementSaleId),
+    [measurementLogs, measurementSaleId]
+  );
+
   const getStatusBadgeVariant = (status: Sale['status']): React.ComponentProps<typeof Badge>['variant'] => {
-    const normalizedStatus = normalizeSaleStatus(status);
+    const normalizedStatus = normalizeSaleStatus(status) ?? '';
     switch (normalizedStatus) {
-      case 'FINALIZADO':
+      case 'FINALIZADA':
+      case 'RECEBIDA':
         return 'default';
       case 'A INICIAR':
       case 'EM ANDAMENTO':
-      case 'AGUARDANDO PAGAMENTO':
         return 'secondary';
       case 'CANCELADO':
         return 'destructive';
@@ -342,7 +561,12 @@ export default function FaturamentoPage() {
 
     const history = (billingLogs || []).filter((log) => log.saleId === s.id);
     setBillingHistory(history);
-    if (history.length > 0) {
+
+    const normalizedStatus = normalizeSaleStatus(s.status) ?? '';
+    const alreadyBilled = normalizedStatus === 'RECEBIDA' || (normalizedStatus === 'FINALIZADA' && history.length > 0);
+    const fullyPaid = (s.payment || 0) >= (s.salesValue || 0);
+
+    if (history.length > 0 || alreadyBilled || fullyPaid) {
       setIsBillingHistoryOpen(true);
     }
   };
@@ -381,7 +605,7 @@ export default function FaturamentoPage() {
         requestedAt: serverTimestamp(),
       });
 
-      await updateSale(selectedSale.id, { status: "AGUARDANDO PAGAMENTO" });
+      await updateSale(selectedSale.id, { status: "RECEBIDA" });
 
       const amountBRL = Number(billingAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       const requestDate = format(new Date(), 'dd/MM/yyyy');
@@ -696,6 +920,17 @@ export default function FaturamentoPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Período de medição (início)</Label>
+                  <Input type="date" value={measurementPeriodStart} onChange={(e) => setMeasurementPeriodStart(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Período de medição (fim)</Label>
+                  <Input type="date" value={measurementPeriodEnd} onChange={(e) => setMeasurementPeriodEnd(e.target.value)} />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="space-y-2 md:col-span-2">
                   <Label>Modalidade</Label>
@@ -724,6 +959,17 @@ export default function FaturamentoPage() {
                   <Input value={measurementClient} onChange={(e) => setMeasurementClient(e.target.value)} />
                 </div>
                 <div className="space-y-2">
+                  <Label>Dados do cliente</Label>
+                  <Input value={measurementClientData} onChange={(e) => setMeasurementClientData(e.target.value)} placeholder="CNPJ, endereço, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Objeto contratado</Label>
+                  <Input value={measurementObject} onChange={(e) => setMeasurementObject(e.target.value)} placeholder="Descrição do objeto" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
                   <Label>Obra (editável)</Label>
                   <Input value={measurementWork} onChange={(e) => setMeasurementWork(e.target.value)} />
                 </div>
@@ -731,16 +977,20 @@ export default function FaturamentoPage() {
                   <Label>Contrato/O.S. (editável)</Label>
                   <Input value={measurementContractRef} onChange={(e) => setMeasurementContractRef(e.target.value)} />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Serviço (editável)</Label>
                   <Input value={measurementService} onChange={(e) => setMeasurementService(e.target.value)} />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Valor do contrato/venda (editável)</Label>
                   <Input type="number" min={0} value={measurementContractValue} onChange={(e) => setMeasurementContractValue(Number(e.target.value || 0))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <Textarea rows={3} value={measurementObservations} onChange={(e) => setMeasurementObservations(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Responsável pela medição</Label>
@@ -807,8 +1057,14 @@ export default function FaturamentoPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <Button type="button" onClick={handlePrintMeasurementPdf}>Gerar PDF</Button>
+              <div className="flex justify-end gap-2">
+                <Button type="button" onClick={handleSaveMeasurement} disabled={isSubmitting}>
+                  {editingMeasurementId ? 'Atualizar medição' : 'Salvar medição'}
+                </Button>
+                <Button type="button" onClick={() => handlePrintMeasurementPdf()}>Gerar PDF</Button>
+                <Button type="button" variant="outline" onClick={() => setIsMeasurementListOpen((prev) => !prev)}>
+                  {isMeasurementListOpen ? 'Ocultar histórico' : 'Mostrar histórico'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -823,7 +1079,11 @@ export default function FaturamentoPage() {
                 <p><span className="font-medium">Projeto:</span> {measurementProject || '-'}</p>
                 <p><span className="font-medium">Contrato/O.S.:</span> {measurementContractRef || '-'}</p>
                 <p><span className="font-medium">Cliente:</span> {measurementClient || '-'}</p>
+                <p><span className="font-medium">Dados do cliente:</span> {measurementClientData || '-'}</p>
+                <p><span className="font-medium">Objeto contratado:</span> {measurementObject || '-'}</p>
                 <p><span className="font-medium">Serviço:</span> {measurementService || '-'}</p>
+                <p><span className="font-medium">Período da medição:</span> {format(parseISO(measurementPeriodStart), 'dd/MM/yyyy')} até {format(parseISO(measurementPeriodEnd), 'dd/MM/yyyy')}</p>
+                <p><span className="font-medium">Observações:</span> {measurementObservations || '-'}</p>
                 <p><span className="font-medium">Modalidade:</span> {measurementMode === 'SERVICOS' ? 'Só serviços' : 'Preço global com abatimento'}</p>
                 <p><span className="font-medium">% acumulado:</span> {measurementAccumulatedPercent.toFixed(2)}%</p>
                 <p><span className="font-medium">Responsável:</span> {measurementResponsible} | {responsibleContact.email} | {responsibleContact.phone}</p>
@@ -835,6 +1095,60 @@ export default function FaturamentoPage() {
               </div>
             </CardContent>
           </Card>
+
+          {isMeasurementListOpen && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Histórico de Medições</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {measurementLogsForSale.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma medição salva para essa venda.</p>
+                ) : (
+                  <ScrollArea className="h-64">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nº</TableHead>
+                          <TableHead>Revisão</TableHead>
+                          <TableHead>Período</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {measurementLogsForSale.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell>{log.measurementNumber}</TableCell>
+                            <TableCell>{log.measurementRevision}</TableCell>
+                            <TableCell>{format(parseISO(log.periodStart), 'dd/MM/yyyy')}–{format(parseISO(log.periodEnd), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell className="text-right">{log.measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell>{log.createdAt?.toDate ? format(log.createdAt.toDate(), 'dd/MM/yyyy HH:mm') : '-'}</TableCell>
+                            <TableCell className="space-x-1">
+                              <Button size="icon" variant="outline" onClick={() => handleEditMeasurement(log)} title="Editar">
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => handlePrintMeasurementPdf(log)} title="Baixar PDF">
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => handleSendMeasurementEmail(log)} title="Reenviar por e-mail">
+                                <Mail className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => openDeleteMeasurementDialog(log)} title="Excluir medição">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
         </TabsContent>
       </Tabs>
 
@@ -871,12 +1185,24 @@ export default function FaturamentoPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Histórico de faturamento</AlertDialogTitle>
             <AlertDialogDescription>
-              Já existem solicitações anteriores para esta venda. Revise os valores e datas antes de continuar.
+              Seu pedido se refere a uma venda que já possui registros anteriores de faturamento.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {selectedSale && (
+            <div className="rounded-md border p-3 bg-muted/50">
+              <p className="text-sm font-medium">Venda: {selectedSale.project} / {selectedSale.os}</p>
+              <p className="text-xs text-muted-foreground">Cliente: {selectedSale.clientService}</p>
+              <p className="text-xs">Status atual: {normalizeSaleStatus(selectedSale.status)}</p>
+              <p className="text-xs">Valor total: {selectedSale.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              <p className="text-xs">Pago: {selectedSale.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              <p className="text-xs">Saldo: {(selectedSale.salesValue - selectedSale.payment).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+            </div>
+          )}
+
           <div className="space-y-2">
             {billingHistory.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum histórico encontrado.</p>
+              <p className="text-sm text-muted-foreground">Nenhum histórico de solicitação encontrado.</p>
             ) : (
               <div className="space-y-2">
                 {billingHistory.map((log) => (
@@ -902,6 +1228,21 @@ export default function FaturamentoPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Fechar</AlertDialogCancel>
             <AlertDialogAction onClick={() => setIsBillingHistoryOpen(false)}>Continuar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteMeasurementDialogOpen} onOpenChange={setIsDeleteMeasurementDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMeasurementToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMeasurement} className="bg-destructive text-white">Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

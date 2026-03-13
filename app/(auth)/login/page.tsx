@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult, sendEmailVerification } from 'firebase/auth';
 import { useAuth } from '@/firebase/provider';
 import { useSales } from '@/hooks/use-sales';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, loadingAuth } = useSales();
   const [error, setError] = useState<string | null>(null);
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const isMounted = useRef(false);
   const isRedirecting = useRef(false);
@@ -68,6 +69,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, data.email, data.password);
     } catch (err: any) {
       setError(err.code === 'auth/invalid-credential' ? 'E-mail ou senha inválidos.' : 'Erro ao entrar.');
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -75,12 +77,33 @@ export default function LoginPage() {
   const handleRegister = async (data: RegisterFormData) => {
     if (!auth) return;
     setError(null);
+    setVerificationMessage(null);
     setIsProcessing(true);
     try {
-      await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      await sendEmailVerification(userCredential.user);
+      setVerificationMessage(
+        'Conta criada! Um e-mail de confirmação foi enviado. Verifique a caixa de entrada (e spam) para ativar o acesso.'
+      );
     } catch (err: any) {
        setError(err.code === 'auth/email-already-in-use' ? 'E-mail em uso.' : 'Erro ao registrar.');
-       setIsProcessing(false);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!auth?.currentUser) return;
+    setError(null);
+    setVerificationMessage(null);
+    setIsProcessing(true);
+    try {
+      await sendEmailVerification(auth.currentUser);
+      setVerificationMessage('E-mail de confirmação reenviado. Verifique sua caixa de entrada.');
+    } catch (err: any) {
+      setError('Não foi possível reenviar o e-mail de confirmação. Tente novamente mais tarde.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -110,6 +133,19 @@ export default function LoginPage() {
           <CardHeader><CardTitle>Acesso ao Sistema</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+            {verificationMessage && <Alert variant="default"><AlertDescription>{verificationMessage}</AlertDescription></Alert>}
+            {auth?.currentUser && !auth.currentUser.emailVerified && (
+              <Alert variant="default">
+                <AlertDescription>
+                  Sua conta ainda não foi verificada. Por favor, verifique o e-mail enviado (spam).
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" onClick={handleResendVerification} disabled={isProcessing}>
+                      Reenviar e-mail de confirmação
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
             <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>

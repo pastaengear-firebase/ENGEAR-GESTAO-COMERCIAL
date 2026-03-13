@@ -16,7 +16,12 @@ export function FirebaseClientProvider({
   children: React.ReactNode;
 }) {
   // Inicializa o Firebase de forma estável (uma vez)
-  const firebase = useMemo(() => initializeFirebase(), []);
+  const firebase = useMemo(() => {
+    console.log('Initializing Firebase');
+    const f = initializeFirebase();
+    console.log('Firebase initialized:', !!f.auth);
+    return f;
+  }, []);
 
   return (
     <FirebaseProvider value={firebase}>

@@ -257,9 +257,9 @@ export default function GerenciarVendasPage() {
             os: String(row['O.S.'] ?? ''),
             area: area as AreaOption,
             clientService: clientService,
-            salesValue: Number(Math.round(+(salesValue || 0) + 'e+2') + 'e-2'),
+            salesValue: Math.round((+salesValue || 0) * 100) / 100,
             status: status as StatusOption,
-            payment: Number(Math.round(+(payment || 0) + 'e+2') + 'e-2'),
+            payment: Math.round((+payment || 0) * 100) / 100,
           });
         });
 
