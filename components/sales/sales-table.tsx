@@ -39,13 +39,13 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
   const getStatusBadgeVariant = (status: string): React.ComponentProps<typeof Badge>['variant'] => {
     const normalizedStatus = normalizeSaleStatus(status);
     switch (normalizedStatus) {
-      case 'FINALIZADO':
+      case 'FINALIZADA':
         return 'default';
       case 'A INICIAR':
       case 'EM ANDAMENTO':
-      case 'AGUARDANDO PAGAMENTO':
         return 'secondary';
       case 'CANCELADO':
+      case 'CANCELADA':
         return 'destructive';
       default:
         return 'outline';

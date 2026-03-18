@@ -101,8 +101,7 @@ export const normalizeSaleStatus = (rawValue: unknown) => {
   const key = normalizeToKey(rawValue);
   if (!key) return undefined;
   if (key.includes("CANCEL")) return "CANCELADO";
-  if (key.includes("FINAL")) return "FINALIZADO";
-  if (key.includes("AGUARD") || key.includes("PAGAMENTO")) return "AGUARDANDO PAGAMENTO";
+  if (key.includes("FINAL") || key.includes("AGUARD") || key.includes("PAGAMENTO") || key.includes("FATURAD")) return "FINALIZADA";
   if (key.includes("ANDAMENTO")) return "EM ANDAMENTO";
   if (key.includes("INIC")) return "A INICIAR";
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import type React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
@@ -14,13 +14,14 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2, Download } from "lucide-react";
+import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2, Download, Mail } from "lucide-react";
 import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -345,7 +346,15 @@ export default function SalesForm({
     ].join("\n");
 
     const mailtoLink = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink, "_blank");
+    
+    // Use dynamic anchor tag to bypass some popup blockers
+    const link = document.createElement("a");
+    link.href = mailtoLink;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log("Email notification triggered via mailto:", mailtoLink);
   };
 
   const doSubmit = useCallback(async (data: SalesFormData) => {
@@ -774,6 +783,32 @@ export default function SalesForm({
             </FormItem>
           )}
         />
+
+        {!editMode && (
+          <FormField
+            control={form.control}
+            name="sendSaleNotification"
+            render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-muted/30 mt-4">
+                <FormControl>
+                <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={isFormDisabled || isSubmitting || pdfUploading || !appSettings?.enableSalesEmailNotifications}
+                />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" />ENVIAR E-MAIL COM A NOVA VENDA</FormLabel>
+                <FormDescription>
+                    {!appSettings?.enableSalesEmailNotifications ? "Notificações de vendas desabilitadas em Configurações." :
+                    "Se marcado, um e-mail com os dados da venda será preparado para envio à equipe."
+                    }
+                </FormDescription>
+                </div>
+            </FormItem>
+            )}
+          />
+        )}
 
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
           <Button

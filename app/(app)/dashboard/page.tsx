@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
@@ -74,8 +74,19 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     const totalSalesValue = filteredSales.reduce((sum, s) => sum + (s.salesValue || 0), 0);
     const totalSalesCount = filteredSales.length;
-    const totalReceived = filteredSales.reduce((sum, s) => sum + (s.payment || 0), 0);
-    const totalPendingValue = filteredSales.reduce((sum, s) => sum + Math.max(0, (s.salesValue || 0) - (s.payment || 0)), 0);
+    
+    // Rule 1: Sales with status "FINALIZADA" are considered fully RECEIVED
+    const totalReceived = filteredSales.reduce((sum, s) => {
+      const isFinalized = normalizeSaleStatus(s.status) === 'FINALIZADA';
+      const valueToAdd = isFinalized ? (s.salesValue || 0) : (s.payment || 0);
+      return sum + valueToAdd;
+    }, 0);
+
+    const totalPendingValue = filteredSales.reduce((sum, s) => {
+      const isFinalized = normalizeSaleStatus(s.status) === 'FINALIZADA';
+      if (isFinalized) return sum; // If finalized, it's not pending anymore
+      return sum + Math.max(0, (s.salesValue || 0) - (s.payment || 0));
+    }, 0);
 
     // Propostas contratadas (status = "Aceita")
     const contractedQuotes = dashboardFilteredQuotes.filter(q => q.status === 'Aceita');
@@ -143,10 +154,12 @@ export default function DashboardPage() {
       const matchesSeller = viewingAsSeller === ALL_SELLERS_OPTION || s.seller === viewingAsSeller;
       if (!matchesSeller) return;
 
-      // consideramos pendente apenas quando falta receber algo e não está cancelado
+      // consideramos pendente apenas quando falta receber algo e não está cancelado ou finalizado
       const pending = Math.max(0, (s.salesValue || 0) - (s.payment || 0));
       if (pending <= 0) return;
-      if (normalizeSaleStatus(s.status) === 'CANCELADO') return;
+      
+      const normalizedStatus = normalizeSaleStatus(s.status);
+      if (normalizedStatus === 'CANCELADO' || normalizedStatus === 'FINALIZADA') return;
 
       const days = Math.max(0, differenceInDays(now, parseISO(s.date)));
       let key: AgingBucketKey = '0-30';

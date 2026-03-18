@@ -43,6 +43,11 @@ service cloud.firestore {
     match /billing-logs/{logId} {
       allow create: if request.auth != null;
     }
+
+    // Measurements Collection: Allow authenticated users to manage measurements.
+    match /measurements/{measurementId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
 
