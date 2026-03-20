@@ -43,6 +43,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified,
         };
         
         setUser(prev => {

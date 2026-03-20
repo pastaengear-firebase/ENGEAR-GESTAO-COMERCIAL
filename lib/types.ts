@@ -18,6 +18,7 @@ export interface AppUser {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  emailVerified: boolean;
 }
 
 export interface Sale {
@@ -191,4 +192,9 @@ export interface Measurement {
   complementaryRows: ComplementaryRow[];
   createdByUid: string;
   requestedAt: any; // server timestamp
+  // Novos campos de faturamento
+  billingClientName?: string;
+  billingClientTaxId?: string;
+  billingClientAddress?: string;
+  billingNotes?: string;
 }

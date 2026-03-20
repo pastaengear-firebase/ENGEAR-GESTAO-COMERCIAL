@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult, sendEmailVerification } from 'firebase/auth';
 import { useAuth } from '@/firebase/provider';
 import { useSales } from '@/hooks/use-sales';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, loadingAuth } = useSales();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const isMounted = useRef(false);
   const isRedirecting = useRef(false);
@@ -77,7 +78,10 @@ export default function LoginPage() {
     setError(null);
     setIsProcessing(true);
     try {
-      await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      await sendEmailVerification(userCredential.user);
+      setSuccess('Registro realizado com sucesso! Um e-mail de verificação foi enviado. Verifique sua caixa de entrada antes de entrar.');
+      setIsProcessing(false);
     } catch (err: any) {
        setError(err.code === 'auth/email-already-in-use' ? 'E-mail em uso.' : 'Erro ao registrar.');
        setIsProcessing(false);
@@ -110,6 +114,7 @@ export default function LoginPage() {
           <CardHeader><CardTitle>Acesso ao Sistema</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+            {success && <Alert className="border-green-500 text-green-600 bg-green-50"><AlertCircle className="h-4 w-4" /><AlertDescription>{success}</AlertDescription></Alert>}
             <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>

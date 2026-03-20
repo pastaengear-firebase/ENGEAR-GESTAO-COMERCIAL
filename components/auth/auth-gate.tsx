@@ -19,6 +19,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       } else if (user && pathname === '/login' && !isRedirecting.current) {
         isRedirecting.current = true;
         router.replace('/dashboard');
+      } else if (user && !user.emailVerified && pathname !== '/verificar-email' && pathname !== '/login' && !isRedirecting.current) {
+        isRedirecting.current = true;
+        router.replace('/verificar-email');
       }
     }
   }, [user, loadingAuth, router, pathname]);

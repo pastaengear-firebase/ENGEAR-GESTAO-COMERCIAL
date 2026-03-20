@@ -98,6 +98,13 @@ export default function FaturamentoPage() {
   const [isMeasurementHistoryModalOpen, setIsMeasurementHistoryModalOpen] = useState(false);
   const [measurementAlertOpen, setMeasurementAlertOpen] = useState(false);
 
+  // Novos campos de faturamento (opcionais)
+  const [billingClientName, setBillingClientName] = useState('');
+  const [billingClientTaxId, setBillingClientTaxId] = useState('');
+  const [billingClientAddress, setBillingClientAddress] = useState('');
+  const [billingNotes, setBillingNotes] = useState('');
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+
 
   const billingEnabled = settings?.enableBillingEmailNotifications ?? false;
   const billingEmails = settings?.billingNotificationEmails ?? [];
@@ -266,17 +273,26 @@ export default function FaturamentoPage() {
     setCompanyAddress(m.companyAddress);
     setCompanyBankData(m.companyBankData);
     setMaterialRows(m.materialRows);
-    setComplementaryRows(m.complementaryRows);
+    setComplementaryRows(m.complementaryRows || []);
+    setBillingClientName(m.billingClientName || '');
+    setBillingClientTaxId(m.billingClientTaxId || '');
+    setBillingClientAddress(m.billingClientAddress || '');
+    setBillingNotes(m.billingNotes || '');
     setIsMeasurementHistoryModalOpen(false);
     toast({ title: 'Sucesso', description: 'Medição carregada para edição.' });
   };
 
   const handleNewMeasurement = () => {
     setSelectedMeasurementId(null);
+    setMeasurementSaleId('');
     setMeasurementNumber('01');
     setMeasurementRevision('rev0');
     setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
     setComplementaryRows([]);
+    setBillingClientName('');
+    setBillingClientTaxId('');
+    setBillingClientAddress('');
+    setBillingNotes('');
     toast({ title: 'Nova Medição', description: 'Formulário resetado para nova medição.' });
   };
 
@@ -309,6 +325,10 @@ export default function FaturamentoPage() {
         companyBankData: companyBankData,
         materialRows: materialRows,
         complementaryRows: complementaryRows,
+        billingClientName: billingClientName,
+        billingClientTaxId: billingClientTaxId,
+        billingClientAddress: billingClientAddress,
+        billingNotes: billingNotes,
         createdByUid: user?.uid,
         requestedAt: serverTimestamp(),
       };
@@ -419,7 +439,7 @@ export default function FaturamentoPage() {
             <div>
               <h3 class="section-title">Dados do Contrato</h3>
               <div class="info-block">
-                <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${measurementClient || '-'}</span></div>
+                <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${measurementClient || '-'} ${billingClientName ? `(${billingClientName})` : ''}</span></div>
                 <div class="info-row"><span class="info-label">Obra:</span><span class="info-value">${measurementProject || '-'}</span></div>
                 <div class="info-row"><span class="info-label">Contrato/O.S:</span><span class="info-value">${measurementContractRef || '-'}</span></div>
                 <div class="info-row"><span class="info-label">Serviço:</span><span class="info-value">${measurementService || '-'}</span></div>
@@ -435,6 +455,15 @@ export default function FaturamentoPage() {
               </div>
             </div>
           </div>
+
+          ${(billingClientTaxId || billingClientAddress || billingNotes) ? `
+          <div class="section" style="margin-top: 10px; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; background-color: #f8fafc;">
+            <h3 style="margin: 0 0 8px 0; font-size: 11px; color: #1e293b; text-transform: uppercase; font-weight: bold;">Informações para Faturamento</h3>
+            ${billingClientTaxId ? `<p style="margin: 2px 0; font-size: 11px;"><strong>CNPJ/CPF:</strong> ${billingClientTaxId}</p>` : ''}
+            ${billingClientAddress ? `<p style="margin: 2px 0; font-size: 11px;"><strong>Endereço faturamento:</strong> ${billingClientAddress}</p>` : ''}
+            ${billingNotes ? `<p style="margin: 8px 0 2px 0; font-size: 11px; font-style: italic; color: #475569; border-top: 1px dashed #cbd5e1; pt: 4px;"><strong>Obs:</strong> ${billingNotes}</p>` : ''}
+          </div>
+          ` : ''}
 
           <div class="info-grid section" style="margin-top: 20px;">
             <div>
@@ -654,7 +683,8 @@ export default function FaturamentoPage() {
 
       const body = [
         `Cliente: ${selectedSale.clientService || 'NÃO INFORMADO'}`,
-        `Dados do Cliente: `,
+        `Dados do Cliente para NF: ${billingClientName || ''} ${billingClientTaxId || ''}`,
+        `Endereço Faturamento: ${billingClientAddress || ''}`,
         `Valor a faturar: ${amountBRL}`,
         `Área: ${selectedSale.area || 'NÃO INFORMADA'}`,
         `Data: ${requestDate}`,
@@ -665,7 +695,8 @@ export default function FaturamentoPage() {
         `Medição: ${hasMeasurement ? 'Sim' : 'Não'}`,
         `Vendedor: ${selectedSale.seller || 'NÃO INFORMADO'}`,
         ``,
-        `Observações e orientações: ${billingInfo?.trim() || ''}`,
+        `Observações de Faturamento: ${billingNotes || ''}`,
+        `Observações Gerais: ${billingInfo?.trim() || ''}`,
         ``,
         `Para consultar, acesse: ${billingLink}`,
       ].join('\n');
@@ -919,9 +950,10 @@ export default function FaturamentoPage() {
                   <Label>Venda base</Label>
                   <select
                     className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    value={measurementSale?.id || ''}
+                    value={measurementSaleId}
                     onChange={(e) => setMeasurementSaleId(e.target.value)}
                   >
+                    <option value="">Selecione uma venda...</option>
                     {sales.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.project} - {s.clientService}
@@ -1131,8 +1163,69 @@ export default function FaturamentoPage() {
                   <Textarea rows={4} value={companyBankData} onChange={(e) => setCompanyBankData(e.target.value)} />
                 </div>
               </div>
+              <div className="pt-6 border-t">
+                <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-primary" /> Dados Adicionais de Faturamento (Opcional)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Razão Social / Nome</Label>
+                    <Input value={billingClientName} onChange={(e) => setBillingClientName(e.target.value)} placeholder="Ex: Cliente Exemplo LTDA" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">CNPJ / CPF</Label>
+                    <Input value={billingClientTaxId} onChange={(e) => setBillingClientTaxId(e.target.value)} placeholder="00.000.000/0001-00" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Endereço Padrão</Label>
+                    <Input value={billingClientAddress} onChange={(e) => setBillingClientAddress(e.target.value)} placeholder="Rua Exemplo, 123..." />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Observações para Faturamento (Máx. 200 caracteres)</Label>
+                  <Textarea 
+                    value={billingNotes} 
+                    onChange={(e) => setBillingNotes(e.target.value.slice(0, 200))} 
+                    placeholder="Notas que aparecerão no faturamento e PDF..." 
+                    className="h-20"
+                  />
+                  <p className="text-[10px] text-muted-foreground text-right">{billingNotes.length}/200</p>
+                </div>
+              </div>
+
+              {/* Resumo de Valores Ponderados */}
+              <div className="mt-8 p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="text-center md:text-left">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Resumo da Medição</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-2xl font-bold text-primary">
+                        {((measurementContractValue * (measurementExecPercent / 100)) - materialRows.reduce((acc, r) => acc + (r.value || 0), 0) + complementaryRows.reduce((acc, r) => acc + (r.totalValue || 0), 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                      <Badge variant="secondary" className="bg-primary/20 text-primary border-none">
+                        {measurementExecPercent}% Medido
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex gap-6 text-sm">
+                    <div className="text-center">
+                      <p className="text-muted-foreground text-xs">Base ({measurementExecPercent}%)</p>
+                      <p className="font-semibold">{(measurementContractValue * (measurementExecPercent / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-muted-foreground text-xs">Deduções</p>
+                      <p className="font-semibold text-destructive">(- {materialRows.reduce((acc, r) => acc + (r.value || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-muted-foreground text-xs">Acréscimos</p>
+                      <p className="font-semibold text-green-600">(+ {complementaryRows.reduce((acc, r) => acc + (r.totalValue || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t mt-6">
-                <Button type="button" variant="ghost" onClick={handleNewMeasurement}>Nova Medição</Button>
+                <Button type="button" variant="outline" onClick={handleNewMeasurement}>Nova Medição</Button>
                 <Button type="button" variant="outline" onClick={() => setIsMeasurementHistoryModalOpen(true)}>Mostrar histórico</Button>
                 <Button type="button" variant="secondary" onClick={handlePrintMeasurementPdf}>Gerar PDF</Button>
                 <Button type="button" onClick={handleSaveMeasurement} disabled={isSavingMeasurement}>
@@ -1260,37 +1353,55 @@ export default function FaturamentoPage() {
       </AlertDialog>
 
       <AlertDialog open={isMeasurementHistoryModalOpen} onOpenChange={setIsMeasurementHistoryModalOpen}>
-        <AlertDialogContent className="max-w-2xl">
+        <AlertDialogContent className="max-w-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Histórico de Medições</AlertDialogTitle>
+            <AlertDialogTitle>Histórico Global de Medições</AlertDialogTitle>
             <AlertDialogDescription>
-              Selecione uma medição anterior para visualizar ou editar.
+              Visualize todas as medições cadastradas. Use a busca para encontrar clientes ou projetos específicos.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <ScrollArea className="h-[400px] pr-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por cliente, projeto ou O.S..." 
+              value={historySearchTerm} 
+              onChange={(e) => setHistorySearchTerm(e.target.value)}
+              className="flex-1"
+            />
+          </div>
+          <ScrollArea className="h-[450px] pr-4">
             <div className="space-y-3">
               {(measurements || [])
-                .filter(m => m.saleId === (measurementSaleId || measurementSale?.id))
+                .filter(m => {
+                  const term = historySearchTerm.toLowerCase();
+                  return (m.client || '').toLowerCase().includes(term) || 
+                         (m.work || '').toLowerCase().includes(term) || 
+                         (m.contractRef || '').toLowerCase().includes(term) ||
+                         (m.number || '').includes(term);
+                })
                 .map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div>
-                      <p className="font-semibold text-sm">Medição Nº {m.number} - {m.revision.toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy')} | {m.mode === 'SERVICOS' ? 'Só serviços' : 'Global c/ abat.'}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{m.client}</p>
+                        <Badge variant="outline" className="text-[10px]">{m.work}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Medição Nº {m.number} ({m.revision.toUpperCase()}) | {format(parseISO(m.date), 'dd/MM/yyyy')}</p>
                       <p className="text-xs font-medium text-primary mt-1">Total: {((m.contractValue * (m.execPercent / 100)) - (m.materialRows?.reduce((acc, r) => acc + (r.value || 0), 0) || 0) + (m.complementaryRows?.reduce((acc, r) => acc + (r.totalValue || 0), 0) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => loadMeasurement(m)}>Editar</Button>
+                      <Button variant="ghost" size="sm" onClick={() => loadMeasurement(m)}>Carregar</Button>
                       <Button variant="outline" size="sm" onClick={() => { loadMeasurement(m); setTimeout(handlePrintMeasurementPdf, 100); }}>Reimprimir</Button>
                     </div>
                   </div>
                 ))}
-              {(measurements || []).filter(m => m.saleId === (measurementSaleId || measurementSale?.id)).length === 0 && (
-                <p className="text-center text-muted-foreground py-8">Nenhuma medição encontrada para este projeto.</p>
+              {(measurements || []).length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Nenhuma medição encontrada no banco de dados.</p>
               )}
             </div>
           </ScrollArea>
           <AlertDialogFooter>
-            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setHistorySearchTerm('')}>Fechar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
