@@ -18,18 +18,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { Sale, BillingLog } from '@/lib/types';
-import { ALL_SELLERS_OPTION } from '@/lib/constants';
+import type { Sale, BillingLog, Measurement, MaterialDeductionRow, ComplementaryRow } from '@/lib/types';
+import { ALL_SELLERS_OPTION, STATUS_OPTIONS } from '@/lib/constants';
 import { normalizeSaleStatus } from '@/lib/normalizers';
+import { updateDoc, doc } from 'firebase/firestore';
 
 type MeasurementMode = 'SERVICOS' | 'PRECO_GLOBAL_COM_ABATIMENTO';
 
-type MaterialDeductionRow = {
-  id: string;
-  docNumber: string;
-  description: string;
-  value: number;
-};
+// MaterialDeductionRow is now imported from @/lib/types
 
 const COMPANY_PROFILE: Record<'ENGEAR' | 'CLIMAZONE', { legalName: string; taxId: string; address: string; bankData: string }> = {
   ENGEAR: {
@@ -98,6 +94,9 @@ export default function FaturamentoPage() {
   const [complementaryRows, setComplementaryRows] = useState<{ id: string; description: string; unitValue: number; quantity: number; totalValue: number; }[]>([]);
 
   const [isSavingMeasurement, setIsSavingMeasurement] = useState(false);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
+  const [isMeasurementHistoryModalOpen, setIsMeasurementHistoryModalOpen] = useState(false);
+  const [measurementAlertOpen, setMeasurementAlertOpen] = useState(false);
 
 
   const billingEnabled = settings?.enableBillingEmailNotifications ?? false;
@@ -109,6 +108,12 @@ export default function FaturamentoPage() {
     [firestore]
   );
   const { data: billingLogs } = useCollection<BillingLog>(logsQuery);
+
+  const measurementsQuery = useMemo(
+    () => firestore ? query(collection(firestore, 'measurements'), orderBy('requestedAt', 'desc')) : null,
+    [firestore]
+  );
+  const { data: measurements } = useCollection<Measurement>(measurementsQuery);
 
   // ALERTA: Controle de Cobrança (+30 dias) - mantém a lógica existente
   const pendingSales = useMemo(() => {
@@ -172,9 +177,19 @@ export default function FaturamentoPage() {
     setCompanyBankData(COMPANY_PROFILE[companyKey].bankData);
 
     // Reset rows to prevent data leakage between different sale measurements
-    setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
-    setComplementaryRows([]);
-  }, [measurementSale, measurementSaleId]);
+    if (!selectedMeasurementId) {
+      setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
+      setComplementaryRows([]);
+      setMeasurementNumber('01');
+      setMeasurementRevision('rev0');
+
+      // Check if there are previous measurements for this sale to alert the user
+      const hasHistory = measurements?.some(m => m.saleId === measurementSale.id);
+      if (hasHistory) {
+        setMeasurementAlertOpen(true);
+      }
+    }
+  }, [measurementSale, measurementSaleId, selectedMeasurementId, measurements]);
 
   const measurementUnitValue = measurementContractValue;
   const measurementProject = measurementWork;
@@ -230,6 +245,41 @@ export default function FaturamentoPage() {
     }));
   };
 
+  const loadMeasurement = (m: Measurement) => {
+    setSelectedMeasurementId(m.id);
+    setMeasurementSaleId(m.saleId);
+    setMeasurementNumber(m.number);
+    setMeasurementRevision(m.revision);
+    setMeasurementDate(m.date);
+    setMeasurementStartDate(m.startDate);
+    setMeasurementEndDate(m.endDate);
+    setMeasurementMode(m.mode);
+    setMeasurementClient(m.client);
+    setMeasurementWork(m.work);
+    setMeasurementContractRef(m.contractRef);
+    setMeasurementService(m.service);
+    setMeasurementQuantity(m.quantity);
+    setMeasurementContractValue(m.contractValue);
+    setMeasurementExecPercent(m.execPercent);
+    setMeasurementPrevPercent(m.prevPercent);
+    setMeasurementResponsible(m.responsible);
+    setCompanyAddress(m.companyAddress);
+    setCompanyBankData(m.companyBankData);
+    setMaterialRows(m.materialRows);
+    setComplementaryRows(m.complementaryRows);
+    setIsMeasurementHistoryModalOpen(false);
+    toast({ title: 'Sucesso', description: 'Medição carregada para edição.' });
+  };
+
+  const handleNewMeasurement = () => {
+    setSelectedMeasurementId(null);
+    setMeasurementNumber('01');
+    setMeasurementRevision('rev0');
+    setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
+    setComplementaryRows([]);
+    toast({ title: 'Nova Medição', description: 'Formulário resetado para nova medição.' });
+  };
+
   const handleSaveMeasurement = async () => {
     if (!measurementSaleId) {
       toast({ title: 'Aviso', description: 'Selecione uma venda base.', variant: 'destructive' });
@@ -238,7 +288,7 @@ export default function FaturamentoPage() {
     
     setIsSavingMeasurement(true);
     try {
-      await addDoc(collection(firestore!, 'measurements'), {
+      const measurementData = {
         saleId: measurementSaleId || measurementSale?.id,
         number: measurementNumber,
         revision: measurementRevision,
@@ -261,8 +311,15 @@ export default function FaturamentoPage() {
         complementaryRows: complementaryRows,
         createdByUid: user?.uid,
         requestedAt: serverTimestamp(),
-      });
-      toast({ title: 'Sucesso', description: 'Medição salva com sucesso no banco de dados!' });
+      };
+
+      if (selectedMeasurementId) {
+        await updateDoc(doc(firestore!, 'measurements', selectedMeasurementId), measurementData);
+        toast({ title: 'Sucesso', description: 'Medição atualizada com sucesso!' });
+      } else {
+        await addDoc(collection(firestore!, 'measurements'), measurementData);
+        toast({ title: 'Sucesso', description: 'Medição salva com sucesso no banco de dados!' });
+      }
     } catch (e: any) {
       console.error(e);
       toast({ title: 'Erro', description: 'Falha ao salvar a medição.', variant: 'destructive' });
@@ -1075,13 +1132,14 @@ export default function FaturamentoPage() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t mt-6">
-                <Button type="button" variant="outline" onClick={() => {toast({description:"Histórico em breve (falta interface de logs).", variant:"default"})}}>Mostrar histórico</Button>
+                <Button type="button" variant="ghost" onClick={handleNewMeasurement}>Nova Medição</Button>
+                <Button type="button" variant="outline" onClick={() => setIsMeasurementHistoryModalOpen(true)}>Mostrar histórico</Button>
                 <Button type="button" variant="secondary" onClick={handlePrintMeasurementPdf}>Gerar PDF</Button>
                 <Button type="button" onClick={handleSaveMeasurement} disabled={isSavingMeasurement}>
                   {isSavingMeasurement ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
                   ) : (
-                    "Salvar medição"
+                    selectedMeasurementId ? "Atualizar medição" : "Salvar medição"
                   )}
                 </Button>
               </div>
@@ -1180,6 +1238,59 @@ export default function FaturamentoPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Fechar</AlertDialogCancel>
             <AlertDialogAction onClick={() => setIsBillingHistoryOpen(false)}>Continuar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={measurementAlertOpen} onOpenChange={setMeasurementAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aviso: Medição Anterior Encontrada</AlertDialogTitle>
+            <AlertDialogDescription>
+              Já existe pelo menos uma medição salva para este projeto. Deseja visualizar o histórico antes de prosseguir?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMeasurementAlertOpen(false)}>Agora não</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setMeasurementAlertOpen(false); setIsMeasurementHistoryModalOpen(true); }}>
+              Ver Histórico
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isMeasurementHistoryModalOpen} onOpenChange={setIsMeasurementHistoryModalOpen}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Histórico de Medições</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecione uma medição anterior para visualizar ou editar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-3">
+              {(measurements || [])
+                .filter(m => m.saleId === (measurementSaleId || measurementSale?.id))
+                .map((m) => (
+                  <div key={m.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div>
+                      <p className="font-semibold text-sm">Medição Nº {m.number} - {m.revision.toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy')} | {m.mode === 'SERVICOS' ? 'Só serviços' : 'Global c/ abat.'}</p>
+                      <p className="text-xs font-medium text-primary mt-1">Total: {((m.contractValue * (m.execPercent / 100)) - (m.materialRows?.reduce((acc, r) => acc + (r.value || 0), 0) || 0) + (m.complementaryRows?.reduce((acc, r) => acc + (r.totalValue || 0), 0) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => loadMeasurement(m)}>Editar</Button>
+                      <Button variant="outline" size="sm" onClick={() => { loadMeasurement(m); setTimeout(handlePrintMeasurementPdf, 100); }}>Reimprimir</Button>
+                    </div>
+                  </div>
+                ))}
+              {(measurements || []).filter(m => m.saleId === (measurementSaleId || measurementSale?.id)).length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Nenhuma medição encontrada para este projeto.</p>
+              )}
+            </div>
+          </ScrollArea>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

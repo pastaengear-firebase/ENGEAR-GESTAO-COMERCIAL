@@ -151,3 +151,44 @@ export interface BillingLog {
   requestedByUid: string;
   requestedAt: any; // server timestamp
 }
+
+export interface MaterialDeductionRow {
+  id: string;
+  docNumber: string;
+  description: string;
+  value: number;
+}
+
+export interface ComplementaryRow {
+  id: string;
+  description: string;
+  unitValue: number;
+  quantity: number;
+  totalValue: number;
+}
+
+export interface Measurement {
+  id: string;
+  saleId: string;
+  number: string;
+  revision: string;
+  date: string;
+  startDate: string;
+  endDate: string;
+  mode: 'SERVICOS' | 'PRECO_GLOBAL_COM_ABATIMENTO';
+  client: string;
+  work: string;
+  contractRef: string;
+  service: string;
+  quantity: string;
+  contractValue: number;
+  execPercent: number;
+  prevPercent: number;
+  responsible: 'SERGIO' | 'RODRIGO';
+  companyAddress: string;
+  companyBankData: string;
+  materialRows: MaterialDeductionRow[];
+  complementaryRows: ComplementaryRow[];
+  createdByUid: string;
+  requestedAt: any; // server timestamp
+}

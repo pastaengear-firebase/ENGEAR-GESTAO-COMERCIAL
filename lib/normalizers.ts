@@ -99,11 +99,12 @@ export const normalizeSaleStatus = (rawValue: unknown) => {
   if (mapped) return mapped;
 
   const key = normalizeToKey(rawValue);
-  if (!key) return undefined;
+  if (!key) return "A INICIAR"; // Default to A INICIAR if unknown
+  
   if (key.includes("CANCEL")) return "CANCELADO";
-  if (key.includes("FINAL") || key.includes("AGUARD") || key.includes("PAGAMENTO") || key.includes("FATURAD")) return "FINALIZADA";
+  if (key.includes("FINAL") || key.includes("AGUARD") || key.includes("PAGAMENTO") || key.includes("FATURAD") || key.includes("RECEB")) return "FINALIZADA";
   if (key.includes("ANDAMENTO")) return "EM ANDAMENTO";
   if (key.includes("INIC")) return "A INICIAR";
 
-  return undefined;
+  return "A INICIAR";
 };

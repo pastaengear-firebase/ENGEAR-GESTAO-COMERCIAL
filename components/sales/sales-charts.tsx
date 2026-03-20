@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AREA_OPTIONS, COMPANY_OPTIONS, STATUS_OPTIONS } from '@/lib/constants';
+import { normalizeSaleStatus } from '@/lib/normalizers';
 
 interface SalesChartsProps {
   salesData: Sale[];
@@ -17,10 +18,10 @@ interface SalesChartsProps {
 const CHART_COLORS = {
   SERGIO: 'hsl(var(--chart-1))',
   RODRIGO: 'hsl(var(--chart-2))',
-  "A INICIAR": 'hsl(var(--chart-3))',
-  "EM ANDAMENTO": 'hsl(var(--chart-4))',
-  "AGUARDANDO PAGAMENTO": 'hsl(var(--chart-2))',
-  "FINALIZADO": 'hsl(var(--chart-5))', 
+  "A INICIAR": 'hsl(var(--chart-1) / 0.8)', // Emerald/Green hue in shadcn default
+  "EM ANDAMENTO": 'hsl(var(--chart-2))',   // Blueish
+  "RECEBIDA": 'hsl(var(--chart-3))',      // Yellowish/Amber or separate
+  "FINALIZADA": 'hsl(var(--chart-3))',
   "CANCELADO": 'hsl(var(--destructive))', 
   ENGEAR: 'hsl(var(--chart-1))',
   CLIMAZONE: 'hsl(var(--chart-2))',
@@ -43,11 +44,13 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
 
   const salesByStatus = useMemo(() => {
     const data = salesData.reduce((acc, sale) => {
-      const status = sale.status;
-      if (!acc[status]) {
-        acc[status] = { name: status, value: 0 };
+      let statusName: string = normalizeSaleStatus(sale.status) || 'A INICIAR';
+      if (statusName === 'FINALIZADA') statusName = 'RECEBIDA';
+      
+      if (!acc[statusName]) {
+        acc[statusName] = { name: statusName, value: 0 };
       }
-      acc[status].value += 1; 
+      acc[statusName].value += 1; 
       return acc;
     }, {} as Record<string, { name: string; value: number }>);
     return Object.values(data);
@@ -108,10 +111,10 @@ export default function SalesCharts({ salesData }: SalesChartsProps) {
 
   const pieChartConfigStatus = {
     sales: { label: "Vendas" },
-    ...STATUS_OPTIONS.reduce((acc, status) => {
-      acc[status] = { label: status, color: CHART_COLORS[status as keyof typeof CHART_COLORS] || CHART_COLORS.default };
-      return acc;
-    }, {} as Record<string, {label: string, color: string}>)
+    "A INICIAR": { label: "A INICIAR", color: CHART_COLORS["A INICIAR"] },
+    "EM ANDAMENTO": { label: "EM ANDAMENTO", color: CHART_COLORS["EM ANDAMENTO"] },
+    "RECEBIDA": { label: "RECEBIDA", color: CHART_COLORS["RECEBIDA"] },
+    "CANCELADO": { label: "CANCELADO", color: CHART_COLORS["CANCELADO"] },
   } satisfies ChartConfig;
 
   const pieChartConfigCompany = {
