@@ -1379,7 +1379,7 @@ export default function FaturamentoPage() {
               className="flex-1"
             />
           </div>
-          <ScrollArea className="h-[450px] pr-4">
+          <ScrollArea className="h-[350px] pr-4">
             <div className="space-y-3">
               {(measurements || [])
                 .filter(m => {
