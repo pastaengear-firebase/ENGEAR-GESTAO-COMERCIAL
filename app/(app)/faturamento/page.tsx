@@ -157,16 +157,26 @@ export default function FaturamentoPage() {
   const canRequestBilling = userRole !== ALL_SELLERS_OPTION;
   const measurementSale = useMemo(() => {
     if (measurementSaleId) return sales.find(s => s.id === measurementSaleId) || null;
-    return sales[0] || null;
+    return null; // Don't default to sales[0] to keep the form blank initially
   }, [sales, measurementSaleId]);
 
   useEffect(() => {
-    if (!measurementSale) return;
+    if (!measurementSale) {
+      if (!selectedMeasurementId) {
+        // Clear fields if no sale is selected and we are not editing an existing measurement
+        setMeasurementClient('');
+        setMeasurementWork('');
+        setMeasurementContractRef('');
+        setMeasurementService('');
+        setMeasurementContractValue(0);
+        setMeasurementStartDate('');
+        setCompanyAddress('');
+        setCompanyBankData('');
+      }
+      return;
+    }
     
-    // Fix: Ensure the internal state ID is synced if it was empty (prevents save error)
-    if (!measurementSaleId) setMeasurementSaleId(measurementSale.id);
-
-    // Force update all editable fields when the sale changes
+    // Sync current UI fields with the selected sale data
     setMeasurementClient(measurementSale.clientService || '');
     setMeasurementWork(measurementSale.project || '');
     setMeasurementContractRef(measurementSale.os || '');
@@ -183,7 +193,7 @@ export default function FaturamentoPage() {
     setCompanyAddress(COMPANY_PROFILE[companyKey].address);
     setCompanyBankData(COMPANY_PROFILE[companyKey].bankData);
 
-    // Reset rows to prevent data leakage between different sale measurements
+    // Reset rows and check history only for new measurements
     if (!selectedMeasurementId) {
       setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
       setComplementaryRows([]);
@@ -196,7 +206,7 @@ export default function FaturamentoPage() {
         setMeasurementAlertOpen(true);
       }
     }
-  }, [measurementSale, measurementSaleId, selectedMeasurementId, measurements]);
+  }, [measurementSale, selectedMeasurementId, measurements]);
 
   const measurementUnitValue = measurementContractValue;
   const measurementProject = measurementWork;
