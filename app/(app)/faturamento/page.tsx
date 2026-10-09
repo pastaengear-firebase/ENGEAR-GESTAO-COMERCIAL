@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw } from 'lucide-react';
+import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
 import { useFirestore } from '@/firebase/provider';
@@ -104,7 +104,21 @@ export default function FaturamentoPage() {
   const [billingClientAddress, setBillingClientAddress] = useState('');
   const [billingNotes, setBillingNotes] = useState('');
   const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [measurementHistoryModalSearchTerm, setMeasurementHistoryModalSearchTerm] = useState('');
 
+  // Ordenação e busca
+  const [salesSortField, setSalesSortField] = useState<string>('date');
+  const [salesSortDirection, setSalesSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const [historySortField, setHistorySortField] = useState<string>('requestedAt');
+  const [historySortDirection, setHistorySortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const [pendingSearchTerm, setPendingSearchTerm] = useState<string>('');
+  const [pendingSortField, setPendingSortField] = useState<string>('daysPending');
+  const [pendingSortDirection, setPendingSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const [measurementSaleSearchTerm, setMeasurementSaleSearchTerm] = useState<string>('');
+  const [isSelectSaleModalOpen, setIsSelectSaleModalOpen] = useState<boolean>(false);
 
   const billingEnabled = settings?.enableBillingEmailNotifications ?? false;
   const billingEmails = settings?.billingNotificationEmails ?? [];
@@ -122,7 +136,94 @@ export default function FaturamentoPage() {
   );
   const { data: measurements } = useCollection<Measurement>(measurementsQuery);
 
-  // ALERTA: Controle de Cobrança (+30 dias) - mantém a lógica existente
+  // Helper de ordenação flexível e robusto
+  const sortData = <T,>(
+    data: T[],
+    field: string,
+    direction: 'asc' | 'desc',
+    customGetters?: Record<string, (item: T) => any>
+  ): T[] => {
+    return [...data].sort((a, b) => {
+      let valA = customGetters?.[field] ? customGetters[field](a) : (a as any)[field];
+      let valB = customGetters?.[field] ? customGetters[field](b) : (b as any)[field];
+
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (valA?.toDate) valA = valA.toDate().getTime();
+      if (valB?.toDate) valB = valB.toDate().getTime();
+
+      let comparison = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        comparison = valA - valB;
+      } else {
+        comparison = String(valA).localeCompare(String(valB), 'pt-BR', { numeric: true, sensitivity: 'base' });
+      }
+
+      return direction === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  const handleSortSales = (field: string) => {
+    if (salesSortField === field) {
+      setSalesSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSalesSortField(field);
+      setSalesSortDirection('asc');
+    }
+  };
+
+  const handleSortHistory = (field: string) => {
+    if (historySortField === field) {
+      setHistorySortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setHistorySortField(field);
+      setHistorySortDirection('asc');
+    }
+  };
+
+  const handleSortPending = (field: string) => {
+    if (pendingSortField === field) {
+      setPendingSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPendingSortField(field);
+      setPendingSortDirection('asc');
+    }
+  };
+
+  const renderSortableHeader = (
+    label: string,
+    field: string,
+    currentField: string,
+    currentDirection: 'asc' | 'desc',
+    onSort: (field: string) => void,
+    alignRight = false,
+    className = ''
+  ) => {
+    const isActive = currentField === field;
+    return (
+      <TableHead
+        className={`h-9 px-2 cursor-pointer select-none hover:bg-muted/80 transition-colors ${alignRight ? 'text-right' : ''} ${className}`}
+        onClick={() => onSort(field)}
+        title={`Ordenar por ${label}`}
+      >
+        <div className={`flex items-center gap-1 ${alignRight ? 'justify-end' : ''}`}>
+          <span className="truncate">{label}</span>
+          {isActive ? (
+            currentDirection === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+            )
+          ) : (
+            <ArrowUpDown className="h-3 w-3 text-muted-foreground/40 shrink-0 opacity-60 hover:opacity-100" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
+  // ALERTA: Controle de Cobrança (+30 dias) com cálculo de idade e saldo
   const pendingSales = useMemo(() => {
     const limit = subDays(new Date(), 30);
     return sales
@@ -132,19 +233,16 @@ export default function FaturamentoPage() {
         const isProcess = normalizedStatus === 'A INICIAR' || normalizedStatus === 'EM ANDAMENTO';
         return isPending && isProcess && isBefore(parseISO(s.date), limit);
       })
-      .map(s => ({ ...s, daysPending: differenceInDays(new Date(), parseISO(s.date)) }))
-      .sort((a, b) => b.daysPending - a.daysPending);
+      .map(s => ({
+        ...s,
+        daysPending: differenceInDays(new Date(), parseISO(s.date)),
+        pendingBalance: Math.max(0, s.salesValue - s.payment)
+      }));
   }, [sales]);
 
-  // LISTA PRINCIPAL: parecida com Gerenciar Vendas
-  // - todo mundo vê tudo
-  // - só vendedor logado (não ALL) pode solicitar faturamento
-  const filteredSales = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    const base = [...sales].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    if (!term) return base;
-
-    return base.filter(s =>
+  const sortedFilteredPendingSales = useMemo(() => {
+    const term = pendingSearchTerm.trim().toLowerCase();
+    const filtered = !term ? pendingSales : pendingSales.filter(s =>
       (s.project || '').toLowerCase().includes(term) ||
       (s.os || '').toLowerCase().includes(term) ||
       (s.company || '').toLowerCase().includes(term) ||
@@ -152,9 +250,64 @@ export default function FaturamentoPage() {
       (s.clientService || '').toLowerCase().includes(term) ||
       (s.seller || '').toLowerCase().includes(term)
     );
-  }, [sales, searchTerm]);
+    return sortData(filtered, pendingSortField, pendingSortDirection);
+  }, [pendingSales, pendingSearchTerm, pendingSortField, pendingSortDirection]);
 
-  const canRequestBilling = userRole !== ALL_SELLERS_OPTION;
+  // LISTA PRINCIPAL (Solicitar) com busca e ordenação clicável
+  const sortedFilteredSales = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const filtered = !term ? sales : sales.filter(s =>
+      (s.project || '').toLowerCase().includes(term) ||
+      (s.os || '').toLowerCase().includes(term) ||
+      (s.company || '').toLowerCase().includes(term) ||
+      (s.area || '').toLowerCase().includes(term) ||
+      (s.clientService || '').toLowerCase().includes(term) ||
+      (s.seller || '').toLowerCase().includes(term)
+    );
+    return sortData(filtered, salesSortField, salesSortDirection);
+  }, [sales, searchTerm, salesSortField, salesSortDirection]);
+
+  // HISTÓRICO DE FATURAMENTO com busca e ordenação completa
+  const sortedFilteredBillingHistory = useMemo(() => {
+    const term = historySearchTerm.trim().toLowerCase();
+    const base = billingLogs || [];
+    const filtered = !term ? base : base.filter(log =>
+      (log.requestedBy || '').toLowerCase().includes(term) ||
+      (log.saleData?.project || '').toLowerCase().includes(term) ||
+      (log.saleData?.os || '').toLowerCase().includes(term) ||
+      (log.saleData?.company || '').toLowerCase().includes(term) ||
+      (log.saleData?.area || '').toLowerCase().includes(term) ||
+      (log.saleData?.clientService || '').toLowerCase().includes(term) ||
+      (log.recipientEmail || '').toLowerCase().includes(term) ||
+      (log.billingInfo || '').toLowerCase().includes(term)
+    );
+    return sortData(filtered, historySortField, historySortDirection, {
+      requestedAt: (item) => item.requestedAt?.toDate ? item.requestedAt.toDate().getTime() : 0,
+      project: (item) => item.saleData?.project,
+      os: (item) => item.saleData?.os,
+      company: (item) => item.saleData?.company,
+      area: (item) => item.saleData?.area,
+      clientService: (item) => item.saleData?.clientService,
+      salesValue: (item) => item.saleData?.salesValue,
+    });
+  }, [billingLogs, historySearchTerm, historySortField, historySortDirection]);
+
+  // Vendas filtradas para o seletor do Boletim de Medição
+  const filteredSalesForMeasurement = useMemo(() => {
+    const term = measurementSaleSearchTerm.trim().toLowerCase();
+    if (!term) return sales;
+    return sales.filter(s =>
+      (s.project || '').toLowerCase().includes(term) ||
+      (s.os || '').toLowerCase().includes(term) ||
+      (s.company || '').toLowerCase().includes(term) ||
+      (s.area || '').toLowerCase().includes(term) ||
+      (s.clientService || '').toLowerCase().includes(term) ||
+      (s.seller || '').toLowerCase().includes(term)
+    );
+  }, [sales, measurementSaleSearchTerm]);
+
+  const isReader = userRole === 'LEITOR';
+  const canRequestBilling = userRole !== ALL_SELLERS_OPTION && !isReader;
   const measurementSale = useMemo(() => {
     if (measurementSaleId) return sales.find(s => s.id === measurementSaleId) || null;
     return null; // Don't default to sales[0] to keep the form blank initially
@@ -307,6 +460,11 @@ export default function FaturamentoPage() {
   };
 
   const handleSaveMeasurement = async () => {
+    if (isReader) {
+      toast({ title: 'Acesso Restrito', description: 'Usuários com perfil de Leitor não podem salvar medições.', variant: 'destructive' });
+      return;
+    }
+
     if (!measurementSaleId) {
       toast({ title: 'Aviso', description: 'Selecione uma venda base.', variant: 'destructive' });
       return;
@@ -738,7 +896,7 @@ export default function FaturamentoPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-hide">
         <Card className="shadow-sm">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Vendas na Lista</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold">{filteredSales.length}</p></CardContent>
+          <CardContent><p className="text-2xl font-semibold">{sortedFilteredSales.length}</p></CardContent>
         </Card>
         <Card className="shadow-sm">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Solicitações</CardTitle></CardHeader>
@@ -802,23 +960,23 @@ export default function FaturamentoPage() {
                 <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="h-9 px-2 w-[7%]">Data</TableHead>
-                      <TableHead className="h-9 px-2 w-[8%]">Vendedor</TableHead>
-                      <TableHead className="h-9 px-2 w-[9%]">Empresa</TableHead>
-                      <TableHead className="h-9 px-2 w-[7%]">Projeto</TableHead>
-                      <TableHead className="h-9 px-2 w-[6%]">O.S.</TableHead>
-                      <TableHead className="h-9 px-2 w-[8%]">Área</TableHead>
-                      <TableHead className="h-9 px-2 w-[16%]">Cliente/Serviço</TableHead>
-                      <TableHead className="h-9 px-2 text-right w-[11%]">Valor Venda</TableHead>
-                      <TableHead className="h-9 px-2 w-[11%]">Status</TableHead>
-                      <TableHead className="h-9 px-2 text-right w-[11%]">Pagamento</TableHead>
+                      {renderSortableHeader('Data', 'date', salesSortField, salesSortDirection, handleSortSales, false, 'w-[7%]')}
+                      {renderSortableHeader('Vendedor', 'seller', salesSortField, salesSortDirection, handleSortSales, false, 'w-[8%]')}
+                      {renderSortableHeader('Empresa', 'company', salesSortField, salesSortDirection, handleSortSales, false, 'w-[9%]')}
+                      {renderSortableHeader('Projeto', 'project', salesSortField, salesSortDirection, handleSortSales, false, 'w-[7%]')}
+                      {renderSortableHeader('O.S.', 'os', salesSortField, salesSortDirection, handleSortSales, false, 'w-[6%]')}
+                      {renderSortableHeader('Área', 'area', salesSortField, salesSortDirection, handleSortSales, false, 'w-[8%]')}
+                      {renderSortableHeader('Cliente/Serviço', 'clientService', salesSortField, salesSortDirection, handleSortSales, false, 'w-[16%]')}
+                      {renderSortableHeader('Valor Venda', 'salesValue', salesSortField, salesSortDirection, handleSortSales, true, 'w-[11%]')}
+                      {renderSortableHeader('Status', 'status', salesSortField, salesSortDirection, handleSortSales, false, 'w-[11%]')}
+                      {renderSortableHeader('Pagamento', 'payment', salesSortField, salesSortDirection, handleSortSales, true, 'w-[11%]')}
                       <TableHead className="h-9 px-2 w-[3%] text-center">PDF</TableHead>
                       <TableHead className="h-9 px-2 text-right w-[4%]">Faturar</TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
-                    {filteredSales.map((s) => {
+                    {sortedFilteredSales.map((s) => {
                       const pdfUrl = (s as any).attachmentUrl as string | undefined;
 
                       return (
@@ -921,29 +1079,85 @@ export default function FaturamentoPage() {
         </TabsContent>
 
         <TabsContent value="history">
-          <Card>
-            <CardContent className="pt-6">
-              <ScrollArea className="h-96">
-                <Table>
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Histórico de Solicitações de Faturamento</CardTitle>
+              <div className="flex gap-2 mt-2 flex-wrap print-hide">
+                <Input
+                  placeholder="Buscar no histórico por projeto, empresa, O.S., vendedor, cliente..."
+                  value={historySearchTerm}
+                  onChange={e => setHistorySearchTerm(e.target.value)}
+                />
+                <Button variant="outline" type="button" onClick={() => setHistorySearchTerm('')}>
+                  <RotateCcw className="h-4 w-4 mr-2" /> Limpar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="whitespace-nowrap rounded-md border">
+                <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Vendedor</TableHead>
-                      <TableHead>Projeto</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
+                      {renderSortableHeader('Data Solicitação', 'requestedAt', historySortField, historySortDirection, handleSortHistory, false, 'w-[9%]')}
+                      {renderSortableHeader('Vendedor', 'requestedBy', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
+                      {renderSortableHeader('Empresa', 'company', historySortField, historySortDirection, handleSortHistory, false, 'w-[9%]')}
+                      {renderSortableHeader('Projeto', 'project', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
+                      {renderSortableHeader('O.S.', 'os', historySortField, historySortDirection, handleSortHistory, false, 'w-[6%]')}
+                      {renderSortableHeader('Área', 'area', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
+                      {renderSortableHeader('Cliente/Serviço', 'clientService', historySortField, historySortDirection, handleSortHistory, false, 'w-[16%]')}
+                      {renderSortableHeader('Valor Venda', 'salesValue', historySortField, historySortDirection, handleSortHistory, true, 'w-[10%]')}
+                      {renderSortableHeader('Valor Faturado', 'billingAmount', historySortField, historySortDirection, handleSortHistory, true, 'w-[10%]')}
+                      {renderSortableHeader('Destinatário', 'recipientEmail', historySortField, historySortDirection, handleSortHistory, false, 'w-[11%]')}
+                      <TableHead className="h-9 px-2 w-[5%] text-center">PDF</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {billingLogs?.map(log => (
-                      <TableRow key={log.id}>
-                        <TableCell>{log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yy HH:mm') : '...'}</TableCell>
-                        <TableCell>{log.requestedBy}</TableCell>
-                        <TableCell>{log.saleData.project}</TableCell>
-                        <TableCell className="text-right">{log.billingAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                    {sortedFilteredBillingHistory.map(log => {
+                      const pdfUrl = (log.saleData as any)?.attachmentUrl as string | undefined;
+                      return (
+                        <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
+                          <TableCell className="px-2 py-2 whitespace-nowrap">
+                            {log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yy HH:mm') : '...'}
+                          </TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{log.requestedBy}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.company}>{log.saleData?.company || '—'}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.project}>{log.saleData?.project || '—'}</TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap" title={log.saleData?.os}>{log.saleData?.os || '—'}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.area}>{log.saleData?.area || '—'}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.clientService}>{log.saleData?.clientService || '—'}</TableCell>
+                          <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                            {(log.saleData?.salesValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                          <TableCell className="px-2 py-2 text-right whitespace-nowrap font-semibold text-primary">
+                            {(log.billingAmount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                          <TableCell className="px-2 py-2 truncate text-muted-foreground text-xs" title={log.recipientEmail}>
+                            {log.recipientEmail || '—'}
+                          </TableCell>
+                          <TableCell className="px-2 py-2 text-center">
+                            {pdfUrl ? (
+                              <Button asChild variant="outline" size="icon" className="h-7 w-7" title="Ver PDF">
+                                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                                  <LinkIcon className="h-3.5 w-3.5" />
+                                </a>
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/70 italic">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {sortedFilteredBillingHistory.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
+                          Nenhum registro de faturamento encontrado.
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
+                <ScrollBar orientation="horizontal" />
               </ScrollArea>
             </CardContent>
           </Card>
@@ -957,19 +1171,53 @@ export default function FaturamentoPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Venda base</Label>
-                  <select
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    value={measurementSaleId}
-                    onChange={(e) => setMeasurementSaleId(e.target.value)}
-                  >
-                    <option value="">Selecione uma venda...</option>
-                    {sales.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.project} - {s.clientService}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between">
+                    <Label>Venda base</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setIsSelectSaleModalOpen(true)}
+                    >
+                      <Search className="h-3.5 w-3.5 mr-1" /> Localizar na Lista
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <select
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        value={measurementSaleId}
+                        onChange={(e) => setMeasurementSaleId(e.target.value)}
+                      >
+                        <option value="">Selecione uma venda...</option>
+                        {filteredSalesForMeasurement.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.project} - {s.clientService} {s.os ? `(O.S. ${s.os})` : ''} - {s.salesValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Filtrar opções acima por projeto, O.S., empresa..."
+                      value={measurementSaleSearchTerm}
+                      onChange={(e) => setMeasurementSaleSearchTerm(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    {measurementSaleSearchTerm && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => setMeasurementSaleSearchTerm('')}
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Início do período</Label>
@@ -1235,16 +1483,18 @@ export default function FaturamentoPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t mt-6">
-                <Button type="button" variant="outline" onClick={handleNewMeasurement}>Nova Medição</Button>
+                {!isReader && <Button type="button" variant="outline" onClick={handleNewMeasurement}>Nova Medição</Button>}
                 <Button type="button" variant="outline" onClick={() => setIsMeasurementHistoryModalOpen(true)}>Mostrar histórico</Button>
                 <Button type="button" variant="secondary" onClick={handlePrintMeasurementPdf}>Gerar PDF</Button>
-                <Button type="button" onClick={handleSaveMeasurement} disabled={isSavingMeasurement}>
-                  {isSavingMeasurement ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
-                  ) : (
-                    selectedMeasurementId ? "Atualizar medição" : "Salvar medição"
-                  )}
-                </Button>
+                {!isReader && (
+                  <Button type="button" onClick={handleSaveMeasurement} disabled={isSavingMeasurement}>
+                    {isSavingMeasurement ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
+                    ) : (
+                      selectedMeasurementId ? "Atualizar medição" : "Salvar medição"
+                    )}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1277,31 +1527,102 @@ export default function FaturamentoPage() {
         </TabsContent>
       </Tabs>
 
-      <Card id="cobranca" className="border-amber-500/20">
+      <Card id="cobranca" className="border-amber-500/20 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-amber-600">
-            <AlertTriangle className="mr-2" /> Controle de Cobrança
+            <AlertTriangle className="mr-2" /> Controle de Cobrança (Pendentes +30 dias)
           </CardTitle>
+          <div className="flex gap-2 mt-2 flex-wrap print-hide">
+            <Input
+              placeholder="Buscar em cobrança por projeto, empresa, O.S., vendedor, cliente..."
+              value={pendingSearchTerm}
+              onChange={e => setPendingSearchTerm(e.target.value)}
+            />
+            <Button variant="outline" type="button" onClick={() => setPendingSearchTerm('')}>
+              <RotateCcw className="h-4 w-4 mr-2" /> Limpar
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Projeto</TableHead>
-                <TableHead className="text-right">Atraso</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingSales.map((s: any) => (
-                <TableRow key={s.id}>
-                  <TableCell>{s.seller}</TableCell>
-                  <TableCell>{s.project}</TableCell>
-                  <TableCell className="text-right text-destructive font-bold">{s.daysPending} dias</TableCell>
+          <ScrollArea className="whitespace-nowrap rounded-md border">
+            <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
+              <TableHeader>
+                <TableRow>
+                  {renderSortableHeader('Data', 'date', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[7%]')}
+                  {renderSortableHeader('Vendedor', 'seller', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[8%]')}
+                  {renderSortableHeader('Empresa', 'company', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[8%]')}
+                  {renderSortableHeader('Projeto', 'project', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[7%]')}
+                  {renderSortableHeader('O.S.', 'os', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[6%]')}
+                  {renderSortableHeader('Área', 'area', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[8%]')}
+                  {renderSortableHeader('Cliente/Serviço', 'clientService', pendingSortField, pendingSortDirection, handleSortPending, false, 'w-[15%]')}
+                  {renderSortableHeader('Valor Venda', 'salesValue', pendingSortField, pendingSortDirection, handleSortPending, true, 'w-[10%]')}
+                  {renderSortableHeader('Pago', 'payment', pendingSortField, pendingSortDirection, handleSortPending, true, 'w-[9%]')}
+                  {renderSortableHeader('Saldo Devedor', 'pendingBalance', pendingSortField, pendingSortDirection, handleSortPending, true, 'w-[10%]')}
+                  {renderSortableHeader('Idade (Atraso)', 'daysPending', pendingSortField, pendingSortDirection, handleSortPending, true, 'w-[8%]')}
+                  <TableHead className="h-9 px-2 w-[4%] text-center">PDF</TableHead>
+                  <TableHead className="h-9 px-2 text-right w-[5%]">Faturar</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {sortedFilteredPendingSales.map((s: any) => {
+                  const pdfUrl = (s as any).attachmentUrl as string | undefined;
+                  return (
+                    <TableRow key={s.id} className="hover:bg-muted/50 transition-colors">
+                      <TableCell className="px-2 py-2 whitespace-nowrap">{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
+                      <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{s.seller}</TableCell>
+                      <TableCell className="px-2 py-2 truncate" title={s.company}>{s.company || '—'}</TableCell>
+                      <TableCell className="px-2 py-2 truncate" title={s.project}>{s.project || '—'}</TableCell>
+                      <TableCell className="px-2 py-2 whitespace-nowrap" title={s.os}>{s.os || '—'}</TableCell>
+                      <TableCell className="px-2 py-2 truncate" title={s.area}>{s.area || '—'}</TableCell>
+                      <TableCell className="px-2 py-2 truncate" title={s.clientService}>{s.clientService || '—'}</TableCell>
+                      <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                        {s.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                        {s.payment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-right whitespace-nowrap font-semibold text-amber-700">
+                        {s.pendingBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-right whitespace-nowrap font-bold text-destructive">
+                        {s.daysPending} dias
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-center">
+                        {pdfUrl ? (
+                          <Button asChild variant="outline" size="icon" className="h-7 w-7" title="Ver PDF">
+                            <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                              <LinkIcon className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/70 italic">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-right">
+                        <Button
+                          type="button"
+                          onClick={() => handleSelectSale(s)}
+                          disabled={!canRequestBilling}
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                        >
+                          <Send className="mr-1 h-3.5 w-3.5" /> Faturar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {sortedFilteredPendingSales.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={13} className="text-center py-6 text-muted-foreground">
+                      Nenhuma venda pendente +30 dias encontrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </CardContent>
       </Card>
 
@@ -1374,8 +1695,8 @@ export default function FaturamentoPage() {
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Buscar por cliente, projeto ou O.S..." 
-              value={historySearchTerm} 
-              onChange={(e) => setHistorySearchTerm(e.target.value)}
+              value={measurementHistoryModalSearchTerm} 
+              onChange={(e) => setMeasurementHistoryModalSearchTerm(e.target.value)}
               className="flex-1"
             />
           </div>
@@ -1383,7 +1704,7 @@ export default function FaturamentoPage() {
             <div className="space-y-3">
               {(measurements || [])
                 .filter(m => {
-                  const term = historySearchTerm.toLowerCase();
+                  const term = measurementHistoryModalSearchTerm.toLowerCase();
                   return (m.client || '').toLowerCase().includes(term) || 
                          (m.work || '').toLowerCase().includes(term) || 
                          (m.contractRef || '').toLowerCase().includes(term) ||
@@ -1411,7 +1732,87 @@ export default function FaturamentoPage() {
             </div>
           </ScrollArea>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setHistorySearchTerm('')}>Fechar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setMeasurementHistoryModalSearchTerm('')}>Fechar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isSelectSaleModalOpen} onOpenChange={setIsSelectSaleModalOpen}>
+        <AlertDialogContent className="max-w-4xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Localizar e Selecionar Venda para Medição</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pesquise a venda desejada por projeto, O.S., empresa ou cliente e clique em &quot;Selecionar&quot;.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center gap-2 mb-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por projeto, empresa, O.S., vendedor, cliente..."
+              value={measurementSaleSearchTerm}
+              onChange={(e) => setMeasurementSaleSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            {measurementSaleSearchTerm && (
+              <Button variant="ghost" size="sm" onClick={() => setMeasurementSaleSearchTerm('')}>
+                Limpar
+              </Button>
+            )}
+          </div>
+          <ScrollArea className="h-[380px] rounded-md border">
+            <Table className="w-full text-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="py-2">Data</TableHead>
+                  <TableHead className="py-2">Vendedor</TableHead>
+                  <TableHead className="py-2">Empresa</TableHead>
+                  <TableHead className="py-2">Projeto</TableHead>
+                  <TableHead className="py-2">O.S.</TableHead>
+                  <TableHead className="py-2">Cliente/Serviço</TableHead>
+                  <TableHead className="py-2 text-right">Valor Venda</TableHead>
+                  <TableHead className="py-2 text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSalesForMeasurement.map((s) => (
+                  <TableRow key={s.id} className="hover:bg-muted/50">
+                    <TableCell className="py-2 whitespace-nowrap">{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
+                    <TableCell className="py-2 whitespace-nowrap">{s.seller}</TableCell>
+                    <TableCell className="py-2 truncate" title={s.company}>{s.company}</TableCell>
+                    <TableCell className="py-2 font-medium truncate" title={s.project}>{s.project}</TableCell>
+                    <TableCell className="py-2 whitespace-nowrap">{s.os || '—'}</TableCell>
+                    <TableCell className="py-2 truncate" title={s.clientService}>{s.clientService}</TableCell>
+                    <TableCell className="py-2 text-right whitespace-nowrap">
+                      {s.salesValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </TableCell>
+                    <TableCell className="py-2 text-right">
+                      <Button
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setMeasurementSaleId(s.id);
+                          setIsSelectSaleModalOpen(false);
+                          toast({ title: "Venda selecionada", description: `${s.project} carregado para medição.` });
+                        }}
+                      >
+                        Selecionar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredSalesForMeasurement.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                      Nenhuma venda encontrada com os termos informados.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

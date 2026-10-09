@@ -49,7 +49,7 @@ export default function GerenciarVendasPage() {
   const totalSalesValue = displaySales.reduce((sum, sale) => sum + sale.salesValue, 0);
   const totalPayments = displaySales.reduce((sum, sale) => sum + sale.payment, 0);
   const totalPending = Math.max(0, totalSalesValue - totalPayments);
-  const isUserReadOnly = userRole === ALL_SELLERS_OPTION;
+  const isUserReadOnly = userRole === 'LEITOR';
   
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
@@ -60,10 +60,10 @@ export default function GerenciarVendasPage() {
   };
   
   const handleEditClick = (sale: Sale) => {
-    if (userRole !== sale.seller) {
+    if (userRole !== ALL_SELLERS_OPTION && userRole !== sale.seller) {
         toast({
             title: "Ação Não Permitida",
-            description: `Apenas o vendedor ${sale.seller} pode modificar esta venda.`,
+            description: `Apenas o vendedor ${sale.seller} ou a Equipe Comercial podem modificar esta venda.`,
             variant: "destructive",
         });
         return;
@@ -257,9 +257,9 @@ export default function GerenciarVendasPage() {
             os: String(row['O.S.'] ?? ''),
             area: area as AreaOption,
             clientService: clientService,
-            salesValue: Number(Math.round(+(salesValue || 0) + 'e+2') + 'e-2'),
+            salesValue: Math.round((Number(salesValue) || 0) * 100) / 100,
             status: status as StatusOption,
-            payment: Number(Math.round(+(payment || 0) + 'e+2') + 'e-2'),
+            payment: Math.round((Number(payment) || 0) * 100) / 100,
           });
         });
 
@@ -337,7 +337,11 @@ export default function GerenciarVendasPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <SalesTable salesData={displaySales} onEdit={handleEditClick} onDelete={confirmDelete} />
+          <SalesTable 
+            salesData={displaySales} 
+            onEdit={isUserReadOnly ? undefined : handleEditClick} 
+            onDelete={isUserReadOnly ? undefined : confirmDelete} 
+          />
         </CardContent>
         <CardFooter className="border-t p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm text-muted-foreground">
            <p className="flex-1">Total de Registros: <span className="font-semibold text-foreground">{displaySales.length}</span></p>

@@ -4,12 +4,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SalesFormSchema, type SalesFormData } from "@/lib/schemas";
-import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, ALL_SELLERS_OPTION } from "@/lib/constants";
+import { AREA_OPTIONS, STATUS_OPTIONS, COMPANY_OPTIONS, ALL_SELLERS_OPTION, SELLERS } from "@/lib/constants";
 import { useSales } from "@/hooks/use-sales";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useSettings } from "@/hooks/use-settings";
 import { useFirestore, useStorage } from "@/firebase/provider";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { Sale } from "@/lib/types";
+import type { Sale, Seller } from "@/lib/types";
 import { normalizeArea, normalizeCompany, normalizeSaleStatus } from "@/lib/normalizers";
 
 const sanitizeSelectValue = (value: unknown): string | undefined => {
@@ -48,7 +48,7 @@ export default function SalesForm({
   onFormSubmit,
   showReadOnlyAlert,
 }: SalesFormProps) {
-  const { addSale, updateSale, userRole, sales } = useSales();
+  const { addSale, updateSale, userRole, sales, availableSellers } = useSales();
   const { getQuoteById: getQuoteByIdFromContext, updateQuote: updateQuoteStatus, loadingQuotes } = useQuotes();
   const { settings: appSettings } = useSettings();
   const firestore = useFirestore();
@@ -98,8 +98,8 @@ export default function SalesForm({
   });
 
   const isFormDisabled =
-    (userRole === ALL_SELLERS_OPTION && !editMode) ||
-    (editMode && userRole !== saleToEdit?.seller);
+    (userRole === ALL_SELLERS_OPTION && !editMode && false) || // Editores podem agora criar
+    (editMode && userRole !== saleToEdit?.seller && userRole !== ALL_SELLERS_OPTION); // Editores podem editar tudo exceto cancelar (tratado no status)
 
   const resetPdfStateFromSale = useCallback((sale?: any) => {
     const url = sale?.attachmentUrl ?? null;
@@ -142,6 +142,8 @@ export default function SalesForm({
           payment: 0,
           summary: "",
           sendSaleNotification: appSettings?.enableSalesEmailNotifications || false,
+          seller: SELLERS.includes(userRole as any) ? (userRole as Seller) : undefined,
+          sellerUid: undefined,
         });
         form.clearErrors();
       }
@@ -363,6 +365,7 @@ export default function SalesForm({
 
     const salePayload = {
       ...data,
+      os: data.os || '',
       date: format(data.date, "yyyy-MM-dd"),
       salesValue: Number(data.salesValue || 0),
       payment: Number(data.payment || 0),
@@ -541,10 +544,58 @@ export default function SalesForm({
             )}
           />
 
-          <FormItem>
-            <FormLabel>Vendedor</FormLabel>
-            <Input value={originatingSeller || userRole} disabled className="bg-muted" />
-          </FormItem>
+          {userRole !== ALL_SELLERS_OPTION ? (
+            <FormItem>
+              <FormLabel>Vendedor</FormLabel>
+              <Input value={originatingSeller || userRole} disabled className="bg-muted" />
+            </FormItem>
+          ) : (
+            <FormField
+              control={form.control}
+              name="seller"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Vendedor Atribuído</FormLabel>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // Buscar o UID do vendedor selecionado
+                      const sellerProfile = availableSellers.find(s => s.name === value);
+                      if (sellerProfile) {
+                        form.setValue('sellerUid', sellerProfile.uid);
+                      } else {
+                        // Se não encontrar, buscar no firestore (em caso de recém logado)
+                        if (firestore) {
+                          const q = query(collection(firestore, 'users'), where('role', '==', value));
+                          getDocs(q).then(snap => {
+                            if (!snap.empty) {
+                              form.setValue('sellerUid', snap.docs[0].data().uid);
+                            }
+                          });
+                        }
+                      }
+                    }} 
+                    value={field.value} 
+                    disabled={isSubmitting || pdfUploading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o Vendedor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {SELLERS.map((sellerName) => (
+                        <SelectItem key={sellerName} value={sellerName}>
+                          {sellerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
@@ -675,11 +726,18 @@ export default function SalesForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
+                    {STATUS_OPTIONS.map((option) => {
+                      // Restrição: Apenas o dono pode cancelar
+                      const isOwner = userRole === (editMode ? saleToEdit?.seller : form.getValues('seller'));
+                      if (option === 'CANCELADO' && !isOwner && userRole === ALL_SELLERS_OPTION) {
+                        return null;
+                      }
+                      return (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <FormMessage />

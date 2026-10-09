@@ -45,7 +45,6 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
       case 'EM ANDAMENTO':
         return 'secondary';
       case 'CANCELADO':
-      case 'CANCELADA':
         return 'destructive';
       default:
         return 'outline';
@@ -160,7 +159,7 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                       </a>
                     </Button>
                   </div>
-                ) : (
+                ) : showActions ? (
                   <Button
                     variant="secondary"
                     size="icon"
@@ -174,6 +173,8 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
                   >
                     {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
                   </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">-</span>
                 )}
               </TableCell>
               {showActions && (

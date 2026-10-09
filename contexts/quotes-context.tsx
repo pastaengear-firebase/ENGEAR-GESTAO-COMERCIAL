@@ -5,7 +5,7 @@ import { useFirestore, useStorage } from '../firebase/provider';
 import { useCollection } from '../firebase/firestore/use-collection';
 import { collection, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { ALL_SELLERS_OPTION } from '../lib/constants';
+import { ALL_SELLERS_OPTION, READER_ROLE } from '../lib/constants';
 import type { Quote, QuotesContextType, Seller, FollowUpOptionValue, QuoteDashboardFilters } from '../lib/types';
 import { useSales } from '../hooks/use-sales';
 import { format, parseISO, addDays } from 'date-fns';
@@ -49,10 +49,18 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { viewingAsSeller, userRole, user } = useSales();
   
   const addQuote = useCallback(async (
-    quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue }
+    quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid' | 'followUpDate' | 'followUpDone' | 'followUpSequence'> & { followUpOption: FollowUpOptionValue, seller?: Seller, sellerUid?: string }
   ): Promise<Quote> => {
-    if (!quotesCollection || !user || userRole === ALL_SELLERS_OPTION) throw new Error("Usuário não tem permissão para adicionar uma proposta.");
+    if (!quotesCollection || !user) throw new Error("Usuário não autenticado.");
+    if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para adicionar propostas.");
     
+    const finalSeller = userRole !== ALL_SELLERS_OPTION ? (userRole as Seller) : quoteData.seller;
+    const finalSellerUid = userRole !== ALL_SELLERS_OPTION ? user.uid : quoteData.sellerUid;
+
+    if (!finalSeller || !finalSellerUid) {
+      throw new Error("Vendedor não identificado. Selecione um vendedor válido.");
+    }
+
     const { followUpOption, ...restOfQuoteData } = quoteData;
     const { date, sequence, done } = calculateFollowUp(quoteData.proposalDate, followUpOption);
 
@@ -61,8 +69,9 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...restOfQuoteData,
       company: normalizeCompany(restOfQuoteData.company),
       area: normalizeArea(restOfQuoteData.area),
-      seller: userRole as Seller,
-      sellerUid: user.uid,
+      seller: finalSeller,
+      sellerUid: finalSellerUid,
+      creatorUid: user.uid,
       followUpDate: date,
       followUpDone: done,
       followUpSequence: sequence,
@@ -78,13 +87,28 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } as Quote;
   }, [userRole, quotesCollection, user]);
 
-  const addBulkQuotes = useCallback(async (newQuotesData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'>[]) => {
-    if (!firestore || !quotesCollection || !user || userRole === ALL_SELLERS_OPTION) throw new Error("Usuário não tem permissão para importar propostas.");
+  const addBulkQuotes = useCallback(async (newQuotesData: (Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'sellerUid'> & { seller?: Seller, sellerUid?: string })[]) => {
+    if (!firestore || !quotesCollection || !user) throw new Error("Permissão negada.");
+    if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para importar propostas.");
     const batch = writeBatch(firestore);
     newQuotesData.forEach(quoteData => {
         const docRef = doc(quotesCollection);
-        const cleanedData = Object.fromEntries(Object.entries(quoteData).filter(([_, v]) => v !== undefined));
-        batch.set(docRef, { ...cleanedData, seller: userRole, sellerUid: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+
+        const finalSeller = userRole !== ALL_SELLERS_OPTION ? (userRole as Seller) : quoteData.seller;
+        const finalSellerUid = userRole !== ALL_SELLERS_OPTION ? user.uid : quoteData.sellerUid;
+
+        if (!finalSeller || !finalSellerUid) return;
+
+        const normalizedQuote = {
+          ...quoteData,
+          company: normalizeCompany(quoteData.company),
+          area: normalizeArea(quoteData.area),
+          seller: finalSeller,
+          sellerUid: finalSellerUid,
+          creatorUid: user.uid,
+        };
+        const cleanedData = Object.fromEntries(Object.entries(normalizedQuote).filter(([_, v]) => v !== undefined));
+        batch.set(docRef, { ...cleanedData, seller: finalSeller, sellerUid: finalSellerUid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     await batch.commit();
   }, [firestore, quotesCollection, user, userRole]);
@@ -94,6 +118,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     quoteUpdateData: Partial<Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'seller' | 'followUpDate' | 'followUpSequence'>> & { followUpOption: FollowUpOptionValue, followUpDone?: boolean }
   ) => {
     if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
+    if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para modificar propostas.");
     
     const quoteRef = doc(quotesCollection, id);
     const { followUpOption, ...restOfUpdateData } = quoteUpdateData;
@@ -112,10 +137,11 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const cleanedPayload = Object.fromEntries(Object.entries(updatePayload).filter(([_, v]) => v !== undefined));
     await updateDoc(quoteRef, { ...cleanedPayload, updatedAt: serverTimestamp() });
-  }, [quotes, quotesCollection]);
+  }, [quotes, quotesCollection, userRole]);
 
   const deleteQuote = useCallback(async (id: string) => {
     if (!quotesCollection) throw new Error("Firestore não inicializado para propostas");
+    if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para excluir propostas.");
     
     const quoteToDelete = quotes?.find(q => q.id === id);
     if (quoteToDelete?.attachmentPath) {
@@ -123,7 +149,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await deleteObject(fileRef).catch(() => {});
     }
     await deleteDoc(doc(quotesCollection, id));
-  }, [quotesCollection, quotes, storage]);
+  }, [quotesCollection, quotes, storage, userRole]);
 
   const getQuoteById = useCallback((id: string): Quote | undefined => {
     return quotes?.find(quote => quote.id === id);
@@ -131,6 +157,7 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const uploadAttachment = useCallback(async (quoteId: string, file: File) => {
     if (!storage || !quotesCollection) throw new Error("Storage ou Firestore não inicializado.");
+    if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para anexar arquivos.");
     
     const safeName = file.name.replace(/[^\w.\-() ]+/g, '_');
     const filePath = `proposals/${quoteId}/${Date.now()}-${safeName}`;
@@ -145,10 +172,11 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         attachmentName: file.name,
         updatedAt: serverTimestamp()
     });
-  }, [storage, quotesCollection]);
+  }, [storage, quotesCollection, userRole]);
 
   const deleteAttachment = useCallback(async (quote: Quote) => {
       if (!storage || !quotesCollection || !quote.attachmentPath) return;
+      if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para remover arquivos.");
       const fileRef = ref(storage, quote.attachmentPath);
       await deleteObject(fileRef).catch(() => {});
 
@@ -159,10 +187,11 @@ export const QuotesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           attachmentName: null,
           updatedAt: serverTimestamp()
       });
-  }, [storage, quotesCollection]);
+  }, [storage, quotesCollection, userRole]);
 
   const toggleFollowUpDone = useCallback(async (quoteId: string) => {
     if (!quotesCollection) throw new Error("Firestore não inicializado para propostas.");
+    if (userRole === READER_ROLE) throw new Error("Usuários com perfil de Leitor não possuem permissão para alterar follow-up.");
     const quote = quotes?.find(q => q.id === quoteId);
     if (!quote) return;
 

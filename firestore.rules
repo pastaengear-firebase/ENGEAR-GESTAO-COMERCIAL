@@ -1,65 +1,171 @@
 rules_version = '2';
 
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: sales
+// Document ID: {saleId}
+// Fields:
+//   - seller: string (SERGIO | RODRIGO)
+//   - sellerUid: string (Firebase Auth UID)
+//   - creatorUid: string (Firebase Auth UID of creator)
+//   - date: string (ISO date string)
+//   - company: string (ENGEAR | CLIMAZONE)
+//   - project: string
+//   - os: string
+//   - area: string
+//   - clientService: string
+//   - salesValue: number
+//   - status: string
+//   - payment: number
+//   - summary: string (optional)
+//   - attachmentUrl: string (optional)
+//   - attachmentPath: string (optional)
+//   - attachmentName: string (optional)
+//   - createdAt: timestamp
+//   - updatedAt: timestamp (optional)
+//
+// Collection: quotes
+// Document ID: {quoteId}
+// Fields:
+//   - seller: string (SERGIO | RODRIGO)
+//   - sellerUid: string (Firebase Auth UID)
+//   - creatorUid: string (Firebase Auth UID of creator)
+//   - clientName: string
+//   - proposalDate: string (ISO date string)
+//   - validityDate: string (optional, ISO date string)
+//   - company: string (ENGEAR | CLIMAZONE)
+//   - area: string
+//   - contactSource: string
+//   - description: string
+//   - proposedValue: number
+//   - status: string
+//   - notes: string (optional)
+//   - followUpDate: string (optional)
+//   - followUpDone: bool (optional)
+//   - followUpSequence: string (optional)
+//   - attachmentUrl: string (optional)
+//   - attachmentPath: string (optional)
+//   - attachmentName: string (optional)
+//   - createdAt: timestamp
+//   - updatedAt: timestamp (optional)
+//
+// Collection: users
+// Document ID: {userId} (user email or auth uid)
+// Fields:
+//   - uid: string
+//   - email: string
+//   - displayName: string (optional)
+//   - role: string (SERGIO | RODRIGO | EQUIPE COMERCIAL | LEITOR)
+//   - updatedAt: timestamp
+//
+// Collection: settings
+// Document ID: {settingId}
+// Fields:
+//   - enableSalesEmailNotifications: bool (optional)
+//   - salesNotificationEmails: list (optional)
+//   - enableProposalsEmailNotifications: bool (optional)
+//   - proposalsNotificationEmails: list (optional)
+//   - enableBillingEmailNotifications: bool (optional)
+//   - billingNotificationEmails: list (optional)
+//   - updatedAt: timestamp (optional)
+//
+// Collection: billing-logs
+// Document ID: {logId}
+// Fields:
+//   - saleId: string
+//   - saleData: map
+//   - billingInfo: string (optional)
+//   - billingAmount: number
+//   - recipientEmail: string
+//   - requestedBy: string
+//   - requestedByUid: string
+//   - requestedAt: timestamp
+//
+// Collection: measurements
+// Document ID: {measurementId}
+// Fields:
+//   - saleId: string
+//   - number: string
+//   - revision: string
+//   - date: string
+//   - startDate: string
+//   - endDate: string
+//   - mode: string
+//   - client: string
+//   - work: string
+//   - contractRef: string
+//   - service: string
+//   - contractValue: number
+//   - execPercent: number
+//   - prevPercent: number
+//   - responsible: string
+//   - createdByUid: string
+//   - requestedAt: timestamp
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAuthorizedEditor() {
+      return isAuthenticated() &&
+        request.auth.token.email != null &&
+        request.auth.token.email.lower() in [
+          'sergio@engearpb.com.br',
+          'pastaengear@gmail.com',
+          'rodrigobarros@engearpb.com.br',
+          'carlosroberto@engearpb.com.br',
+          'gitana@engearpb.com.br',
+          'vendas@engearpb.com.br',
+          'engenharia01@engearpb.com.br'
+        ];
+    }
+
     // Allow logged-in users to read all documents.
     match /{document=**} {
-      allow read: if request.auth != null;
+      allow read: if isAuthenticated();
     }
 
-    // Sales Collection: Secure write operations based on user identity.
+    // Sales Collection: Authenticated users can read; authorized editors can write.
     match /sales/{saleId} {
-      // Allow create if the user is authenticated and the seller UID on the new document matches their own UID.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerUid;
-
-      // Allow update only if the user owns the document AND is not changing ownership (sellerUid).
-      allow update: if request.auth != null
-        && request.auth.uid == resource.data.sellerUid
-        && request.resource.data.sellerUid == resource.data.sellerUid;
-
-      // Allow delete if the user owns the document.
-      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerUid;
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedEditor();
     }
 
-    // Quotes Collection: Secure write operations based on user identity.
+    // Quotes Collection: Authenticated users can read; authorized editors can write.
     match /quotes/{quoteId} {
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerUid;
-
-      // Allow update only if the user owns the document AND is not changing ownership (sellerUid).
-      allow update: if request.auth != null
-        && request.auth.uid == resource.data.sellerUid
-        && request.resource.data.sellerUid == resource.data.sellerUid;
-
-      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerUid;
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedEditor();
     }
 
-    // Settings Collection: Allow any authenticated user to manage settings.
+    // Users Collection: Profiles saved by email/UID for seller role mapping.
+    // Any authenticated user can read and manage their user profile document.
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Settings Collection: Authenticated users can read; authorized editors can write.
     match /settings/{settingId} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedEditor();
     }
 
-    // Billing Logs Collection: Allow authenticated users to create logs.
+    // Billing Logs Collection: Authenticated users can read; authorized editors can write.
     match /billing-logs/{logId} {
-      allow create: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedEditor();
     }
 
-    // Measurements Collection: Allow authenticated users to manage measurements.
+    // Measurements Collection: Authenticated users can read; authorized editors can write.
     match /measurements/{measurementId} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /proposals/{quoteId}/{allPaths=**} {
-      // Allow read for any authenticated user
-      allow read: if request.auth != null;
-
-      // Allow write (create, update, delete) only if the user is the owner of the quote
-      allow write: if request.auth != null
-        && get(/databases/$(database)/documents/quotes/$(quoteId)).data.sellerUid == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedEditor();
     }
   }
 }

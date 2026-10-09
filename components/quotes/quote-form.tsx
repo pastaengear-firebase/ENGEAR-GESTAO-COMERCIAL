@@ -11,6 +11,8 @@ import type { Seller } from '@/lib/constants';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
+import { useFirestore } from '@/firebase/provider';
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,16 +53,19 @@ interface QuoteFormProps {
 
 export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert }: QuoteFormProps) {
   const { addQuote, updateQuote } = useQuotes();
-  const { userRole } = useSales();
+  const { userRole, availableSellers } = useSales();
   const { settings: appSettings, loadingSettings } = useSettings(); 
   const { toast } = useToast();
+  const firestore = useFirestore();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   const editMode = !!quoteToEdit;
 
-  const isFormDisabled = (userRole === ALL_SELLERS_OPTION && !editMode) || (editMode && userRole !== quoteToEdit.seller);
+  const isFormDisabled =
+    (userRole === ALL_SELLERS_OPTION && !editMode && false) ||
+    (editMode && userRole !== quoteToEdit.seller && userRole !== ALL_SELLERS_OPTION);
 
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(QuoteFormSchema),
@@ -98,16 +103,18 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       });
       form.clearErrors();
     } else {
-      form.reset({
-        clientName: '',
-        proposalDate: new Date(),
-        company: COMPANY_OPTIONS[0],
-        area: AREA_OPTIONS[0],
-        status: 'Enviada',
-        proposedValue: 0,
-        followUpOption: '0',
-        sendProposalNotification: appSettings?.enableProposalsEmailNotifications ?? false,
-      });
+        form.reset({
+          clientName: '',
+          proposalDate: new Date(),
+          company: COMPANY_OPTIONS[0],
+          area: AREA_OPTIONS[0],
+          status: 'Enviada',
+          proposedValue: 0,
+          followUpOption: '0',
+          sendProposalNotification: appSettings?.enableProposalsEmailNotifications ?? false,
+          seller: SELLERS.includes(userRole as any) ? (userRole as Seller) : undefined,
+          sellerUid: undefined,
+        });
       form.clearErrors();
     }
   }, [quoteToEdit, editMode, appSettings?.enableProposalsEmailNotifications]);
@@ -195,7 +202,7 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
       ...restOfData,
       proposalDate: format(proposalDate, 'yyyy-MM-dd'),
       ...(validityDate && { validityDate: format(validityDate, 'yyyy-MM-dd') }),
-      proposedValue: Number(Math.round(+(data.proposedValue || 0) + 'e+2') + 'e-2'),
+      proposedValue: Math.round((Number(data.proposedValue) || 0) * 100) / 100,
       status: data.status || 'Enviada', // Ensure status has a default
     };
 
@@ -273,22 +280,66 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
             )}
           />
 
-          <FormItem>
-            <FormLabel>Vendedor</FormLabel>
-            <Select value={editMode ? quoteToEdit.seller : (userRole === 'EQUIPE COMERCIAL' ? '' : userRole)} disabled>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vendedor não definido"/>
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {SELLERS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <FormDescription>
-              Vendedor definido pelo seu login.
-            </FormDescription>
-          </FormItem>
+          {userRole !== ALL_SELLERS_OPTION ? (
+            <FormItem>
+              <FormLabel>Vendedor</FormLabel>
+              <Select value={editMode ? quoteToEdit.seller : userRole} disabled>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vendedor não definido" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {SELLERS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Vendedor definido pelo seu login.
+              </FormDescription>
+            </FormItem>
+          ) : (
+            <FormField
+              control={form.control}
+              name="seller"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Vendedor Atribuído</FormLabel>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      const sellerProfile = availableSellers.find(s => s.name === value);
+                      if (sellerProfile) {
+                        form.setValue('sellerUid', sellerProfile.uid);
+                      } else if (firestore) {
+                        const q = query(collection(firestore, 'users'), where('role', '==', value));
+                        getDocs(q).then(snap => {
+                          if (!snap.empty) {
+                            form.setValue('sellerUid', snap.docs[0].data().uid);
+                          }
+                        });
+                      }
+                    }} 
+                    value={field.value} 
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o Vendedor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {SELLERS.map((sellerName) => (
+                        <SelectItem key={sellerName} value={sellerName}>
+                          {sellerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
@@ -431,20 +482,26 @@ export default function QuoteForm({ quoteToEdit, onFormSubmit, showReadOnlyAlert
               </FormItem>
             )}
           />
-           <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status da Proposta</FormLabel>
-                <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Status" /></SelectTrigger></FormControl>
-                  <SelectContent>{PROPOSAL_STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status da Proposta</FormLabel>
+                  <Select onValueChange={(value) => field.onChange(sanitizeSelectValue(value))} value={sanitizeSelectValue(field.value)} disabled={isFormDisabled || isSubmitting}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Status" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {PROPOSAL_STATUS_OPTIONS.map(opt => {
+                        const isOwner = userRole === (editMode ? quoteToEdit?.seller : form.getValues('seller'));
+                        if (opt === 'Cancelada' && !isOwner && userRole === ALL_SELLERS_OPTION) return null;
+                        return <SelectItem key={opt} value={opt}>{opt}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
         </div>
           
         <FormField

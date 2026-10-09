@@ -5,9 +5,21 @@ export const ALL_SELLERS_OPTION = 'EQUIPE COMERCIAL';
 
 export const SELLER_EMAIL_MAP = {
   'sergio@engearpb.com.br': 'SERGIO',
-  'rodrigobarros@engearpb.com.br': 'RODRIGO',
   'pastaengear@gmail.com': 'SERGIO',
+  'rodrigobarros@engearpb.com.br': 'RODRIGO',
+  'carlosroberto@engearpb.com.br': 'EQUIPE COMERCIAL',
+  'gitana@engearpb.com.br': 'EQUIPE COMERCIAL',
+  'vendas@engearpb.com.br': 'EQUIPE COMERCIAL',
+  'engenharia01@engearpb.com.br': 'EQUIPE COMERCIAL',
 } as const;
+
+export const READER_ROLE = 'LEITOR' as const;
+export const ALLOWED_EMAIL_DOMAIN = '@engearpb.com.br';
+
+export const isAuthorizedEditorEmail = (email: string | null | undefined): boolean => {
+  if (!email) return false;
+  return Object.prototype.hasOwnProperty.call(SELLER_EMAIL_MAP, email.toLowerCase().trim());
+};
 
 export const COMPANY_OPTIONS = ['ENGEAR', 'CLIMAZONE'] as const;
 export type CompanyOption = (typeof COMPANY_OPTIONS)[number];

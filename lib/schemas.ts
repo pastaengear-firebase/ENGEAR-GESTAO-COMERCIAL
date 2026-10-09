@@ -24,6 +24,8 @@ export const SalesFormSchema = z.object({
   payment: z.coerce.number().min(0, 'Valor do Pagamento não pode ser negativo.').optional().default(0),
   summary: z.string().optional(),
   sendSaleNotification: z.boolean().optional().default(false),
+  seller: z.enum(SELLERS).optional(),
+  sellerUid: z.string().optional(),
 });
 export type SalesFormData = z.infer<typeof SalesFormSchema>;
 
@@ -47,5 +49,7 @@ export const QuoteFormSchema = z.object({
     .default('0'),
   followUpDone: z.boolean().optional().default(false),
   sendProposalNotification: z.boolean().optional().default(false),
+  seller: z.enum(SELLERS).optional(),
+  sellerUid: z.string().optional(),
 });
 export type QuoteFormData = z.infer<typeof QuoteFormSchema>;

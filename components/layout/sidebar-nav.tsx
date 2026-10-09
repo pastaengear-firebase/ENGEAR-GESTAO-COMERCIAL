@@ -54,7 +54,24 @@ interface SidebarNavProps {
 
 export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: SidebarNavProps) {
   const pathname = usePathname();
-  const { logout } = useSales();
+  const { logout, userRole } = useSales();
+
+  const isReader = userRole === 'LEITOR';
+
+  const visibleNavItems = navItems
+    .filter((item) => {
+      if (isReader && item.href === '/configuracoes') return false;
+      return true;
+    })
+    .map((item) => {
+      if (isReader && item.href === '/propostas/nova') {
+        return {
+          ...item,
+          href: '/propostas/gerenciar',
+        };
+      }
+      return item;
+    });
 
   return (
     <>
@@ -80,7 +97,7 @@ export default function SidebarNav({ isMobileMenuOpen, closeMobileMenu }: Sideba
           </Button>
         </div>
         <nav className="flex-1 space-y-1 p-2">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

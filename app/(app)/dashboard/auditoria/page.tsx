@@ -18,7 +18,7 @@ export default function AuditPage() {
     return (sales || []).filter(s => {
       // Find rows that haven't been normalized yet in the DB
       // We look for the literal string "AGUARDANDO PAGAMENTO" or "FINALIZADO"
-      return s.status === 'AGUARDANDO PAGAMENTO' || s.status === 'FINALIZADO';
+      return (s.status as string) === 'AGUARDANDO PAGAMENTO' || (s.status as string) === 'FINALIZADO';
     });
   }, [sales]);
 

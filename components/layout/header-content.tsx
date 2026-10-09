@@ -7,6 +7,7 @@ import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { useSales } from '@/hooks/use-sales'; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from '@/components/ui/badge';
 import { ALL_SELLERS_OPTION, SELLERS } from '@/lib/constants';
 import type { UserRole } from '@/lib/types';
 
@@ -38,6 +39,11 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
             <div className="hidden md:flex items-center gap-2 text-sm font-medium text-sidebar-foreground mr-4">
               <UserIcon className="h-5 w-5" />
               <span>{user.email}</span>
+              {userRole === 'LEITOR' && (
+                <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-300 text-[10px] px-1.5 py-0">
+                  Leitor
+                </Badge>
+              )}
             </div>
            )}
 
@@ -80,9 +86,14 @@ export default function HeaderContent({ toggleMobileMenu }: HeaderContentProps) 
         </div>
       </div>
        {user && (
-        <div className="md:hidden border-t p-2 flex justify-center bg-accent text-sm font-medium text-sidebar-foreground">
-            <UserIcon className="h-5 w-5 mr-2" />
+        <div className="md:hidden border-t p-2 flex justify-center items-center gap-2 bg-accent text-sm font-medium text-sidebar-foreground">
+            <UserIcon className="h-5 w-5" />
             <span>{user.email}</span>
+            {userRole === 'LEITOR' && (
+              <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-300 text-[10px] px-1.5 py-0">
+                Leitor
+              </Badge>
+            )}
         </div>
        )}
     </header>

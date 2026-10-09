@@ -6,10 +6,19 @@ import { Loader2 } from 'lucide-react';
 import { useSales } from '../../hooks/use-sales';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loadingAuth } = useSales();
+  const { user, loadingAuth, userRole } = useSales();
   const router = useRouter();
   const pathname = usePathname();
   const isRedirecting = useRef(false);
+
+  const RESTRICTED_FOR_READERS = [
+    '/vendas/nova',
+    '/inserir-venda',
+    '/propostas/nova',
+    '/editar-venda',
+    '/configuracoes',
+    '/dashboard/auditoria',
+  ];
 
   useEffect(() => {
     if (!loadingAuth) {
@@ -19,12 +28,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       } else if (user && pathname === '/login' && !isRedirecting.current) {
         isRedirecting.current = true;
         router.replace('/dashboard');
-      } else if (user && !user.emailVerified && pathname !== '/verificar-email' && pathname !== '/login' && !isRedirecting.current) {
+      } else if (user && userRole === 'LEITOR' && RESTRICTED_FOR_READERS.some(route => pathname.startsWith(route)) && !isRedirecting.current) {
         isRedirecting.current = true;
-        router.replace('/verificar-email');
+        router.replace('/dashboard');
+      } else {
+        isRedirecting.current = false;
       }
     }
-  }, [user, loadingAuth, router, pathname]);
+  }, [user, loadingAuth, userRole, router, pathname]);
 
   if (loadingAuth || (!user && pathname !== '/login')) {
     return (

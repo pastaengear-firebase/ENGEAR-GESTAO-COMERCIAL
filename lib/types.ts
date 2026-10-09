@@ -8,10 +8,18 @@ import type {
   FollowUpOptionValue,
   Seller
 } from './constants';
-import { ALL_SELLERS_OPTION } from './constants';
+import { ALL_SELLERS_OPTION, READER_ROLE } from './constants';
 
-// Explicitly re-exporting the type to solve build issues.
-export type { Seller };
+// Explicitly re-exporting types to solve build issues.
+export type { 
+  AreaOption, 
+  StatusOption, 
+  CompanyOption, 
+  ProposalStatusOption, 
+  ContactSourceOption, 
+  FollowUpOptionValue,
+  Seller 
+};
 
 export interface AppUser {
   uid: string;
@@ -47,7 +55,7 @@ export type SalesFilters = {
   selectedYear?: number | 'all';
 };
 
-export type UserRole = Seller | typeof ALL_SELLERS_OPTION;
+export type UserRole = Seller | typeof ALL_SELLERS_OPTION | typeof READER_ROLE;
 
 export type SalesContextType = {
   user: AppUser | null;
@@ -68,6 +76,7 @@ export type SalesContextType = {
   setFilters: (filters: Partial<SalesFilters>) => void;
   filters: SalesFilters;
   loading: boolean;
+  availableSellers: { name: Seller; uid: string }[];
 };
 
 export type NavItem = {

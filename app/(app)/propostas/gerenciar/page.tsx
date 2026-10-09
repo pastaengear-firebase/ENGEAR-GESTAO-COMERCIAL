@@ -40,7 +40,7 @@ export default function GerenciarPropostasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
 
-  const isUserReadOnly = userRole === ALL_SELLERS_OPTION;
+  const isUserReadOnly = userRole === 'LEITOR';
 
   const proposalStats = useMemo(() => {
     const total = managementFilteredQuotes.length;
@@ -51,10 +51,11 @@ export default function GerenciarPropostasPage() {
   }, [managementFilteredQuotes]);
 
   const handleEditClick = (quote: Quote) => {
-    if (userRole !== quote.seller) {
+    // Editores podem editar, mas vendedores só editam o que é deles
+    if (userRole !== ALL_SELLERS_OPTION && userRole !== quote.seller) {
        toast({
         title: "Ação Não Permitida",
-        description: `Apenas o vendedor ${quote.seller} pode modificar esta proposta.`,
+        description: `Apenas o vendedor ${quote.seller} ou a Equipe Comercial podem modificar esta proposta.`,
         variant: "destructive",
       });
       return;
@@ -274,7 +275,7 @@ const downloadTextFile = (content: string, filename: string, mime: string) => {
             area: area as AreaOption,
             contactSource: contactSource as ContactSourceOption,
             description,
-            proposedValue: Number(Math.round(+(proposedValue || 0) + 'e+2') + 'e-2'),
+            proposedValue: Math.round((Number(proposedValue) || 0) * 100) / 100,
             status: status as ProposalStatusOption,
             notes: String(row['Notas'] ?? ''),
             followUpDate: followUpDate ? format(followUpDate, 'yyyy-MM-dd') : undefined,
