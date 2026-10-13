@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Layers } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
 import { useFirestore } from '@/firebase/provider';
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Sale, BillingLog, Measurement, MaterialDeductionRow, ComplementaryRow } from '@/lib/types';
 import { ALL_SELLERS_OPTION, STATUS_OPTIONS } from '@/lib/constants';
 import { normalizeSaleStatus } from '@/lib/normalizers';
+import { calculateSaleFinancialSummary, type SaleFinancialSummary } from '@/lib/financial-utils';
 import { updateDoc, doc } from 'firebase/firestore';
 
 type MeasurementMode = 'SERVICOS' | 'PRECO_GLOBAL_COM_ABATIMENTO';
@@ -117,6 +118,11 @@ export default function FaturamentoPage() {
   const [pendingSortField, setPendingSortField] = useState<string>('daysPending');
   const [pendingSortDirection, setPendingSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Alerta de medição parcial: saldo restante a medir
+  const [partialMeasurementSearchTerm, setPartialMeasurementSearchTerm] = useState<string>('');
+  const [partialSortField, setPartialSortField] = useState<string>('remainingToMeasure');
+  const [partialSortDirection, setPartialSortDirection] = useState<'asc' | 'desc'>('desc');
+
   const [measurementSaleSearchTerm, setMeasurementSaleSearchTerm] = useState<string>('');
   const [isSelectSaleModalOpen, setIsSelectSaleModalOpen] = useState<boolean>(false);
 
@@ -135,6 +141,18 @@ export default function FaturamentoPage() {
     [firestore]
   );
   const { data: measurements } = useCollection<Measurement>(measurementsQuery);
+
+  const measurementsBySaleId = useMemo(() => {
+    const map = new Map<string, Measurement[]>();
+    (measurements || []).forEach(m => {
+      if (m.saleId) {
+        const list = map.get(m.saleId) || [];
+        list.push(m);
+        map.set(m.saleId, list);
+      }
+    });
+    return map;
+  }, [measurements]);
 
   // Helper de ordenação flexível e robusto
   const sortData = <T,>(
@@ -191,6 +209,15 @@ export default function FaturamentoPage() {
     }
   };
 
+  const handleSortPartial = (field: string) => {
+    if (partialSortField === field) {
+      setPartialSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPartialSortField(field);
+      setPartialSortDirection('asc');
+    }
+  };
+
   const renderSortableHeader = (
     label: string,
     field: string,
@@ -223,22 +250,27 @@ export default function FaturamentoPage() {
     );
   };
 
-  // ALERTA: Controle de Cobrança (+30 dias) com cálculo de idade e saldo
+  // ALERTA: Controle de Cobrança (+30 dias) considerando medições retroativas e finalização
   const pendingSales = useMemo(() => {
     const limit = subDays(new Date(), 30);
     return sales
+      .map(s => {
+        const saleMeasurements = measurementsBySaleId.get(s.id) || [];
+        const fin = calculateSaleFinancialSummary(s, saleMeasurements);
+        return {
+          ...s,
+          daysPending: differenceInDays(new Date(), parseISO(s.date)),
+          pendingBalance: fin.pendingBalance,
+          totalReceived: fin.totalReceived,
+          isFinalized: fin.isFinalized,
+        };
+      })
       .filter(s => {
-        const isPending = s.payment < s.salesValue;
         const normalizedStatus = normalizeSaleStatus(s.status);
         const isProcess = normalizedStatus === 'A INICIAR' || normalizedStatus === 'EM ANDAMENTO';
-        return isPending && isProcess && isBefore(parseISO(s.date), limit);
-      })
-      .map(s => ({
-        ...s,
-        daysPending: differenceInDays(new Date(), parseISO(s.date)),
-        pendingBalance: Math.max(0, s.salesValue - s.payment)
-      }));
-  }, [sales]);
+        return s.pendingBalance > 0 && isProcess && isBefore(parseISO(s.date), limit);
+      });
+  }, [sales, measurementsBySaleId]);
 
   const sortedFilteredPendingSales = useMemo(() => {
     const term = pendingSearchTerm.trim().toLowerCase();
@@ -252,6 +284,43 @@ export default function FaturamentoPage() {
     );
     return sortData(filtered, pendingSortField, pendingSortDirection);
   }, [pendingSales, pendingSearchTerm, pendingSortField, pendingSortDirection]);
+
+  // ALERTA 2: Vendas com Medição Parcial (Saldo Restante a Medir)
+  const partiallyMeasuredSales = useMemo(() => {
+    return sales
+      .map(s => {
+        const saleMeasurements = measurementsBySaleId.get(s.id) || [];
+        const fin = calculateSaleFinancialSummary(s, saleMeasurements);
+        return {
+          ...s,
+          totalMeasuredValue: fin.totalMeasuredValue,
+          measuredPercent: fin.measuredPercent,
+          totalReceived: fin.totalReceived,
+          remainingToMeasure: fin.remainingToMeasure,
+          isPartiallyMeasured: fin.isPartiallyMeasured,
+          isFinalized: fin.isFinalized,
+          measurementsCount: saleMeasurements.length,
+        };
+      })
+      .filter(s => s.isPartiallyMeasured && s.remainingToMeasure > 0);
+  }, [sales, measurementsBySaleId]);
+
+  const sortedPartiallyMeasuredSales = useMemo(() => {
+    const term = partialMeasurementSearchTerm.trim().toLowerCase();
+    const filtered = !term ? partiallyMeasuredSales : partiallyMeasuredSales.filter(s =>
+      (s.project || '').toLowerCase().includes(term) ||
+      (s.os || '').toLowerCase().includes(term) ||
+      (s.company || '').toLowerCase().includes(term) ||
+      (s.area || '').toLowerCase().includes(term) ||
+      (s.clientService || '').toLowerCase().includes(term) ||
+      (s.seller || '').toLowerCase().includes(term)
+    );
+    return sortData(filtered, partialSortField, partialSortDirection);
+  }, [partiallyMeasuredSales, partialMeasurementSearchTerm, partialSortField, partialSortDirection]);
+
+  const totalRemainingToMeasureValue = useMemo(() => {
+    return partiallyMeasuredSales.reduce((sum, s) => sum + s.remainingToMeasure, 0);
+  }, [partiallyMeasuredSales]);
 
   // LISTA PRINCIPAL (Solicitar) com busca e ordenação clicável
   const sortedFilteredSales = useMemo(() => {
@@ -893,7 +962,7 @@ export default function FaturamentoPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-hide">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 print-hide">
         <Card className="shadow-sm">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Vendas na Lista</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-semibold">{sortedFilteredSales.length}</p></CardContent>
@@ -902,12 +971,19 @@ export default function FaturamentoPage() {
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Solicitações</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-semibold">{billingLogs?.length || 0}</p></CardContent>
         </Card>
+        <Card className="shadow-sm border-blue-300/50">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">A Medir (Parcial)</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold text-blue-700">{partiallyMeasuredSales.length}</p>
+            <p className="text-xs text-muted-foreground">{totalRemainingToMeasureValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} a medir</p>
+          </CardContent>
+        </Card>
         <Card className="shadow-sm border-amber-300/50">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Pendentes +30 dias</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-semibold text-amber-700">{pendingSales.length}</p></CardContent>
         </Card>
         <Card className="shadow-sm border-amber-300/50">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Saldo Pendente</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Saldo Devedor</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-semibold text-amber-700">{pendingTotalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></CardContent>
         </Card>
       </div>
@@ -1616,6 +1692,120 @@ export default function FaturamentoPage() {
                   <TableRow>
                     <TableCell colSpan={13} className="text-center py-6 text-muted-foreground">
                       Nenhuma venda pendente +30 dias encontrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* NOVO ALERTA: Vendas com Medição Parcial (Saldo Restante a Medir) */}
+      <Card id="medicoes-parciais" className="border-blue-500/20 shadow-lg">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <CardTitle className="flex items-center text-blue-700">
+              <Layers className="mr-2 h-5 w-5" /> Alerta: Vendas com Medição Parcial (Saldo Restante a Medir)
+            </CardTitle>
+            <Badge variant="outline" className="text-blue-700 border-blue-300">
+              {partiallyMeasuredSales.length} venda(s) • Total a medir: {totalRemainingToMeasureValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Vendas que já tiveram início de medição, mas ainda possuem saldo contratual restante a ser medido e faturado.
+          </p>
+          <div className="flex gap-2 mt-2 flex-wrap print-hide">
+            <Input
+              placeholder="Buscar por projeto, empresa, O.S., vendedor, cliente..."
+              value={partialMeasurementSearchTerm}
+              onChange={e => setPartialMeasurementSearchTerm(e.target.value)}
+              className="max-w-md"
+            />
+            {partialMeasurementSearchTerm && (
+              <Button variant="outline" type="button" onClick={() => setPartialMeasurementSearchTerm('')}>
+                <RotateCcw className="h-4 w-4 mr-2" /> Limpar
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="whitespace-nowrap rounded-md border">
+            <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
+              <TableHeader>
+                <TableRow>
+                  {renderSortableHeader('Data Venda', 'date', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[7%]')}
+                  {renderSortableHeader('Vendedor', 'seller', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
+                  {renderSortableHeader('Empresa', 'company', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
+                  {renderSortableHeader('Projeto', 'project', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
+                  {renderSortableHeader('O.S.', 'os', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[6%]')}
+                  {renderSortableHeader('Cliente/Serviço', 'clientService', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[16%]')}
+                  {renderSortableHeader('Valor Contrato', 'salesValue', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[10%]')}
+                  {renderSortableHeader('Total Medido', 'totalMeasuredValue', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[10%]')}
+                  {renderSortableHeader('% Medido', 'measuredPercent', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[7%]')}
+                  {renderSortableHeader('Saldo a Medir', 'remainingToMeasure', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[11%]')}
+                  <TableHead className="h-9 px-2 text-right w-[9%]">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedPartiallyMeasuredSales.map((s: any) => (
+                  <TableRow key={s.id} className="hover:bg-muted/50 transition-colors">
+                    <TableCell className="px-2 py-2 whitespace-nowrap">{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
+                    <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{s.seller}</TableCell>
+                    <TableCell className="px-2 py-2 truncate" title={s.company}>{s.company || '—'}</TableCell>
+                    <TableCell className="px-2 py-2 truncate font-medium" title={s.project}>{s.project || '—'}</TableCell>
+                    <TableCell className="px-2 py-2 whitespace-nowrap" title={s.os}>{s.os || '—'}</TableCell>
+                    <TableCell className="px-2 py-2 truncate" title={s.clientService}>{s.clientService || '—'}</TableCell>
+                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                      {s.salesValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-right whitespace-nowrap font-semibold text-emerald-700">
+                      {s.totalMeasuredValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                      <Badge variant="secondary" className="text-[11px]">
+                        {s.measuredPercent?.toFixed(1)}%
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-right whitespace-nowrap font-bold text-blue-700">
+                      {s.remainingToMeasure?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setMeasurementSaleId(s.id);
+                            const tabsTrigger = document.querySelector('[value="measurement"]') as HTMLButtonElement | null;
+                            if (tabsTrigger) tabsTrigger.click();
+                            toast({ title: "Venda carregada", description: `Preencha a nova medição para ${s.project}.` });
+                          }}
+                          title="Fazer nova medição para este saldo"
+                        >
+                          Medir
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleSelectSale(s)}
+                          disabled={!canRequestBilling}
+                          title="Solicitar faturamento"
+                        >
+                          <Send className="h-3 w-3 mr-1" /> Faturar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {sortedPartiallyMeasuredSales.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
+                      Nenhuma venda com medição parcial pendente no momento.
                     </TableCell>
                   </TableRow>
                 )}

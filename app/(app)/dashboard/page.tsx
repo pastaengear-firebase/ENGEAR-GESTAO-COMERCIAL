@@ -10,8 +10,12 @@ import SalesCharts from '@/components/sales/sales-charts';
 import { useSales } from '@/hooks/use-sales';
 import { useQuotes } from '@/hooks/use-quotes';
 import { ALL_SELLERS_OPTION } from '@/lib/constants';
-import type { Sale, Quote } from '@/lib/types';
+import { useFirestore } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy } from 'firebase/firestore';
+import type { Sale, Quote, Measurement } from '@/lib/types';
 import { normalizeSaleStatus } from '@/lib/normalizers';
+import { calculateSaleFinancialSummary } from '@/lib/financial-utils';
 
 type AgingBucketKey = '0-30' | '31-60' | '61-90' | '90+';
 type AgingBucket = { key: AgingBucketKey; label: string; count: number; pendingValue: number };
@@ -33,6 +37,27 @@ function countBusinessDaysInclusive(start: Date, end: Date) {
 export default function DashboardPage() {
   const { sales: allSales, filteredSales, setFilters: setSalesFilters, viewingAsSeller } = useSales();
   const { quotes: allQuotes, dashboardFilteredQuotes, setDashboardFilters: setQuotesDashboardFilters } = useQuotes();
+  const firestore = useFirestore();
+
+  // Buscar medições para cruzar retroativamente com cada venda
+  const measurementsQuery = useMemo(
+    () => firestore ? query(collection(firestore, 'measurements'), orderBy('requestedAt', 'desc')) : null,
+    [firestore]
+  );
+  const { data: measurements } = useCollection<Measurement>(measurementsQuery);
+
+  // Mapeamento de medições por venda (saleId)
+  const measurementsBySaleId = useMemo(() => {
+    const map = new Map<string, Measurement[]>();
+    (measurements || []).forEach(m => {
+      if (m.saleId) {
+        const list = map.get(m.saleId) || [];
+        list.push(m);
+        map.set(m.saleId, list);
+      }
+    });
+    return map;
+  }, [measurements]);
 
   const [displayYear, setDisplayYear] = useState<string>('all');
   const lastYearApplied = useRef<string | null>(null);
@@ -75,18 +100,22 @@ export default function DashboardPage() {
     const totalSalesValue = filteredSales.reduce((sum, s) => sum + (s.salesValue || 0), 0);
     const totalSalesCount = filteredSales.length;
     
-    // Rule 1: Sales with status "FINALIZADA" are considered fully RECEIVED
-    const totalReceived = filteredSales.reduce((sum, s) => {
-      const isFinalized = normalizeSaleStatus(s.status) === 'FINALIZADA';
-      const valueToAdd = isFinalized ? (s.salesValue || 0) : (s.payment || 0);
-      return sum + valueToAdd;
-    }, 0);
+    // Novo cálculo consolidado: respeita 1. FINALIZADA (100%), 2. Medições retroativas líquidas, 3. Pagamento manual
+    let totalReceived = 0;
+    let totalPendingValue = 0;
+    let totalRemainingToMeasure = 0;
+    let partiallyMeasuredCount = 0;
 
-    const totalPendingValue = filteredSales.reduce((sum, s) => {
-      const isFinalized = normalizeSaleStatus(s.status) === 'FINALIZADA';
-      if (isFinalized) return sum; // If finalized, it's not pending anymore
-      return sum + Math.max(0, (s.salesValue || 0) - (s.payment || 0));
-    }, 0);
+    filteredSales.forEach(s => {
+      const saleMeasurements = measurementsBySaleId.get(s.id) || [];
+      const fin = calculateSaleFinancialSummary(s, saleMeasurements);
+      totalReceived += fin.totalReceived;
+      totalPendingValue += fin.pendingBalance;
+      if (fin.isPartiallyMeasured) {
+        totalRemainingToMeasure += fin.remainingToMeasure;
+        partiallyMeasuredCount++;
+      }
+    });
 
     // Propostas contratadas (status = "Aceita")
     const contractedQuotes = dashboardFilteredQuotes.filter(q => q.status === 'Aceita');
@@ -115,6 +144,8 @@ export default function DashboardPage() {
       totalSalesCount,
       totalReceived,
       totalPendingValue,
+      totalRemainingToMeasure,
+      partiallyMeasuredCount,
       totalProposedValue,
       totalProposalsCount,
       openCount,
@@ -127,17 +158,19 @@ export default function DashboardPage() {
       salesPerBusinessDay,
       avgTicket,
     };
-  }, [filteredSales, dashboardFilteredQuotes, dashboardRange]);
+  }, [filteredSales, dashboardFilteredQuotes, dashboardRange, measurementsBySaleId]);
 
-  // Alerta existente (+30 dias sem pagamento)
+  // Alerta existente (+30 dias sem pagamento ou medição integral)
   const pendingCount = useMemo(() => {
     const limit = subDays(new Date(), 30);
     return allSales.filter(s => {
       const matchesSeller = viewingAsSeller === ALL_SELLERS_OPTION || s.seller === viewingAsSeller;
       const normalizedStatus = normalizeSaleStatus(s.status);
-      return matchesSeller && s.payment < s.salesValue && (normalizedStatus === 'A INICIAR' || normalizedStatus === 'EM ANDAMENTO') && isBefore(parseISO(s.date), limit);
+      const saleMeasurements = measurementsBySaleId.get(s.id) || [];
+      const fin = calculateSaleFinancialSummary(s, saleMeasurements);
+      return matchesSeller && fin.pendingBalance > 0 && (normalizedStatus === 'A INICIAR' || normalizedStatus === 'EM ANDAMENTO') && isBefore(parseISO(s.date), limit);
     }).length;
-  }, [allSales, viewingAsSeller]);
+  }, [allSales, viewingAsSeller, measurementsBySaleId]);
 
   // Aging (faixas) - fundamental
   const aging = useMemo((): AgingBucket[] => {
@@ -154,12 +187,13 @@ export default function DashboardPage() {
       const matchesSeller = viewingAsSeller === ALL_SELLERS_OPTION || s.seller === viewingAsSeller;
       if (!matchesSeller) return;
 
-      // consideramos pendente apenas quando falta receber algo e não está cancelado ou finalizado
-      const pending = Math.max(0, (s.salesValue || 0) - (s.payment || 0));
-      if (pending <= 0) return;
-      
       const normalizedStatus = normalizeSaleStatus(s.status);
       if (normalizedStatus === 'CANCELADO' || normalizedStatus === 'FINALIZADA') return;
+
+      const saleMeasurements = measurementsBySaleId.get(s.id) || [];
+      const fin = calculateSaleFinancialSummary(s, saleMeasurements);
+      const pending = fin.pendingBalance;
+      if (pending <= 0) return;
 
       const days = Math.max(0, differenceInDays(now, parseISO(s.date)));
       let key: AgingBucketKey = '0-30';
@@ -211,18 +245,24 @@ export default function DashboardPage() {
             <div className="text-3xl md:text-4xl font-bold text-sky-900 dark:text-sky-200">
               {stats.totalSalesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
               <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
                 <p className="text-muted-foreground">Vendas</p>
                 <p className="font-bold text-base">{stats.totalSalesCount}</p>
               </div>
               <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
                 <p className="text-muted-foreground">Recebido</p>
-                <p className="font-bold text-base">{stats.totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p className="font-bold text-base text-emerald-700 dark:text-emerald-300">{stats.totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
               </div>
               <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
                 <p className="text-muted-foreground">Pendente</p>
-                <p className="font-bold text-base">{stats.totalPendingValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p className="font-bold text-base text-amber-700 dark:text-amber-300">{stats.totalPendingValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              </div>
+              <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
+                <p className="text-muted-foreground">A Medir (Parcial)</p>
+                <p className="font-bold text-base text-blue-700 dark:text-blue-300" title={`${stats.partiallyMeasuredCount} venda(s) com medição parcial`}>
+                  {stats.totalRemainingToMeasure.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
               </div>
               <div className="rounded-md bg-white/70 dark:bg-black/20 p-2">
                 <p className="text-muted-foreground">Assertividade</p>
