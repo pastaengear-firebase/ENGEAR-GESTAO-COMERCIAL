@@ -32,9 +32,10 @@ export default function BuscaIAPage() {
     try {
       const response = await intelligentSearch({ query });
       setAiResponse(response);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setError('Ocorreu um erro ao processar sua busca. Tente novamente.');
+      const msg = e?.message || 'Ocorreu um erro ao processar sua busca. Tente novamente.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
