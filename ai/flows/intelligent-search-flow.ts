@@ -64,6 +64,7 @@ export async function intelligentSearch(input: SearchInput): Promise<SearchOutpu
 
 const searchPrompt = ai.definePrompt({
     name: 'intelligentSearchPrompt',
+    model: 'googleai/gemini-2.5-flash',
     input: { schema: SearchInputSchema },
     output: { schema: SearchOutputSchema },
     prompt: `You are an expert data analyst for a sales CRM. Your task is to translate a user's natural language query into a structured JSON filter object to search for sales and quotes. Today's date is ${new Date().toISOString().split('T')[0]}.
@@ -112,11 +113,16 @@ const intelligentSearchFlow = ai.defineFlow(
     outputSchema: SearchOutputSchema,
   },
   async (input) => {
-    const llmResponse = await searchPrompt(input);
-    const output = llmResponse.output;
-    if (!output) {
-      throw new Error('AI did not return a valid structured response.');
+    try {
+      const llmResponse = await searchPrompt(input);
+      const output = llmResponse.output;
+      if (!output) {
+        throw new Error('A IA não retornou uma resposta estruturada válida.');
+      }
+      return output;
+    } catch (err: any) {
+      console.error('[intelligentSearchFlow] Error executing searchPrompt:', err);
+      throw new Error(err?.message || 'Erro ao processar consulta de IA no servidor.');
     }
-    return output;
   }
 );

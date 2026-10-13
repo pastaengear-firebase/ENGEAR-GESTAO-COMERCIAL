@@ -20,3 +20,13 @@ secretParameters:
     availability:
       - BUILD
       - RUN
+  - secret: NEXTN_GEMINI_KEY
+    key: GEMINI_API_KEY
+    availability:
+      - BUILD
+      - RUN
+  - secret: NEXTN_GEMINI_KEY
+    key: GOOGLE_API_KEY
+    availability:
+      - BUILD
+      - RUN
