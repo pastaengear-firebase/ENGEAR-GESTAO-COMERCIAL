@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSales } from '@/hooks/use-sales';
 import { useQuotes } from '@/hooks/use-quotes';
-import { intelligentSearch, type SearchOutput } from '@/ai/flows/intelligent-search-flow';
+import { parseNaturalLanguageQuery, type SearchOutput } from '@/lib/ai-search-parser';
 import SalesTable from '@/components/sales/sales-table';
 import QuotesTable from '@/components/quotes/quotes-table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -28,14 +28,27 @@ export default function BuscaIAPage() {
     if (!query.trim()) return;
     setLoading(true);
     setError(null);
-    setAiResponse(null);
+
+    // 1. Processamento instantâneo local (sem falha, zero latência, custo zero)
+    const localResult = parseNaturalLanguageQuery(query);
+    setAiResponse(localResult);
+
+    // 2. Refinamento via API em segundo plano (se a rota / API estiver disponível)
     try {
-      const response = await intelligentSearch({ query });
-      setAiResponse(response);
+      const res = await fetch('/api/intelligent-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.salesFilters || data.quotesFilters || data.responseText)) {
+          setAiResponse(data);
+        }
+      }
     } catch (e: any) {
-      console.error(e);
-      const msg = e?.message || 'Ocorreu um erro ao processar sua busca. Tente novamente.';
-      setError(msg);
+      console.warn('API refinement fallback active:', e);
+      // Mantém o resultado local que já foi exibido com sucesso!
     } finally {
       setLoading(false);
     }
