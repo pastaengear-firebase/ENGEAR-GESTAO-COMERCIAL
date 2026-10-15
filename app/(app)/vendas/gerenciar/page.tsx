@@ -37,10 +37,15 @@ export default function GerenciarVendasPage() {
     if (searchTerm) {
         const lowerSearchTerm = searchTerm.toLowerCase();
         filtered = filtered.filter(sale =>
-        (sale.project || '').toLowerCase().includes(lowerSearchTerm) ||
-        (sale.os || '').toLowerCase().includes(lowerSearchTerm) ||
-        (sale.clientService || '').toLowerCase().includes(lowerSearchTerm) ||
-        (sale.company || '').toLowerCase().includes(lowerSearchTerm)
+          (sale.project || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.os || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.clientService || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.company || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.seller || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.area || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.status || '').toLowerCase().includes(lowerSearchTerm) ||
+          (sale.date || '').toLowerCase().includes(lowerSearchTerm) ||
+          String(sale.salesValue || '').includes(lowerSearchTerm)
         );
     }
     return filtered;
@@ -331,7 +336,7 @@ export default function GerenciarVendasPage() {
            <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 print-hide">
             <div className="relative flex-grow w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="search" placeholder="Buscar por projeto, empresa, O.S..." value={searchTerm} onChange={handleSearchChange} className="pl-10 w-full" />
+              <Input type="search" placeholder="Buscar por qualquer coluna (projeto, vendedor, empresa, O.S., área, cliente, status, valor, data)..." value={searchTerm} onChange={handleSearchChange} className="pl-10 w-full" />
             </div>
             <Button variant="outline" onClick={handleClearSearch} className="w-full sm:w-auto print-hide"> <RotateCcw className="mr-2 h-4 w-4" /> Limpar </Button>
           </div>

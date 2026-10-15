@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit3, Trash2, Eye, Link as LinkIcon, UploadCloud, Loader2, Mail, Download } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, Eye, Link as LinkIcon, UploadCloud, Loader2, Mail, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -35,6 +35,75 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedSaleForUpload, setSelectedSaleForUpload] = useState<Sale | null>(null);
   const [isUploading, setIsUploading] = useState<string | null>(null);
+
+  // Ordenação por colunas (igual ao faturamento)
+  const [sortField, setSortField] = useState<string>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedSales = useMemo(() => {
+    return [...salesData].sort((a, b) => {
+      let valA: any = (a as any)[sortField];
+      let valB: any = (b as any)[sortField];
+
+      if (sortField === 'status') {
+        valA = normalizeSaleStatus(a.status) || a.status;
+        valB = normalizeSaleStatus(b.status) || b.status;
+      }
+
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (valA?.toDate) valA = valA.toDate().getTime();
+      if (valB?.toDate) valB = valB.toDate().getTime();
+
+      let comparison = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        comparison = valA - valB;
+      } else {
+        comparison = String(valA).localeCompare(String(valB), 'pt-BR', { numeric: true, sensitivity: 'base' });
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [salesData, sortField, sortDirection]);
+
+  const renderSortableHeader = (
+    label: string,
+    field: string,
+    alignRight = false,
+    className = ''
+  ) => {
+    const isActive = sortField === field;
+    return (
+      <TableHead
+        className={`h-9 px-2 cursor-pointer select-none hover:bg-muted/80 transition-colors ${alignRight ? 'text-right' : ''} ${className}`}
+        onClick={() => handleSort(field)}
+        title={`Ordenar por ${label}`}
+      >
+        <div className={`flex items-center gap-1 ${alignRight ? 'justify-end' : ''}`}>
+          <span className="truncate">{label}</span>
+          {isActive ? (
+            sortDirection === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+            )
+          ) : (
+            <ArrowUpDown className="h-3 w-3 text-muted-foreground/40 shrink-0 opacity-60 hover:opacity-100" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
 
   const getStatusBadgeVariant = (status: string): React.ComponentProps<typeof Badge>['variant'] => {
     const normalizedStatus = normalizeSaleStatus(status);
@@ -104,22 +173,22 @@ export default function SalesTable({ salesData, onEdit, onDelete, disabledAction
       <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
         <TableHeader>
           <TableRow>
-            <TableHead className="h-9 px-2 w-[7%]">Data</TableHead>
-            <TableHead className="h-9 px-2 w-[8%]">Vendedor</TableHead>
-            <TableHead className="h-9 px-2 w-[9%]">Empresa</TableHead>
-            <TableHead className="h-9 px-2 w-[7%]">Projeto</TableHead>
-            <TableHead className="h-9 px-2 w-[6%]">O.S.</TableHead>
-            <TableHead className="h-9 px-2 w-[8%]">Área</TableHead>
-            <TableHead className="h-9 px-2 w-[18%]">Cliente/Serviço</TableHead>
-            <TableHead className="h-9 px-2 text-right w-[11%]">Valor Venda</TableHead>
-            <TableHead className="h-9 px-2 w-[11%]">Status</TableHead>
-            <TableHead className="h-9 px-2 text-right w-[11%]">Pagamento</TableHead>
+            {renderSortableHeader('Data', 'date', false, 'w-[7%]')}
+            {renderSortableHeader('Vendedor', 'seller', false, 'w-[8%]')}
+            {renderSortableHeader('Empresa', 'company', false, 'w-[9%]')}
+            {renderSortableHeader('Projeto', 'project', false, 'w-[7%]')}
+            {renderSortableHeader('O.S.', 'os', false, 'w-[6%]')}
+            {renderSortableHeader('Área', 'area', false, 'w-[8%]')}
+            {renderSortableHeader('Cliente/Serviço', 'clientService', false, 'w-[18%]')}
+            {renderSortableHeader('Valor Venda', 'salesValue', true, 'w-[11%]')}
+            {renderSortableHeader('Status', 'status', false, 'w-[11%]')}
+            {renderSortableHeader('Pagamento', 'payment', true, 'w-[11%]')}
             <TableHead className="h-9 px-2 w-[4%] text-center">PDF</TableHead>
             {showActions && <TableHead className="h-9 px-2 text-right w-[4%] print-hide">Ações</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {salesData.map((sale) => {
+          {sortedSales.map((sale) => {
             const areActionsDisabled = globalDisabled || userRole !== sale.seller;
             const attachmentUrl = sale.attachmentUrl;
             const uploading = isUploading === sale.id;
