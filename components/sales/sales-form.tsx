@@ -21,11 +21,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2, Download, Mail } from "lucide-react";
+import { CalendarIcon, DollarSign, Save, RotateCcw, Info, Check, UploadCloud, Link as LinkIcon, Trash2, Download, Mail, CheckCircle2 } from "lucide-react";
 import { cn, getFriendlyPdfErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 import type { Sale, Seller } from "@/lib/types";
 import { normalizeArea, normalizeCompany, normalizeSaleStatus } from "@/lib/normalizers";
 
@@ -54,6 +55,7 @@ export default function SalesForm({
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -62,6 +64,10 @@ export default function SalesForm({
   const [duplicateSales, setDuplicateSales] = useState<Sale[]>([]);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const pendingSaleRef = useRef<SalesFormData | null>(null);
+
+  // Modal de sucesso pós-salvamento (Nova Venda)
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [lastSavedSaleInfo, setLastSavedSaleInfo] = useState<{ project: string; clientService: string; salesValue: number } | null>(null);
 
   // PDF (vendas)
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -416,6 +422,18 @@ export default function SalesForm({
         }
 
         toast({ title: "Sucesso", description: "Venda cadastrada com sucesso!" });
+
+        // Guarda resumo da venda salva e abre o diálogo de confirmação
+        setLastSavedSaleInfo({
+          project: savedSale.project || '',
+          clientService: savedSale.clientService || '',
+          salesValue: Number(savedSale.salesValue || 0),
+        });
+        setIsSuccessDialogOpen(true);
+
+        // Limpa o formulário e arquivos para a próxima inserção
+        resetForm();
+        resetPdfStateFromSale(undefined);
       }
 
       setIsSaved(true);
@@ -427,7 +445,7 @@ export default function SalesForm({
       setIsSubmitting(false);
       setTimeout(() => setIsSaved(false), 2000);
     }
-  }, [addSale, deleteExistingPdf, deleteSalePdf, editMode, existingPdfPath, existingPdfUrl, fileInputRef, fromQuoteId, getQuoteByIdFromContext, onFormSubmit, pdfFile, toast, triggerEmailNotification, updateQuoteStatus, updateSale, userRole]);
+  }, [addSale, deleteExistingPdf, deleteSalePdf, editMode, existingPdfPath, existingPdfUrl, fileInputRef, fromQuoteId, getQuoteByIdFromContext, onFormSubmit, pdfFile, resetForm, resetPdfStateFromSale, toast, triggerEmailNotification, updateQuoteStatus, updateSale, userRole]);
 
   const onSubmit = async (data: SalesFormData) => {
     if (isFormDisabled) {
@@ -505,6 +523,42 @@ export default function SalesForm({
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleConfirmDuplicate}>Prosseguir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Diálogo de Confirmação de Venda Salva */}
+        <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <div className="flex items-center gap-2 text-green-600 mb-1">
+                <CheckCircle2 className="h-6 w-6" />
+                <AlertDialogTitle className="text-xl">Venda Salva com Sucesso!</AlertDialogTitle>
+              </div>
+              <AlertDialogDescription>
+                A venda foi registrada no sistema e o formulário foi limpo automaticamente para receber uma nova inserção.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {lastSavedSaleInfo && (
+              <div className="rounded-md border border-green-200 bg-green-50/50 p-3 text-sm space-y-1">
+                <p><span className="font-semibold text-foreground">Projeto:</span> {lastSavedSaleInfo.project}</p>
+                <p><span className="font-semibold text-foreground">Cliente/Serviço:</span> {lastSavedSaleInfo.clientService}</p>
+                <p><span className="font-semibold text-foreground">Valor da Venda:</span> {lastSavedSaleInfo.salesValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              </div>
+            )}
+            <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-2">
+              <AlertDialogAction 
+                onClick={() => router.push('/vendas/gerenciar')}
+                className="bg-secondary text-secondary-foreground hover:bg-secondary/80 sm:order-1"
+              >
+                Ver Vendas Cadastradas
+              </AlertDialogAction>
+              <AlertDialogAction 
+                onClick={() => setIsSuccessDialogOpen(false)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground sm:order-2"
+              >
+                + Inserir Outra Venda
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

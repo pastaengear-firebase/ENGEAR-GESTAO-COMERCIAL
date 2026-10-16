@@ -650,8 +650,25 @@ export default function FaturamentoPage() {
         toast({ title: 'Sucesso', description: 'Medição atualizada com sucesso!' });
       } else {
         await addDoc(collection(firestore!, 'measurements'), measurementData);
-        toast({ title: 'Sucesso', description: 'Medição salva com sucesso no banco de dados!' });
+        toast({ title: 'Sucesso', description: 'Medição salva com sucesso no banco de dados! O formulário foi limpo para a próxima.' });
       }
+
+      // Limpa os campos após salvar com sucesso, liberando a tela para uma nova medição
+      setSelectedMeasurementId(null);
+      setMeasurementSaleId('');
+      setMeasurementNumber('01');
+      setMeasurementRevision('rev0');
+      setHasMaterials(false);
+      setHasComplementary(false);
+      setHasAdditives(false);
+      setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
+      setComplementaryRows([]);
+      setAdditiveRows([]);
+      setDiscountValue(0);
+      setBillingClientName('');
+      setBillingClientTaxId('');
+      setBillingClientAddress('');
+      setBillingNotes('');
     } catch (e: any) {
       console.error(e);
       toast({ title: 'Erro', description: 'Falha ao salvar a medição.', variant: 'destructive' });
