@@ -1,6 +1,6 @@
 // src/components/sales/sales-table.tsx
 "use client";
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import type { Sale } from '@/lib/types';
 import {
   Table,

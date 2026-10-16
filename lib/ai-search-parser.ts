@@ -66,7 +66,7 @@ export function parseNaturalLanguageQuery(rawQuery: string): SearchOutput {
     if (!matchedStatuses.includes('FINALIZADA')) matchedStatuses.push('FINALIZADA');
   }
   if (q.includes('cancelada') || q.includes('cancelado')) {
-    if (!matchedStatuses.includes('CANCELADA')) matchedStatuses.push('CANCELADA');
+    if (!matchedStatuses.includes('CANCELADO')) matchedStatuses.push('CANCELADO');
   }
 
   // 6. Identificar Meses
