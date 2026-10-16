@@ -177,6 +177,15 @@ export interface ComplementaryRow {
   totalValue: number;
 }
 
+export interface AdditiveRow {
+  id: string;
+  refNumber?: string;
+  description: string;
+  unitValue: number;
+  quantity: number;
+  totalValue: number;
+}
+
 export interface Measurement {
   id: string;
   saleId: string;
@@ -199,6 +208,11 @@ export interface Measurement {
   companyBankData: string;
   materialRows: MaterialDeductionRow[];
   complementaryRows: ComplementaryRow[];
+  additiveRows?: AdditiveRow[];
+  discountValue?: number;
+  hasMaterials?: boolean;
+  hasComplementary?: boolean;
+  hasAdditives?: boolean;
   createdByUid: string;
   requestedAt: any; // server timestamp
   // Novos campos de faturamento
@@ -207,3 +221,4 @@ export interface Measurement {
   billingClientAddress?: string;
   billingNotes?: string;
 }
+
