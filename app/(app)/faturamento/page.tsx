@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogContent, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -133,6 +134,10 @@ export default function FaturamentoPage() {
 
   const [measurementSaleSearchTerm, setMeasurementSaleSearchTerm] = useState<string>('');
   const [isSelectSaleModalOpen, setIsSelectSaleModalOpen] = useState<boolean>(false);
+
+  const [activeTab, setActiveTab] = useState<string>('request');
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [skipMeasurementAlert, setSkipMeasurementAlert] = useState(false);
 
   const billingEnabled = settings?.enableBillingEmailNotifications ?? false;
   const billingEmails = settings?.billingNotificationEmails ?? [];
@@ -331,9 +336,11 @@ export default function FaturamentoPage() {
   }, [partiallyMeasuredSales]);
 
   // LISTA PRINCIPAL (Solicitar) com busca e ordenação clicável
+  // Exibe apenas vendas NÃO finalizadas (ativas a faturar)
   const sortedFilteredSales = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    const filtered = !term ? sales : sales.filter(s =>
+    const activeSales = sales.filter(s => normalizeSaleStatus(s.status) !== 'FINALIZADA');
+    const filtered = !term ? activeSales : activeSales.filter(s =>
       (s.project || '').toLowerCase().includes(term) ||
       (s.os || '').toLowerCase().includes(term) ||
       (s.company || '').toLowerCase().includes(term) ||
@@ -433,10 +440,14 @@ export default function FaturamentoPage() {
       // Check if there are previous measurements for this sale to alert the user
       const hasHistory = measurements?.some(m => m.saleId === measurementSale.id);
       if (hasHistory) {
-        setMeasurementAlertOpen(true);
+        if (skipMeasurementAlert) {
+          setSkipMeasurementAlert(false);
+        } else {
+          setMeasurementAlertOpen(true);
+        }
       }
     }
-  }, [measurementSale, selectedMeasurementId, measurements]);
+  }, [measurementSale, selectedMeasurementId, measurements, skipMeasurementAlert]);
 
   const measurementUnitValue = measurementContractValue;
   const measurementProject = measurementWork;
@@ -651,6 +662,12 @@ export default function FaturamentoPage() {
       } else {
         await addDoc(collection(firestore!, 'measurements'), measurementData);
         toast({ title: 'Sucesso', description: 'Medição salva com sucesso no banco de dados! O formulário foi limpo para a próxima.' });
+      }
+
+      // Regra Master: ao salvar o boletim de medição, a venda associada passa para status FINALIZADA
+      const targetSaleId = measurementSaleId || measurementSale?.id;
+      if (targetSaleId) {
+        await updateSale(targetSaleId, { status: 'FINALIZADA' });
       }
 
       // Limpa os campos após salvar com sucesso, liberando a tela para uma nova medição
@@ -1270,6 +1287,7 @@ export default function FaturamentoPage() {
   const handleSelectSale = (s: Sale) => {
     setSelectedSale(s);
     setBillingAmount(String(s.salesValue - s.payment));
+    setIsBillingModalOpen(true);
 
     const history = (billingLogs || []).filter((log) => log.saleId === s.id);
     setBillingHistory(history);
@@ -1348,6 +1366,7 @@ export default function FaturamentoPage() {
       window.open(mailtoLink, '_blank');
 
       toast({ title: "Sucesso", description: "Solicitação registrada." });
+      setIsBillingModalOpen(false);
       setSelectedSale(null);
       setRecipientEmail('');
       setBillingInfo('');
@@ -1394,19 +1413,30 @@ export default function FaturamentoPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="request" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 h-auto print-hide">
           <TabsTrigger
             value="request"
             className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
           >
-            Solicitar
+            Solicitar Faturamento
+          </TabsTrigger>
+          <TabsTrigger
+            value="partial"
+            className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none flex items-center gap-1.5"
+          >
+            Medições Parciais
+            {partiallyMeasuredSales.length > 0 && (
+              <Badge variant="secondary" className="px-1.5 py-0.2 text-[11px] bg-blue-100 text-blue-800 border-blue-200">
+                {partiallyMeasuredSales.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="history"
             className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
           >
-            Histórico
+            Histórico de Faturamento
           </TabsTrigger>
           <TabsTrigger
             value="measurement"
@@ -1513,51 +1543,193 @@ export default function FaturamentoPage() {
             </CardContent>
           </Card>
 
-          {selectedSale && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader><CardTitle>Solicitar Faturamento</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Projeto:</strong> {selectedSale.project}</div>
-                  <div><strong>Saldo:</strong> {(selectedSale.salesValue - selectedSale.payment).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          <Dialog open={isBillingModalOpen} onOpenChange={setIsBillingModalOpen}>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-primary" /> Solicitar Faturamento
+                </DialogTitle>
+                <DialogDescription>
+                  Preencha os dados abaixo para registrar a solicitação de faturamento para esta venda.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedSale && (
+                <div className="space-y-4 py-2">
+                  <div className="grid grid-cols-2 gap-3 text-sm rounded-lg bg-muted/50 p-3 border">
+                    <div><span className="text-muted-foreground">Projeto:</span> <strong>{selectedSale.project}</strong></div>
+                    <div><span className="text-muted-foreground">O.S.:</span> <strong>{selectedSale.os || '—'}</strong></div>
+                    <div><span className="text-muted-foreground">Cliente:</span> <strong>{selectedSale.clientService}</strong></div>
+                    <div><span className="text-muted-foreground">Saldo Pendente:</span> <strong className="text-primary">{(selectedSale.salesValue - selectedSale.payment).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="billing-amount">Valor a Faturar</Label>
+                    <Input
+                      id="billing-amount"
+                      type="number"
+                      value={billingAmount}
+                      onChange={e => setBillingAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="recipient-email">E-mail do Destinatário</Label>
+                    {billingEnabled && (
+                      <div className="text-xs text-muted-foreground">
+                        Faturamento por e-mail está <strong>ATIVADO</strong>.{" "}
+                        {hasBillingEmails ? `Destinatários: ${billingEmails.join(', ')}` : "Nenhum e-mail cadastrado em Configurações."}
+                      </div>
+                    )}
+                    <Input
+                      id="recipient-email"
+                      type="email"
+                      value={recipientEmail}
+                      onChange={e => setRecipientEmail(e.target.value)}
+                      placeholder="financeiro@..."
+                      disabled={billingEnabled && hasBillingEmails}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="billing-notes">Observações</Label>
+                    <Textarea
+                      id="billing-notes"
+                      value={billingInfo}
+                      onChange={e => setBillingInfo(e.target.value)}
+                      placeholder="Instruções adicionais de faturamento..."
+                      rows={3}
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <Label>Valor a Faturar</Label>
-                  <Input type="number" value={billingAmount} onChange={e => setBillingAmount(e.target.value)} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>E-mail do Destinatário</Label>
-
-                  {billingEnabled && (
-                    <div className="text-sm text-muted-foreground">
-                      Faturamento por e-mail está <strong>ATIVADO</strong>.{" "}
-                      {hasBillingEmails ? `Destinatários: ${billingEmails.join(', ')}` : "Nenhum e-mail cadastrado em Configurações."}
-                    </div>
-                  )}
-
-                  <Input
-                    type="email"
-                    value={recipientEmail}
-                    onChange={e => setRecipientEmail(e.target.value)}
-                    placeholder="financeiro@..."
-                    disabled={billingEnabled && hasBillingEmails}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Observações</Label>
-                  <Textarea value={billingInfo} onChange={e => setBillingInfo(e.target.value)} />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" onClick={handleSendEmail} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Enviar Solicitação
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setIsBillingModalOpen(false)}>
+                  Cancelar
                 </Button>
-              </CardFooter>
-            </Card>
-          )}
+                <Button onClick={handleSendEmail} disabled={isSubmitting || !selectedSale}>
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Enviar Solicitação
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        <TabsContent value="partial" className="space-y-6">
+          <Card id="medicoes-parciais" className="border-blue-500/20 shadow-lg">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="flex items-center text-blue-700">
+                  <Layers className="mr-2 h-5 w-5" /> Medições Parciais (Saldo Restante a Medir)
+                </CardTitle>
+                <Badge variant="outline" className="text-blue-700 border-blue-300">
+                  {partiallyMeasuredSales.length} venda(s) • Total a medir: {totalRemainingToMeasureValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vendas que já tiveram início de medição, mas ainda possuem saldo contratual restante a ser medido e faturado.
+              </p>
+              <div className="flex gap-2 mt-2 flex-wrap print-hide">
+                <Input
+                  placeholder="Buscar por projeto, empresa, O.S., vendedor, cliente..."
+                  value={partialMeasurementSearchTerm}
+                  onChange={e => setPartialMeasurementSearchTerm(e.target.value)}
+                  className="max-w-md"
+                />
+                {partialMeasurementSearchTerm && (
+                  <Button variant="outline" type="button" onClick={() => setPartialMeasurementSearchTerm('')}>
+                    <RotateCcw className="h-4 w-4 mr-2" /> Limpar
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="whitespace-nowrap rounded-md border">
+                <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
+                  <TableHeader>
+                    <TableRow>
+                      {renderSortableHeader('Data Venda', 'date', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[7%]')}
+                      {renderSortableHeader('Vendedor', 'seller', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
+                      {renderSortableHeader('Empresa', 'company', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
+                      {renderSortableHeader('Projeto', 'project', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
+                      {renderSortableHeader('O.S.', 'os', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[6%]')}
+                      {renderSortableHeader('Cliente/Serviço', 'clientService', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[16%]')}
+                      {renderSortableHeader('Valor Contrato', 'salesValue', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[10%]')}
+                      {renderSortableHeader('Total Medido', 'totalMeasuredValue', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[10%]')}
+                      {renderSortableHeader('% Medido', 'measuredPercent', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[7%]')}
+                      {renderSortableHeader('Saldo a Medir', 'remainingToMeasure', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[11%]')}
+                      <TableHead className="h-9 px-2 text-right w-[9%]">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedPartiallyMeasuredSales.map((s: any) => (
+                      <TableRow key={s.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="px-2 py-2 whitespace-nowrap">{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
+                        <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{s.seller}</TableCell>
+                        <TableCell className="px-2 py-2 truncate" title={s.company}>{s.company || '—'}</TableCell>
+                        <TableCell className="px-2 py-2 truncate font-medium" title={s.project}>{s.project || '—'}</TableCell>
+                        <TableCell className="px-2 py-2 whitespace-nowrap" title={s.os}>{s.os || '—'}</TableCell>
+                        <TableCell className="px-2 py-2 truncate" title={s.clientService}>{s.clientService || '—'}</TableCell>
+                        <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                          {s.salesValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
+                        <TableCell className="px-2 py-2 text-right whitespace-nowrap font-semibold text-emerald-700">
+                          {s.totalMeasuredValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
+                        <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                          <Badge variant="secondary" className="text-[11px]">
+                            {s.measuredPercent?.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-2 py-2 text-right whitespace-nowrap font-bold text-blue-700">
+                          {s.remainingToMeasure?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
+                        <TableCell className="px-2 py-2 text-right whitespace-nowrap">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setSkipMeasurementAlert(true);
+                                setMeasurementSaleId(s.id);
+                                setActiveTab('measurement');
+                                toast({ title: "Venda carregada", description: `Preencha a nova medição para ${s.project}.` });
+                              }}
+                              title="Fazer nova medição para este saldo"
+                            >
+                              Medir
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleSelectSale(s)}
+                              disabled={!canRequestBilling}
+                              title="Solicitar faturamento"
+                            >
+                              <Send className="h-3 w-3 mr-1" /> Faturar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {sortedPartiallyMeasuredSales.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
+                          Nenhuma venda com medição parcial pendente no momento.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="history">
@@ -2252,118 +2424,7 @@ export default function FaturamentoPage() {
       </Card>
 
       {/* NOVO ALERTA: Vendas com Medição Parcial (Saldo Restante a Medir) */}
-      <Card id="medicoes-parciais" className="border-blue-500/20 shadow-lg">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <CardTitle className="flex items-center text-blue-700">
-              <Layers className="mr-2 h-5 w-5" /> Alerta: Vendas com Medição Parcial (Saldo Restante a Medir)
-            </CardTitle>
-            <Badge variant="outline" className="text-blue-700 border-blue-300">
-              {partiallyMeasuredSales.length} venda(s) • Total a medir: {totalRemainingToMeasureValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Vendas que já tiveram início de medição, mas ainda possuem saldo contratual restante a ser medido e faturado.
-          </p>
-          <div className="flex gap-2 mt-2 flex-wrap print-hide">
-            <Input
-              placeholder="Buscar por projeto, empresa, O.S., vendedor, cliente..."
-              value={partialMeasurementSearchTerm}
-              onChange={e => setPartialMeasurementSearchTerm(e.target.value)}
-              className="max-w-md"
-            />
-            {partialMeasurementSearchTerm && (
-              <Button variant="outline" type="button" onClick={() => setPartialMeasurementSearchTerm('')}>
-                <RotateCcw className="h-4 w-4 mr-2" /> Limpar
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="whitespace-nowrap rounded-md border">
-            <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
-              <TableHeader>
-                <TableRow>
-                  {renderSortableHeader('Data Venda', 'date', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[7%]')}
-                  {renderSortableHeader('Vendedor', 'seller', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
-                  {renderSortableHeader('Empresa', 'company', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
-                  {renderSortableHeader('Projeto', 'project', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[8%]')}
-                  {renderSortableHeader('O.S.', 'os', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[6%]')}
-                  {renderSortableHeader('Cliente/Serviço', 'clientService', partialSortField, partialSortDirection, handleSortPartial, false, 'w-[16%]')}
-                  {renderSortableHeader('Valor Contrato', 'salesValue', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[10%]')}
-                  {renderSortableHeader('Total Medido', 'totalMeasuredValue', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[10%]')}
-                  {renderSortableHeader('% Medido', 'measuredPercent', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[7%]')}
-                  {renderSortableHeader('Saldo a Medir', 'remainingToMeasure', partialSortField, partialSortDirection, handleSortPartial, true, 'w-[11%]')}
-                  <TableHead className="h-9 px-2 text-right w-[9%]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedPartiallyMeasuredSales.map((s: any) => (
-                  <TableRow key={s.id} className="hover:bg-muted/50 transition-colors">
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{format(parseISO(s.date), 'dd/MM/yy')}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{s.seller}</TableCell>
-                    <TableCell className="px-2 py-2 truncate" title={s.company}>{s.company || '—'}</TableCell>
-                    <TableCell className="px-2 py-2 truncate font-medium" title={s.project}>{s.project || '—'}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap" title={s.os}>{s.os || '—'}</TableCell>
-                    <TableCell className="px-2 py-2 truncate" title={s.clientService}>{s.clientService || '—'}</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">
-                      {s.salesValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap font-semibold text-emerald-700">
-                      {s.totalMeasuredValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">
-                      <Badge variant="secondary" className="text-[11px]">
-                        {s.measuredPercent?.toFixed(1)}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap font-bold text-blue-700">
-                      {s.remainingToMeasure?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            setMeasurementSaleId(s.id);
-                            const tabsTrigger = document.querySelector('[value="measurement"]') as HTMLButtonElement | null;
-                            if (tabsTrigger) tabsTrigger.click();
-                            toast({ title: "Venda carregada", description: `Preencha a nova medição para ${s.project}.` });
-                          }}
-                          title="Fazer nova medição para este saldo"
-                        >
-                          Medir
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => handleSelectSale(s)}
-                          disabled={!canRequestBilling}
-                          title="Solicitar faturamento"
-                        >
-                          <Send className="h-3 w-3 mr-1" /> Faturar
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {sortedPartiallyMeasuredSales.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
-                      Nenhuma venda com medição parcial pendente no momento.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardContent>
-      </Card>
+
 
       <AlertDialog open={isBillingHistoryOpen} onOpenChange={setIsBillingHistoryOpen}>
         <AlertDialogContent>
