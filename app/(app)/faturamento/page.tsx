@@ -434,17 +434,39 @@ export default function FaturamentoPage() {
     if (!selectedMeasurementId) {
       setMaterialRows([{ id: '1', docNumber: '', description: '', value: 0 }]);
       setComplementaryRows([]);
-      setMeasurementNumber('01');
-      setMeasurementRevision('rev0');
+      setAdditiveRows([]);
+      setDiscountValue(0);
 
-      // Check if there are previous measurements for this sale to alert the user
-      const hasHistory = measurements?.some(m => m.saleId === measurementSale.id);
+      // Check if there are previous measurements for this sale
+      const previousMeasurements = (measurements || []).filter(m => m.saleId === measurementSale.id);
+      const hasHistory = previousMeasurements.length > 0;
+
       if (hasHistory) {
+        // Sequencial automático de número (ex: 02, 03...)
+        const nextNum = String(previousMeasurements.length + 1).padStart(2, '0');
+        setMeasurementNumber(nextNum);
+        setMeasurementRevision('rev0');
+
+        // Calcula o percentual financeiro já acumulado nas medições anteriores
+        let totalPrevMeasured = 0;
+        for (const pm of previousMeasurements) {
+          totalPrevMeasured += ((pm.contractValue || 0) * ((pm.execPercent || 0) / 100)) - (pm.materialRows?.reduce((acc, r) => acc + (r.value || 0), 0) || 0) + (pm.complementaryRows?.reduce((acc, r) => acc + (r.totalValue || 0), 0) || 0);
+        }
+        const contractVal = measurementSale.salesValue || 0;
+        const prevPct = contractVal > 0 ? Math.min(99.9, (totalPrevMeasured / contractVal) * 100) : 0;
+        setMeasurementPrevPercent(Number(prevPct.toFixed(1)));
+        setMeasurementExecPercent(Number(Math.max(0, 100 - prevPct).toFixed(1)));
+
         if (skipMeasurementAlert) {
           setSkipMeasurementAlert(false);
         } else {
           setMeasurementAlertOpen(true);
         }
+      } else {
+        setMeasurementNumber('01');
+        setMeasurementRevision('rev0');
+        setMeasurementPrevPercent(0);
+        setMeasurementExecPercent(100);
       }
     }
   }, [measurementSale, selectedMeasurementId, measurements, skipMeasurementAlert]);
@@ -1284,9 +1306,10 @@ export default function FaturamentoPage() {
     }
   };
 
-  const handleSelectSale = (s: Sale) => {
+  const handleSelectSale = (s: Sale, customAmount?: number) => {
     setSelectedSale(s);
-    setBillingAmount(String(s.salesValue - s.payment));
+    const defaultAmount = customAmount !== undefined ? customAmount : (s.salesValue - s.payment);
+    setBillingAmount(String(Math.max(0, defaultAmount)));
     setIsBillingModalOpen(true);
 
     const history = (billingLogs || []).filter((log) => log.saleId === s.id);
@@ -1543,78 +1566,6 @@ export default function FaturamentoPage() {
             </CardContent>
           </Card>
 
-          <Dialog open={isBillingModalOpen} onOpenChange={setIsBillingModalOpen}>
-            <DialogContent className="max-w-xl">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Receipt className="h-5 w-5 text-primary" /> Solicitar Faturamento
-                </DialogTitle>
-                <DialogDescription>
-                  Preencha os dados abaixo para registrar a solicitação de faturamento para esta venda.
-                </DialogDescription>
-              </DialogHeader>
-
-              {selectedSale && (
-                <div className="space-y-4 py-2">
-                  <div className="grid grid-cols-2 gap-3 text-sm rounded-lg bg-muted/50 p-3 border">
-                    <div><span className="text-muted-foreground">Projeto:</span> <strong>{selectedSale.project}</strong></div>
-                    <div><span className="text-muted-foreground">O.S.:</span> <strong>{selectedSale.os || '—'}</strong></div>
-                    <div><span className="text-muted-foreground">Cliente:</span> <strong>{selectedSale.clientService}</strong></div>
-                    <div><span className="text-muted-foreground">Saldo Pendente:</span> <strong className="text-primary">{(selectedSale.salesValue - selectedSale.payment).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="billing-amount">Valor a Faturar</Label>
-                    <Input
-                      id="billing-amount"
-                      type="number"
-                      value={billingAmount}
-                      onChange={e => setBillingAmount(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="recipient-email">E-mail do Destinatário</Label>
-                    {billingEnabled && (
-                      <div className="text-xs text-muted-foreground">
-                        Faturamento por e-mail está <strong>ATIVADO</strong>.{" "}
-                        {hasBillingEmails ? `Destinatários: ${billingEmails.join(', ')}` : "Nenhum e-mail cadastrado em Configurações."}
-                      </div>
-                    )}
-                    <Input
-                      id="recipient-email"
-                      type="email"
-                      value={recipientEmail}
-                      onChange={e => setRecipientEmail(e.target.value)}
-                      placeholder="financeiro@..."
-                      disabled={billingEnabled && hasBillingEmails}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="billing-notes">Observações</Label>
-                    <Textarea
-                      id="billing-notes"
-                      value={billingInfo}
-                      onChange={e => setBillingInfo(e.target.value)}
-                      placeholder="Instruções adicionais de faturamento..."
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setIsBillingModalOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSendEmail} disabled={isSubmitting || !selectedSale}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Enviar Solicitação
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
 
         <TabsContent value="partial" className="space-y-6">
@@ -1707,9 +1658,9 @@ export default function FaturamentoPage() {
                               type="button"
                               size="sm"
                               className="h-7 px-2 text-xs"
-                              onClick={() => handleSelectSale(s)}
+                              onClick={() => handleSelectSale(s, s.remainingToMeasure)}
                               disabled={!canRequestBilling}
-                              title="Solicitar faturamento"
+                              title="Solicitar faturamento do saldo restante"
                             >
                               <Send className="h-3 w-3 mr-1" /> Faturar
                             </Button>
@@ -2423,8 +2374,79 @@ export default function FaturamentoPage() {
         </CardContent>
       </Card>
 
-      {/* NOVO ALERTA: Vendas com Medição Parcial (Saldo Restante a Medir) */}
+      {/* Modal Dialog Global de Solicitar Faturamento */}
+      <Dialog open={isBillingModalOpen} onOpenChange={setIsBillingModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" /> Solicitar Faturamento
+            </DialogTitle>
+            <DialogDescription>
+              Preencha os dados abaixo para registrar a solicitação de faturamento para esta venda.
+            </DialogDescription>
+          </DialogHeader>
 
+          {selectedSale && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3 text-sm rounded-lg bg-muted/50 p-3 border">
+                <div><span className="text-muted-foreground">Projeto:</span> <strong>{selectedSale.project}</strong></div>
+                <div><span className="text-muted-foreground">O.S.:</span> <strong>{selectedSale.os || '—'}</strong></div>
+                <div><span className="text-muted-foreground">Cliente:</span> <strong>{selectedSale.clientService}</strong></div>
+                <div><span className="text-muted-foreground">Saldo Pendente:</span> <strong className="text-primary">{(selectedSale.salesValue - selectedSale.payment).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="billing-amount">Valor a Faturar</Label>
+                <Input
+                  id="billing-amount"
+                  type="number"
+                  value={billingAmount}
+                  onChange={e => setBillingAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="recipient-email">E-mail do Destinatário</Label>
+                {billingEnabled && (
+                  <div className="text-xs text-muted-foreground">
+                    Faturamento por e-mail está <strong>ATIVADO</strong>.{" "}
+                    {hasBillingEmails ? `Destinatários: ${billingEmails.join(', ')}` : "Nenhum e-mail cadastrado em Configurações."}
+                  </div>
+                )}
+                <Input
+                  id="recipient-email"
+                  type="email"
+                  value={recipientEmail}
+                  onChange={e => setRecipientEmail(e.target.value)}
+                  placeholder="financeiro@..."
+                  disabled={billingEnabled && hasBillingEmails}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="billing-notes">Observações</Label>
+                <Textarea
+                  id="billing-notes"
+                  value={billingInfo}
+                  onChange={e => setBillingInfo(e.target.value)}
+                  placeholder="Instruções adicionais de faturamento..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsBillingModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSendEmail} disabled={isSubmitting || !selectedSale}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Enviar Solicitação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={isBillingHistoryOpen} onOpenChange={setIsBillingHistoryOpen}>
         <AlertDialogContent>

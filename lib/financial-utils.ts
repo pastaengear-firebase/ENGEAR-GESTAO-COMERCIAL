@@ -82,10 +82,13 @@ export function calculateSaleFinancialSummary(
 
   const isPartiallyMeasured = hasMeasurement && !isFinalized && remainingToMeasure > 0;
 
+  const monetaryPercent = salesValue > 0 ? (totalMeasuredValue / salesValue) * 100 : 0;
+  const measuredPercent = Math.min(100, Math.max(0, monetaryPercent > 0 ? monetaryPercent : maxAccumulatedPercent));
+
   return {
     sale,
     totalMeasuredValue,
-    measuredPercent: Math.min(100, maxAccumulatedPercent),
+    measuredPercent,
     totalReceived,
     pendingBalance,
     remainingToMeasure,
