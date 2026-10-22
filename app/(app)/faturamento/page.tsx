@@ -1104,33 +1104,35 @@ export default function FaturamentoPage() {
               </div>
 
               <div class="card-info">
-                <div class="card-info-header">RESPONSÁVEL / EMISSÃO</div>
+                <div class="card-info-header accent">Dados para Emissão da Nota Fiscal</div>
                 <div class="card-info-body">
-                  <div class="info-line"><span class="info-lbl">Responsável:</span><span class="info-val">${responsibleContact.name}</span></div>
-                  <div class="info-line"><span class="info-lbl">E-mail:</span><span class="info-val">${responsibleContact.email}</span></div>
-                  <div class="info-line"><span class="info-lbl">Contato:</span><span class="info-val">${responsibleContact.phone}</span></div>
-                  <div class="info-line"><span class="info-lbl">Emissão:</span><span class="info-val">${emissionDateText}</span></div>
-                  <div class="info-line"><span class="info-lbl">Referência:</span><span class="info-val">Medição ${measurementNumber}</span></div>
+                  <div class="info-line"><span class="info-lbl">Razão Social:</span><span class="info-val">${billingClientName || measurementClient || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">CNPJ / CPF:</span><span class="info-val">${billingClientTaxId || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Endereço NF:</span><span class="info-val">${billingClientAddress ? billingClientAddress.replace(/\n/g, ' ') : '-'}</span></div>
+                  ${billingNotes ? `<div class="info-line"><span class="info-lbl">Obs. na Nota:</span><span class="info-val" style="font-weight:normal; color:#52525b;">${billingNotes}</span></div>` : ''}
                 </div>
               </div>
             </div>
 
             <div class="grid-2">
               <div class="card-info">
-                <div class="card-info-header">Empresa Executora</div>
+                <div class="card-info-header">Empresa Executora / Responsável</div>
                 <div class="card-info-body">
                   <div class="info-line"><span class="info-lbl">Razão Social:</span><span class="info-val">${measurementCompany.legalName}</span></div>
                   <div class="info-line"><span class="info-lbl">CNPJ:</span><span class="info-val">${measurementCompany.taxId}</span></div>
                   <div class="info-line"><span class="info-lbl">Endereço:</span><span class="info-val">${companyAddress.replace(/\n/g, ' ')}</span></div>
+                  <div class="info-line" style="border-top:1px dashed #E3E3E3; margin-top:3px; padding-top:3px;">
+                    <span class="info-lbl">Emissão/Resp.:</span>
+                    <span class="info-val">${responsibleContact.name} | ${responsibleContact.email} | ${responsibleContact.phone}</span>
+                  </div>
+                  <div class="info-line"><span class="info-lbl">Referência:</span><span class="info-val">Medição ${measurementNumber} (${rawRevision}) — Emissão: ${emissionDateText}</span></div>
                 </div>
               </div>
 
               <div class="card-info">
-                <div class="card-info-header">Dados para Pagamento / Faturamento</div>
+                <div class="card-info-header">Dados para Pagamento</div>
                 <div class="card-info-body">
                   <div class="info-line"><span class="info-lbl">Dados Bancários:</span><span class="info-val">${companyBankData.replace(/\n/g, ' | ')}</span></div>
-                  ${billingClientTaxId ? `<div class="info-line"><span class="info-lbl">CNPJ Faturamento:</span><span class="info-val">${billingClientTaxId}</span></div>` : ''}
-                  ${billingNotes ? `<div class="info-line"><span class="info-lbl">Obs. Faturamento:</span><span class="info-val" style="font-weight:normal; color:#52525b;">${billingNotes}</span></div>` : ''}
                 </div>
               </div>
             </div>
@@ -2251,6 +2253,10 @@ export default function FaturamentoPage() {
                 <p><span className="font-medium">Contrato/O.S.:</span> {measurementContractRef || '-'}</p>
                 <p><span className="font-medium">Cliente:</span> {measurementClient || '-'}</p>
                 <p><span className="font-medium">Serviço:</span> {measurementService || '-'}</p>
+                <p><span className="font-medium">Emissão de NF (Razão Social):</span> {billingClientName || measurementClient || '-'}</p>
+                {billingClientTaxId && <p><span className="font-medium">CNPJ/CPF para NF:</span> {billingClientTaxId}</p>}
+                {billingClientAddress && <p><span className="font-medium">Endereço NF:</span> {billingClientAddress}</p>}
+                {billingNotes && <p><span className="font-medium">Obs. na Nota:</span> {billingNotes}</p>}
                 <p><span className="font-medium">% acumulado:</span> {measurementAccumulatedPercent.toFixed(2)}%</p>
                 <p><span className="font-medium">Responsável / Emissão:</span> {responsibleContact.name} ({measurementResponsible}) | {responsibleContact.email}</p>
                 <p><span className="font-medium">Valor serviços (período):</span> {measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
@@ -2267,8 +2273,8 @@ export default function FaturamentoPage() {
                   <p><span className="font-medium text-destructive">Desconto concedido:</span> - {safeDiscountValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 )}
                 <p className="font-semibold border-t pt-2"><span>Total da medição:</span> {measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                <p><span className="font-medium">Empresa:</span> {measurementCompany.legalName}</p>
-                <p><span className="font-medium">Documento:</span> {measurementCompany.taxId}</p>
+                <p><span className="font-medium">Empresa Executora:</span> {measurementCompany.legalName} ({measurementCompany.taxId})</p>
+                <p><span className="font-medium">Dados para Pagamento:</span> {companyBankData.replace(/\n/g, ' | ')}</p>
               </div>
             </CardContent>
           </Card>
