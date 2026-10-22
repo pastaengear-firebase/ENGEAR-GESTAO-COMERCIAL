@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Layers } from 'lucide-react';
+import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Layers, Mail } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
 import { useFirestore } from '@/firebase/provider';
@@ -692,6 +692,28 @@ export default function FaturamentoPage() {
         await updateSale(targetSaleId, { status: 'FINALIZADA' });
       }
 
+      // Reenvio/Envio do e-mail de faturamento com dados do boletim de medição (ação separada, sem impacto financeiro)
+      try {
+        handleResendBillingEmail({
+          company: measurementSale?.company || measurementCompanyKey,
+          project: measurementWork,
+          os: measurementContractRef,
+          billingAmount: measurementTotalPeriod,
+          clientService: measurementClient,
+          seller: measurementSale?.seller || measurementResponsible,
+          billingClientName: billingClientName,
+          billingClientTaxId: billingClientTaxId,
+          billingClientAddress: billingClientAddress,
+          billingNotes: billingNotes,
+          isMeasurement: true,
+          measurementNumber: measurementNumber,
+          date: measurementDate ? format(parseISO(measurementDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy'),
+          summary: `Boletim de Medição Nº ${measurementNumber} (${measurementRevision.toUpperCase()})`,
+        });
+      } catch (err) {
+        console.error('Falha ao disparar mailto de medição:', err);
+      }
+
       // Limpa os campos após salvar com sucesso, liberando a tela para uma nova medição
       setSelectedMeasurementId(null);
       setMeasurementSaleId('');
@@ -1321,6 +1343,68 @@ export default function FaturamentoPage() {
     }
   };
 
+  const handleResendBillingEmail = (params: {
+    company?: string;
+    project?: string;
+    os?: string;
+    salesValue?: number;
+    billingAmount: number;
+    clientService?: string;
+    seller?: string;
+    recipientEmail?: string;
+    billingClientName?: string;
+    billingClientTaxId?: string;
+    billingClientAddress?: string;
+    area?: string;
+    date?: string;
+    summary?: string;
+    attachmentUrl?: string;
+    billingNotes?: string;
+    billingInfo?: string;
+    isMeasurement?: boolean;
+    measurementNumber?: string;
+  }) => {
+    const defaultRecipients = (billingEnabled && hasBillingEmails)
+      ? billingEmails.join(';')
+      : (params.recipientEmail || '').trim();
+
+    const amountBRL = (params.billingAmount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const requestDate = params.date || format(new Date(), 'dd/MM/yyyy');
+    const appBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const billingLink = `${appBaseUrl}/faturamento`;
+    const hasPdf = Boolean(params.attachmentUrl);
+    const hasMeasurement = params.isMeasurement || /medição|medicao/i.test(params.billingInfo || '');
+
+    const tag = hasMeasurement 
+      ? `SOLICITAÇÃO DE FATURAMENTO (BOLETIM DE MEDIÇÃO ${params.measurementNumber ? 'Nº ' + params.measurementNumber : ''})!`
+      : `SOLICITAÇÃO DE FATURAMENTO!`;
+
+    const subject = `${tag} ${params.company || 'NÃO INFORMADO'} PROJETO ${params.project || 'NÃO INFORMADO'} - O.S. N. ${params.os || 'NÃO INFORMADO'} - VALOR A FATURAR: ${amountBRL} - CLIENTE ${params.clientService || 'NÃO INFORMADO'} - VENDEDOR: ${params.seller || 'NÃO INFORMADO'}`;
+
+    const body = [
+      `Cliente: ${params.clientService || 'NÃO INFORMADO'}`,
+      `Dados do Cliente para NF: ${params.billingClientName || ''} ${params.billingClientTaxId || ''}`,
+      `Endereço Faturamento: ${params.billingClientAddress || ''}`,
+      `Valor a faturar: ${amountBRL}`,
+      `Área: ${params.area || 'NÃO INFORMADA'}`,
+      `Data: ${requestDate}`,
+      `Projeto: ${params.project || 'NÃO INFORMADO'}`,
+      `O.S.: ${params.os || 'NÃO INFORMADO'}`,
+      `Descrição: ${params.summary || ''}`,
+      `PDF da Proposta: ${hasPdf ? 'Sim' : 'Não'}`,
+      `Medição: ${hasMeasurement ? 'Sim' : 'Não'}`,
+      `Vendedor: ${params.seller || 'NÃO INFORMADO'}`,
+      ``,
+      `Observações de Faturamento: ${params.billingNotes || ''}`,
+      `Observações Gerais: ${params.billingInfo?.trim() || ''}`,
+      ``,
+      `Para consultar, acesse: ${billingLink}`,
+    ].join('\n');
+
+    const mailtoLink = `mailto:${defaultRecipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
   const handleSendEmail = async () => {
     if (!selectedSale || !user) return;
 
@@ -1357,38 +1441,25 @@ export default function FaturamentoPage() {
 
       await updateSale(selectedSale.id, { status: "FINALIZADA" });
 
-      const amountBRL = Number(billingAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-      const requestDate = format(new Date(), 'dd/MM/yyyy');
-      const appBaseUrl = window.location.origin;
-      const billingLink = `${appBaseUrl}/faturamento`;
-      const hasMeasurement = /medição|medicao/i.test(billingInfo || '');
-
-      const subject = `SOLICITAÇÃO DE FATURAMENTO! ${selectedSale.company || 'NÃO INFORMADO'} PROJETO ${selectedSale.project || 'NÃO INFORMADO'} - O.S. N. ${selectedSale.os || 'NÃO INFORMADO'} - VALOR A FATURAR: ${amountBRL} - CLIENTE ${selectedSale.clientService || 'NÃO INFORMADO'} - VENDEDOR: ${selectedSale.seller || 'NÃO INFORMADO'}`;
-
-      const hasPdf = Boolean((selectedSale as any).attachmentUrl);
-
-      const body = [
-        `Cliente: ${selectedSale.clientService || 'NÃO INFORMADO'}`,
-        `Dados do Cliente para NF: ${billingClientName || ''} ${billingClientTaxId || ''}`,
-        `Endereço Faturamento: ${billingClientAddress || ''}`,
-        `Valor a faturar: ${amountBRL}`,
-        `Área: ${selectedSale.area || 'NÃO INFORMADA'}`,
-        `Data: ${requestDate}`,
-        `Projeto: ${selectedSale.project || 'NÃO INFORMADO'}`,
-        `O.S.: ${selectedSale.os || 'NÃO INFORMADO'}`,
-        `Descrição: ${selectedSale.summary || ''}`,
-        `PDF da Proposta: ${hasPdf ? 'Sim' : 'Não'}`,
-        `Medição: ${hasMeasurement ? 'Sim' : 'Não'}`,
-        `Vendedor: ${selectedSale.seller || 'NÃO INFORMADO'}`,
-        ``,
-        `Observações de Faturamento: ${billingNotes || ''}`,
-        `Observações Gerais: ${billingInfo?.trim() || ''}`,
-        ``,
-        `Para consultar, acesse: ${billingLink}`,
-      ].join('\n');
-
-      const mailtoLink = `mailto:${resolvedRecipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(mailtoLink, '_blank');
+      handleResendBillingEmail({
+        company: selectedSale.company,
+        project: selectedSale.project,
+        os: selectedSale.os,
+        salesValue: selectedSale.salesValue,
+        billingAmount: Number(billingAmount),
+        clientService: selectedSale.clientService,
+        seller: selectedSale.seller,
+        recipientEmail: resolvedRecipients,
+        billingClientName,
+        billingClientTaxId,
+        billingClientAddress,
+        area: selectedSale.area,
+        date: format(new Date(), 'dd/MM/yyyy'),
+        summary: selectedSale.summary,
+        attachmentUrl: (selectedSale as any).attachmentUrl,
+        billingNotes,
+        billingInfo,
+      });
 
       toast({ title: "Sucesso", description: "Solicitação registrada." });
       setIsBillingModalOpen(false);
@@ -1716,6 +1787,7 @@ export default function FaturamentoPage() {
                       {renderSortableHeader('Valor Faturado', 'billingAmount', historySortField, historySortDirection, handleSortHistory, true, 'w-[10%]')}
                       {renderSortableHeader('Destinatário', 'recipientEmail', historySortField, historySortDirection, handleSortHistory, false, 'w-[11%]')}
                       <TableHead className="h-9 px-2 w-[5%] text-center">PDF</TableHead>
+                      <TableHead className="h-9 px-2 w-[7%] text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1752,12 +1824,45 @@ export default function FaturamentoPage() {
                               <span className="text-xs text-muted-foreground/70 italic">—</span>
                             )}
                           </TableCell>
+                          <TableCell className="px-2 py-2 text-center">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              title="Reenviar e-mail desta solicitação de faturamento (sem alterar valores)"
+                              onClick={() => {
+                                handleResendBillingEmail({
+                                  company: log.saleData?.company,
+                                  project: log.saleData?.project,
+                                  os: log.saleData?.os,
+                                  salesValue: log.saleData?.salesValue,
+                                  billingAmount: log.billingAmount,
+                                  clientService: log.saleData?.clientService,
+                                  seller: log.saleData?.seller || log.requestedBy,
+                                  recipientEmail: log.recipientEmail,
+                                  billingClientName: log.saleData?.billingClientName || log.billingClientName,
+                                  billingClientTaxId: log.saleData?.billingClientTaxId || log.billingClientTaxId,
+                                  billingClientAddress: log.saleData?.billingClientAddress || log.billingClientAddress,
+                                  area: log.saleData?.area,
+                                  date: log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yyyy') : undefined,
+                                  summary: log.saleData?.summary,
+                                  attachmentUrl: pdfUrl,
+                                  billingNotes: log.saleData?.billingNotes || log.billingNotes,
+                                  billingInfo: log.billingInfo,
+                                });
+                                toast({ title: 'E-mail preparado', description: 'Cliente de e-mail aberto para reenvio sem alterar saldos.' });
+                              }}
+                            >
+                              <Mail className="h-3.5 w-3.5 mr-1" /> Reenviar
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
                     {sortedFilteredBillingHistory.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-6 text-muted-foreground">
                           Nenhum registro de faturamento encontrado.
                         </TableCell>
                       </TableRow>
@@ -2551,6 +2656,39 @@ export default function FaturamentoPage() {
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => loadMeasurement(m)}>Carregar</Button>
                       <Button variant="outline" size="sm" onClick={() => { loadMeasurement(m); setTimeout(handlePrintMeasurementPdf, 100); }}>Reimprimir</Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Reenviar e-mail desta medição (sem alterar valores)"
+                        onClick={() => {
+                          const execValue = (m.contractValue || 0) * ((m.execPercent || 0) / 100);
+                          const totalMat = m.materialRows?.reduce((acc: number, r: any) => acc + (r.value || 0), 0) || 0;
+                          const totalComp = m.complementaryRows?.reduce((acc: number, r: any) => acc + (r.totalValue || 0), 0) || 0;
+                          const totalAdd = m.additiveRows?.reduce((acc: number, r: any) => acc + (r.totalValue || 0), 0) || 0;
+                          const discount = m.discountValue || 0;
+                          const totalPeriod = execValue - totalMat + totalComp + totalAdd - discount;
+
+                          handleResendBillingEmail({
+                            company: m.company,
+                            project: m.work,
+                            os: m.contractRef,
+                            billingAmount: totalPeriod,
+                            clientService: m.client,
+                            seller: m.responsible,
+                            billingClientName: m.billingClientName,
+                            billingClientTaxId: m.billingClientTaxId,
+                            billingClientAddress: m.billingClientAddress,
+                            billingNotes: m.billingNotes,
+                            isMeasurement: true,
+                            measurementNumber: m.number,
+                            date: m.date ? format(parseISO(m.date), 'dd/MM/yyyy') : undefined,
+                            summary: `Boletim de Medição Nº ${m.number} (${m.revision?.toUpperCase() || 'REV0'})`,
+                          });
+                          toast({ title: 'E-mail preparado', description: 'Cliente de e-mail aberto para reenvio do boletim.' });
+                        }}
+                      >
+                        <Mail className="h-3.5 w-3.5 mr-1" /> E-mail
+                      </Button>
                     </div>
                   </div>
                 ))}
