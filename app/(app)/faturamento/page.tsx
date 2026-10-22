@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO, isBefore, subDays, differenceInDays } from 'date-fns';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Layers, Mail } from 'lucide-react';
+import { Receipt, Search, Send, AlertTriangle, Loader2, Link as LinkIcon, Printer, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Layers, Mail, Edit3 } from 'lucide-react';
 import { useSales } from '@/hooks/use-sales';
 import { useSettings } from '@/hooks/use-settings';
 import { useFirestore } from '@/firebase/provider';
@@ -137,6 +137,7 @@ export default function FaturamentoPage() {
 
   const [activeTab, setActiveTab] = useState<string>('request');
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [editingBillingLog, setEditingBillingLog] = useState<BillingLog | null>(null);
   const [skipMeasurementAlert, setSkipMeasurementAlert] = useState(false);
 
   const billingEnabled = settings?.enableBillingEmailNotifications ?? false;
@@ -351,30 +352,86 @@ export default function FaturamentoPage() {
     return sortData(filtered, salesSortField, salesSortDirection);
   }, [sales, searchTerm, salesSortField, salesSortDirection]);
 
-  // HISTÓRICO DE FATURAMENTO com busca e ordenação completa
+  // HISTÓRICO UNIFICADO DE FATURAMENTO & MEDIÇÕES com busca e ordenação completa
   const sortedFilteredBillingHistory = useMemo(() => {
     const term = historySearchTerm.trim().toLowerCase();
-    const base = billingLogs || [];
-    const filtered = !term ? base : base.filter(log =>
-      (log.requestedBy || '').toLowerCase().includes(term) ||
-      (log.saleData?.project || '').toLowerCase().includes(term) ||
-      (log.saleData?.os || '').toLowerCase().includes(term) ||
-      (log.saleData?.company || '').toLowerCase().includes(term) ||
-      (log.saleData?.area || '').toLowerCase().includes(term) ||
-      (log.saleData?.clientService || '').toLowerCase().includes(term) ||
-      (log.recipientEmail || '').toLowerCase().includes(term) ||
-      (log.billingInfo || '').toLowerCase().includes(term)
+
+    // Normaliza registros de billing-logs
+    const billingEntries = (billingLogs || []).map(log => ({
+      id: log.id,
+      itemType: 'SOLICITACAO' as const,
+      typeLabel: 'Faturamento',
+      requestedAt: log.requestedAt,
+      requestedBy: log.requestedBy || '—',
+      company: log.saleData?.company || '—',
+      project: log.saleData?.project || '—',
+      os: log.saleData?.os || '—',
+      area: log.saleData?.area || '—',
+      clientService: log.saleData?.clientService || '—',
+      salesValue: log.saleData?.salesValue || 0,
+      billingAmount: log.billingAmount || 0,
+      recipientEmail: log.recipientEmail || '—',
+      pdfUrl: (log.saleData as any)?.attachmentUrl as string | undefined,
+      rawLog: log,
+      rawMeasurement: undefined as Measurement | undefined,
+    }));
+
+    // Normaliza registros de measurements (Boletins de Medição)
+    const measurementEntries = (measurements || []).map(m => {
+      const execValue = (m.contractValue || 0) * ((m.execPercent || 0) / 100);
+      const totalMat = m.materialRows?.reduce((acc: number, r: any) => acc + (r.value || 0), 0) || 0;
+      const totalComp = m.complementaryRows?.reduce((acc: number, r: any) => acc + (r.totalValue || 0), 0) || 0;
+      const totalAdd = m.additiveRows?.reduce((acc: number, r: any) => acc + (r.totalValue || 0), 0) || 0;
+      const discount = m.discountValue || 0;
+      const totalPeriod = execValue - totalMat + totalComp + totalAdd - discount;
+
+      const sale = sales.find(s => s.id === m.saleId);
+
+      return {
+        id: m.id,
+        itemType: 'MEDICAO' as const,
+        typeLabel: `Medição Nº ${m.number}`,
+        requestedAt: m.requestedAt,
+        requestedBy: m.responsible || '—',
+        company: m.company || sale?.company || '—',
+        project: m.work || sale?.project || '—',
+        os: m.contractRef || sale?.os || '—',
+        area: sale?.area || '—',
+        clientService: m.client || sale?.clientService || '—',
+        salesValue: m.contractValue || sale?.salesValue || 0,
+        billingAmount: totalPeriod,
+        recipientEmail: (billingEnabled && hasBillingEmails) ? billingEmails.join('; ') : '—',
+        pdfUrl: undefined as string | undefined,
+        rawLog: undefined as BillingLog | undefined,
+        rawMeasurement: m,
+      };
+    });
+
+    const unifiedBase = [...billingEntries, ...measurementEntries];
+
+    const filtered = !term ? unifiedBase : unifiedBase.filter(item =>
+      (item.typeLabel || '').toLowerCase().includes(term) ||
+      (item.requestedBy || '').toLowerCase().includes(term) ||
+      (item.project || '').toLowerCase().includes(term) ||
+      (item.os || '').toLowerCase().includes(term) ||
+      (item.company || '').toLowerCase().includes(term) ||
+      (item.area || '').toLowerCase().includes(term) ||
+      (item.clientService || '').toLowerCase().includes(term) ||
+      (item.recipientEmail || '').toLowerCase().includes(term)
     );
+
     return sortData(filtered, historySortField, historySortDirection, {
       requestedAt: (item) => item.requestedAt?.toDate ? item.requestedAt.toDate().getTime() : 0,
-      project: (item) => item.saleData?.project,
-      os: (item) => item.saleData?.os,
-      company: (item) => item.saleData?.company,
-      area: (item) => item.saleData?.area,
-      clientService: (item) => item.saleData?.clientService,
-      salesValue: (item) => item.saleData?.salesValue,
+      project: (item) => item.project,
+      os: (item) => item.os,
+      company: (item) => item.company,
+      area: (item) => item.area,
+      clientService: (item) => item.clientService,
+      salesValue: (item) => item.salesValue,
+      billingAmount: (item) => item.billingAmount,
+      typeLabel: (item) => item.typeLabel,
     });
-  }, [billingLogs, historySearchTerm, historySortField, historySortDirection]);
+  }, [billingLogs, measurements, sales, historySearchTerm, historySortField, historySortDirection, billingEnabled, hasBillingEmails, billingEmails]);
 
   // Vendas filtradas para o seletor do Boletim de Medição
   const filteredSalesForMeasurement = useMemo(() => {
@@ -617,6 +674,18 @@ export default function FaturamentoPage() {
     setMeasurementSaleId('');
     setMeasurementNumber('01');
     setMeasurementRevision('rev0');
+    setMeasurementClient('');
+    setMeasurementWork('');
+    setMeasurementContractRef('');
+    setMeasurementService('');
+    setMeasurementQuantity('');
+    setMeasurementContractValue(0);
+    setMeasurementExecPercent(100);
+    setMeasurementPrevPercent(0);
+    setMeasurementStartDate('');
+    setMeasurementEndDate(new Date().toISOString().slice(0, 10));
+    setCompanyAddress('');
+    setCompanyBankData('');
     setHasMaterials(false);
     setHasComplementary(false);
     setHasAdditives(false);
@@ -628,10 +697,10 @@ export default function FaturamentoPage() {
     setBillingClientTaxId('');
     setBillingClientAddress('');
     setBillingNotes('');
-    toast({ title: 'Nova Medição', description: 'Formulário resetado para nova medição.' });
+    toast({ title: 'Nova Medição', description: 'Formulário limpo para nova medição.' });
   };
 
-  const handleSaveMeasurement = async () => {
+  const handleSaveMeasurement = async (options?: { andPrint?: boolean }) => {
     if (isReader) {
       toast({ title: 'Acesso Restrito', description: 'Usuários com perfil de Leitor não podem salvar medições.', variant: 'destructive' });
       return;
@@ -679,17 +748,42 @@ export default function FaturamentoPage() {
       };
 
       if (selectedMeasurementId) {
+        // Encontra a medição anterior para checar se houve acréscimo
+        const existingMeasurement = (measurements || []).find(m => m.id === selectedMeasurementId);
+        const oldExecVal = (existingMeasurement?.contractValue || 0) * ((existingMeasurement?.execPercent || 0) / 100);
+        const oldMat = existingMeasurement?.materialRows?.reduce((acc: number, r: any) => acc + (r.value || 0), 0) || 0;
+        const oldComp = existingMeasurement?.complementaryRows?.reduce((acc: number, r: any) => acc + (r.totalValue || 0), 0) || 0;
+        const oldAdd = existingMeasurement?.additiveRows?.reduce((acc: number, r: any) => acc + (r.totalValue || 0), 0) || 0;
+        const oldDiscount = existingMeasurement?.discountValue || 0;
+        const oldTotalPeriod = oldExecVal - oldMat + oldComp + oldAdd - oldDiscount;
+
+        const difference = measurementTotalPeriod - oldTotalPeriod;
+
         await updateDoc(doc(firestore!, 'measurements', selectedMeasurementId), measurementData);
-        toast({ title: 'Sucesso', description: 'Medição atualizada com sucesso!' });
+
+        const targetSaleId = measurementSaleId || measurementSale?.id;
+        if (targetSaleId && difference > 0) {
+          const currentSalesValue = Number(measurementSale?.salesValue || measurementContractValue || 0);
+          await updateSale(targetSaleId, {
+            salesValue: currentSalesValue + difference,
+            status: 'FINALIZADA',
+          });
+          toast({
+            title: 'Medição Atualizada',
+            description: `Boletim atualizado com acréscimo de ${difference.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} computado na venda e Dashboard!`,
+          });
+        } else if (targetSaleId) {
+          await updateSale(targetSaleId, { status: 'FINALIZADA' });
+          toast({ title: 'Sucesso', description: 'Medição atualizada com sucesso (sem acréscimo financeiro).' });
+        }
       } else {
         await addDoc(collection(firestore!, 'measurements'), measurementData);
         toast({ title: 'Sucesso', description: 'Medição salva com sucesso no banco de dados! O formulário foi limpo para a próxima.' });
-      }
 
-      // Regra Master: ao salvar o boletim de medição, a venda associada passa para status FINALIZADA
-      const targetSaleId = measurementSaleId || measurementSale?.id;
-      if (targetSaleId) {
-        await updateSale(targetSaleId, { status: 'FINALIZADA' });
+        const targetSaleId = measurementSaleId || measurementSale?.id;
+        if (targetSaleId) {
+          await updateSale(targetSaleId, { status: 'FINALIZADA' });
+        }
       }
 
       // Reenvio/Envio do e-mail de faturamento com dados do boletim de medição (ação separada, sem impacto financeiro)
@@ -714,11 +808,28 @@ export default function FaturamentoPage() {
         console.error('Falha ao disparar mailto de medição:', err);
       }
 
+      // Se solicitado impressão em PDF ao salvar, dispara o relatório do boletim
+      if (options?.andPrint) {
+        handlePrintMeasurementPdf();
+      }
+
       // Limpa os campos após salvar com sucesso, liberando a tela para uma nova medição
       setSelectedMeasurementId(null);
       setMeasurementSaleId('');
       setMeasurementNumber('01');
       setMeasurementRevision('rev0');
+      setMeasurementClient('');
+      setMeasurementWork('');
+      setMeasurementContractRef('');
+      setMeasurementService('');
+      setMeasurementQuantity('');
+      setMeasurementContractValue(0);
+      setMeasurementExecPercent(100);
+      setMeasurementPrevPercent(0);
+      setMeasurementStartDate('');
+      setMeasurementEndDate(new Date().toISOString().slice(0, 10));
+      setCompanyAddress('');
+      setCompanyBankData('');
       setHasMaterials(false);
       setHasComplementary(false);
       setHasAdditives(false);
@@ -1331,15 +1442,179 @@ export default function FaturamentoPage() {
   };
 
   const handleSelectSale = (s: Sale, customAmount?: number) => {
+    setEditingBillingLog(null);
     setSelectedSale(s);
     const defaultAmount = customAmount !== undefined ? customAmount : (s.salesValue - s.payment);
     setBillingAmount(String(Math.max(0, defaultAmount)));
+    setBillingClientName(s.billingClientName || '');
+    setBillingClientTaxId(s.billingClientTaxId || '');
+    setBillingClientAddress(s.billingClientAddress || '');
+    setBillingNotes(s.billingNotes || '');
+    setBillingInfo('');
     setIsBillingModalOpen(true);
 
     const history = (billingLogs || []).filter((log) => log.saleId === s.id);
     setBillingHistory(history);
     if (history.length > 0) {
       setIsBillingHistoryOpen(true);
+    }
+  };
+
+  const handleEditBillingLog = (log: BillingLog) => {
+    const sale = sales.find(s => s.id === log.saleId) || (log.saleData as Sale) || null;
+    if (!sale) {
+      toast({ title: 'Aviso', description: 'Venda vinculada a este registro não foi encontrada.', variant: 'destructive' });
+      return;
+    }
+    setEditingBillingLog(log);
+    setSelectedSale(sale);
+    setBillingAmount(String(log.billingAmount || 0));
+    setRecipientEmail(log.recipientEmail || '');
+    setBillingInfo(log.billingInfo || '');
+    setBillingClientName(log.billingClientName || log.saleData?.billingClientName || '');
+    setBillingClientTaxId(log.billingClientTaxId || log.saleData?.billingClientTaxId || '');
+    setBillingClientAddress(log.billingClientAddress || log.saleData?.billingClientAddress || '');
+    setBillingNotes(log.billingNotes || log.saleData?.billingNotes || '');
+    setIsBillingModalOpen(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedSale || !user) return;
+
+    const resolvedRecipients = (billingEnabled && hasBillingEmails)
+      ? billingEmails.join(';')
+      : recipientEmail.trim();
+
+    const newAmountNum = Number(billingAmount);
+    if (isNaN(newAmountNum) || newAmountNum <= 0) {
+      toast({ title: "Erro", description: "Preencha um valor válido a faturar.", variant: "destructive" });
+      return;
+    }
+
+    if (!resolvedRecipients) {
+      toast({
+        title: "Erro",
+        description: billingEnabled ? "Cadastre os e-mails de faturamento em Configurações." : "Preencha o e-mail do destinatário.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (editingBillingLog) {
+        // Modo Edição de Solicitação de Faturamento
+        const oldAmount = Number(editingBillingLog.billingAmount || 0);
+        const difference = newAmountNum - oldAmount;
+
+        await updateDoc(doc(firestore!, 'billing-logs', editingBillingLog.id), {
+          billingAmount: newAmountNum,
+          recipientEmail: resolvedRecipients,
+          billingInfo,
+          billingClientName,
+          billingClientTaxId,
+          billingClientAddress,
+          billingNotes,
+          updatedAt: serverTimestamp(),
+          updatedBy: userRole,
+        });
+
+        // Regra do Usuário: Se editar e o valor se mantiver igual, nada é computado.
+        // Se houver acréscimo, esse acréscimo deve ser computado na venda e no dashboard.
+        if (difference > 0) {
+          const currentSalesValue = Number(selectedSale.salesValue || 0);
+          const updatedSalesValue = currentSalesValue + difference;
+          await updateSale(selectedSale.id, {
+            salesValue: updatedSalesValue,
+            status: "FINALIZADA",
+          });
+          toast({
+            title: "Solicitação Atualizada",
+            description: `Valor ajustado com acréscimo de ${difference.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} computado no total da venda e Dashboard!`,
+          });
+        } else {
+          toast({
+            title: "Solicitação Atualizada",
+            description: "Dados de faturamento atualizados com sucesso (sem acréscimo financeiro).",
+          });
+        }
+
+        handleResendBillingEmail({
+          company: selectedSale.company,
+          project: selectedSale.project,
+          os: selectedSale.os,
+          salesValue: selectedSale.salesValue + Math.max(0, difference),
+          billingAmount: newAmountNum,
+          clientService: selectedSale.clientService,
+          seller: selectedSale.seller,
+          recipientEmail: resolvedRecipients,
+          billingClientName,
+          billingClientTaxId,
+          billingClientAddress,
+          area: selectedSale.area,
+          date: format(new Date(), 'dd/MM/yyyy'),
+          summary: selectedSale.summary,
+          attachmentUrl: (selectedSale as any).attachmentUrl,
+          billingNotes,
+          billingInfo,
+        });
+      } else {
+        // Novo registro de faturamento
+        await addDoc(collection(firestore!, 'billing-logs'), {
+          saleId: selectedSale.id,
+          saleData: selectedSale,
+          billingInfo,
+          billingAmount: newAmountNum,
+          recipientEmail: resolvedRecipients,
+          billingClientName,
+          billingClientTaxId,
+          billingClientAddress,
+          billingNotes,
+          requestedBy: userRole,
+          requestedByUid: user.uid,
+          requestedAt: serverTimestamp(),
+        });
+
+        await updateSale(selectedSale.id, { status: "FINALIZADA" });
+
+        handleResendBillingEmail({
+          company: selectedSale.company,
+          project: selectedSale.project,
+          os: selectedSale.os,
+          salesValue: selectedSale.salesValue,
+          billingAmount: newAmountNum,
+          clientService: selectedSale.clientService,
+          seller: selectedSale.seller,
+          recipientEmail: resolvedRecipients,
+          billingClientName,
+          billingClientTaxId,
+          billingClientAddress,
+          area: selectedSale.area,
+          date: format(new Date(), 'dd/MM/yyyy'),
+          summary: selectedSale.summary,
+          attachmentUrl: (selectedSale as any).attachmentUrl,
+          billingNotes,
+          billingInfo,
+        });
+
+        toast({ title: "Sucesso", description: "Solicitação de faturamento registrada com sucesso." });
+      }
+
+      setIsBillingModalOpen(false);
+      setEditingBillingLog(null);
+      setSelectedSale(null);
+      setRecipientEmail('');
+      setBillingInfo('');
+      setBillingAmount('');
+      setBillingClientName('');
+      setBillingClientTaxId('');
+      setBillingClientAddress('');
+      setBillingNotes('');
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro", description: "Falha ao processar solicitação de faturamento.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1405,74 +1680,6 @@ export default function FaturamentoPage() {
     window.open(mailtoLink, '_blank');
   };
 
-  const handleSendEmail = async () => {
-    if (!selectedSale || !user) return;
-
-    const resolvedRecipients = (billingEnabled && hasBillingEmails)
-      ? billingEmails.join(';')
-      : recipientEmail.trim();
-
-    if (!billingAmount) {
-      toast({ title: "Erro", description: "Preencha o valor.", variant: "destructive" });
-      return;
-    }
-
-    if (!resolvedRecipients) {
-      toast({
-        title: "Erro",
-        description: billingEnabled ? "Cadastre os e-mails de faturamento em Configurações." : "Preencha o e-mail do destinatário.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(firestore!, 'billing-logs'), {
-        saleId: selectedSale.id,
-        saleData: selectedSale,
-        billingInfo,
-        billingAmount: Number(billingAmount),
-        recipientEmail: resolvedRecipients,
-        requestedBy: userRole,
-        requestedByUid: user.uid,
-        requestedAt: serverTimestamp(),
-      });
-
-      await updateSale(selectedSale.id, { status: "FINALIZADA" });
-
-      handleResendBillingEmail({
-        company: selectedSale.company,
-        project: selectedSale.project,
-        os: selectedSale.os,
-        salesValue: selectedSale.salesValue,
-        billingAmount: Number(billingAmount),
-        clientService: selectedSale.clientService,
-        seller: selectedSale.seller,
-        recipientEmail: resolvedRecipients,
-        billingClientName,
-        billingClientTaxId,
-        billingClientAddress,
-        area: selectedSale.area,
-        date: format(new Date(), 'dd/MM/yyyy'),
-        summary: selectedSale.summary,
-        attachmentUrl: (selectedSale as any).attachmentUrl,
-        billingNotes,
-        billingInfo,
-      });
-
-      toast({ title: "Sucesso", description: "Solicitação registrada." });
-      setIsBillingModalOpen(false);
-      setSelectedSale(null);
-      setRecipientEmail('');
-      setBillingInfo('');
-      setBillingAmount('');
-    } catch (e) {
-      toast({ title: "Erro", description: "Falha ao processar.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <div className="space-y-6" id="faturamento-printable-area">
@@ -1530,9 +1737,14 @@ export default function FaturamentoPage() {
           </TabsTrigger>
           <TabsTrigger
             value="history"
-            className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 mr-6 text-sm data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none flex items-center gap-1.5"
           >
-            Histórico de Faturamento
+            Histórico de Faturamento & Medições
+            {sortedFilteredBillingHistory.length > 0 && (
+              <Badge variant="secondary" className="px-1.5 py-0.2 text-[11px] bg-slate-100 text-slate-800 border-slate-200">
+                {sortedFilteredBillingHistory.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="measurement"
@@ -1759,10 +1971,10 @@ export default function FaturamentoPage() {
         <TabsContent value="history">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Histórico de Solicitações de Faturamento</CardTitle>
+              <CardTitle>Histórico de Faturamento & Medições</CardTitle>
               <div className="flex gap-2 mt-2 flex-wrap print-hide">
                 <Input
-                  placeholder="Buscar no histórico por projeto, empresa, O.S., vendedor, cliente..."
+                  placeholder="Buscar no histórico por tipo, projeto, empresa, O.S., vendedor, cliente..."
                   value={historySearchTerm}
                   onChange={e => setHistorySearchTerm(e.target.value)}
                 />
@@ -1776,46 +1988,71 @@ export default function FaturamentoPage() {
                 <Table className="w-full table-fixed text-[12px] lg:text-[13px]">
                   <TableHeader>
                     <TableRow>
-                      {renderSortableHeader('Data Solicitação', 'requestedAt', historySortField, historySortDirection, handleSortHistory, false, 'w-[9%]')}
-                      {renderSortableHeader('Vendedor', 'requestedBy', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
-                      {renderSortableHeader('Empresa', 'company', historySortField, historySortDirection, handleSortHistory, false, 'w-[9%]')}
+                      {renderSortableHeader('Data', 'requestedAt', historySortField, historySortDirection, handleSortHistory, false, 'w-[7%]')}
+                      {renderSortableHeader('Tipo', 'typeLabel', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
+                      {renderSortableHeader('Vendedor/Resp.', 'requestedBy', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
+                      {renderSortableHeader('Empresa', 'company', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
                       {renderSortableHeader('Projeto', 'project', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
                       {renderSortableHeader('O.S.', 'os', historySortField, historySortDirection, handleSortHistory, false, 'w-[6%]')}
-                      {renderSortableHeader('Área', 'area', historySortField, historySortDirection, handleSortHistory, false, 'w-[8%]')}
-                      {renderSortableHeader('Cliente/Serviço', 'clientService', historySortField, historySortDirection, handleSortHistory, false, 'w-[16%]')}
-                      {renderSortableHeader('Valor Venda', 'salesValue', historySortField, historySortDirection, handleSortHistory, true, 'w-[10%]')}
-                      {renderSortableHeader('Valor Faturado', 'billingAmount', historySortField, historySortDirection, handleSortHistory, true, 'w-[10%]')}
-                      {renderSortableHeader('Destinatário', 'recipientEmail', historySortField, historySortDirection, handleSortHistory, false, 'w-[11%]')}
+                      {renderSortableHeader('Área', 'area', historySortField, historySortDirection, handleSortHistory, false, 'w-[7%]')}
+                      {renderSortableHeader('Cliente/Serviço', 'clientService', historySortField, historySortDirection, handleSortHistory, false, 'w-[15%]')}
+                      {renderSortableHeader('Valor Venda', 'salesValue', historySortField, historySortDirection, handleSortHistory, true, 'w-[9%]')}
+                      {renderSortableHeader('Valor Faturado', 'billingAmount', historySortField, historySortDirection, handleSortHistory, true, 'w-[9%]')}
+                      {renderSortableHeader('Destinatário', 'recipientEmail', historySortField, historySortDirection, handleSortHistory, false, 'w-[9%]')}
                       <TableHead className="h-9 px-2 w-[5%] text-center">PDF</TableHead>
-                      <TableHead className="h-9 px-2 w-[7%] text-center">Ações</TableHead>
+                      <TableHead className="h-9 px-2 w-[11%] text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedFilteredBillingHistory.map(log => {
-                      const pdfUrl = (log.saleData as any)?.attachmentUrl as string | undefined;
+                    {sortedFilteredBillingHistory.map(item => {
+                      const isMedicao = item.itemType === 'MEDICAO';
+                      const pdfUrl = item.pdfUrl;
+
                       return (
-                        <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
+                        <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
                           <TableCell className="px-2 py-2 whitespace-nowrap">
-                            {log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yy HH:mm') : '...'}
+                            {item.requestedAt?.toDate ? format(item.requestedAt.toDate(), 'dd/MM/yy HH:mm') : '...'}
                           </TableCell>
-                          <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{log.requestedBy}</TableCell>
-                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.company}>{log.saleData?.company || '—'}</TableCell>
-                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.project}>{log.saleData?.project || '—'}</TableCell>
-                          <TableCell className="px-2 py-2 whitespace-nowrap" title={log.saleData?.os}>{log.saleData?.os || '—'}</TableCell>
-                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.area}>{log.saleData?.area || '—'}</TableCell>
-                          <TableCell className="px-2 py-2 truncate" title={log.saleData?.clientService}>{log.saleData?.clientService || '—'}</TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap">
+                            <Badge 
+                              variant={isMedicao ? 'secondary' : 'default'} 
+                              className={isMedicao ? 'text-[11px] bg-blue-100 text-blue-800 border-blue-200' : 'text-[11px]'}
+                            >
+                              {item.typeLabel}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap font-medium">{item.requestedBy}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={item.company}>{item.company}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={item.project}>{item.project}</TableCell>
+                          <TableCell className="px-2 py-2 whitespace-nowrap" title={item.os}>{item.os}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={item.area}>{item.area}</TableCell>
+                          <TableCell className="px-2 py-2 truncate" title={item.clientService}>{item.clientService}</TableCell>
                           <TableCell className="px-2 py-2 text-right whitespace-nowrap">
-                            {(log.saleData?.salesValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {(item.salesValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
                           <TableCell className="px-2 py-2 text-right whitespace-nowrap font-semibold text-primary">
-                            {(log.billingAmount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {(item.billingAmount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
-                          <TableCell className="px-2 py-2 truncate text-muted-foreground text-xs" title={log.recipientEmail}>
-                            {log.recipientEmail || '—'}
+                          <TableCell className="px-2 py-2 truncate text-muted-foreground text-xs" title={item.recipientEmail}>
+                            {item.recipientEmail}
                           </TableCell>
                           <TableCell className="px-2 py-2 text-center">
-                            {pdfUrl ? (
-                              <Button asChild variant="outline" size="icon" className="h-7 w-7" title="Ver PDF">
+                            {isMedicao && item.rawMeasurement ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 text-blue-700 hover:text-blue-800"
+                                title="Ver / Imprimir Boletim de Medição em PDF"
+                                onClick={() => {
+                                  loadMeasurement(item.rawMeasurement!);
+                                  setTimeout(() => handlePrintMeasurementPdf(), 100);
+                                }}
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : pdfUrl ? (
+                              <Button asChild variant="outline" size="icon" className="h-7 w-7" title="Ver PDF da Proposta">
                                 <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
                                   <LinkIcon className="h-3.5 w-3.5" />
                                 </a>
@@ -1825,45 +2062,94 @@ export default function FaturamentoPage() {
                             )}
                           </TableCell>
                           <TableCell className="px-2 py-2 text-center">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              title="Reenviar e-mail desta solicitação de faturamento (sem alterar valores)"
-                              onClick={() => {
-                                handleResendBillingEmail({
-                                  company: log.saleData?.company,
-                                  project: log.saleData?.project,
-                                  os: log.saleData?.os,
-                                  salesValue: log.saleData?.salesValue,
-                                  billingAmount: log.billingAmount,
-                                  clientService: log.saleData?.clientService,
-                                  seller: log.saleData?.seller || log.requestedBy,
-                                  recipientEmail: log.recipientEmail,
-                                  billingClientName: log.saleData?.billingClientName || log.billingClientName,
-                                  billingClientTaxId: log.saleData?.billingClientTaxId || log.billingClientTaxId,
-                                  billingClientAddress: log.saleData?.billingClientAddress || log.billingClientAddress,
-                                  area: log.saleData?.area,
-                                  date: log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yyyy') : undefined,
-                                  summary: log.saleData?.summary,
-                                  attachmentUrl: pdfUrl,
-                                  billingNotes: log.saleData?.billingNotes || log.billingNotes,
-                                  billingInfo: log.billingInfo,
-                                });
-                                toast({ title: 'E-mail preparado', description: 'Cliente de e-mail aberto para reenvio sem alterar saldos.' });
-                              }}
-                            >
-                              <Mail className="h-3.5 w-3.5 mr-1" /> Reenviar
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              {/* Botão EDITAR */}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-amber-700 hover:text-amber-800 border-amber-300 hover:bg-amber-50"
+                                title={isMedicao ? "Editar este Boletim de Medição" : "Editar esta Solicitação de Faturamento"}
+                                onClick={() => {
+                                  if (isMedicao && item.rawMeasurement) {
+                                    loadMeasurement(item.rawMeasurement);
+                                    setActiveTab('measurement');
+                                  } else if (item.rawLog) {
+                                    handleEditBillingLog(item.rawLog);
+                                  }
+                                }}
+                              >
+                                <Edit3 className="h-3.5 w-3.5 mr-1" /> Editar
+                              </Button>
+
+                              {/* Botão REENVIAR E-MAIL */}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                title="Reenviar e-mail (sem alterar valores)"
+                                onClick={() => {
+                                  if (isMedicao && item.rawMeasurement) {
+                                    const m = item.rawMeasurement;
+                                    const mSale = sales.find(s => s.id === m.saleId);
+                                    handleResendBillingEmail({
+                                      company: m.company || mSale?.company,
+                                      project: m.work || mSale?.project,
+                                      os: m.contractRef || mSale?.os,
+                                      salesValue: m.contractValue || mSale?.salesValue,
+                                      billingAmount: item.billingAmount,
+                                      clientService: m.client || mSale?.clientService,
+                                      seller: m.responsible || mSale?.seller,
+                                      recipientEmail: item.recipientEmail !== '—' ? item.recipientEmail : undefined,
+                                      billingClientName: m.billingClientName || mSale?.billingClientName,
+                                      billingClientTaxId: m.billingClientTaxId || mSale?.billingClientTaxId,
+                                      billingClientAddress: m.billingClientAddress || mSale?.billingClientAddress,
+                                      area: mSale?.area,
+                                      date: m.requestedAt?.toDate ? format(m.requestedAt.toDate(), 'dd/MM/yyyy') : undefined,
+                                      summary: m.service || mSale?.summary,
+                                      attachmentUrl: (mSale as any)?.attachmentUrl,
+                                      billingNotes: m.billingNotes || mSale?.billingNotes,
+                                      billingInfo: `Medição Nº ${m.number} (${m.revision || 'rev0'})`,
+                                      isMeasurement: true,
+                                      measurementNumber: m.number,
+                                    });
+                                  } else if (item.rawLog) {
+                                    const log = item.rawLog;
+                                    handleResendBillingEmail({
+                                      company: log.saleData?.company,
+                                      project: log.saleData?.project,
+                                      os: log.saleData?.os,
+                                      salesValue: log.saleData?.salesValue,
+                                      billingAmount: log.billingAmount,
+                                      clientService: log.saleData?.clientService,
+                                      seller: log.saleData?.seller || log.requestedBy,
+                                      recipientEmail: log.recipientEmail,
+                                      billingClientName: log.saleData?.billingClientName || log.billingClientName,
+                                      billingClientTaxId: log.saleData?.billingClientTaxId || log.billingClientTaxId,
+                                      billingClientAddress: log.saleData?.billingClientAddress || log.billingClientAddress,
+                                      area: log.saleData?.area,
+                                      date: log.requestedAt?.toDate ? format(log.requestedAt.toDate(), 'dd/MM/yyyy') : undefined,
+                                      summary: log.saleData?.summary,
+                                      attachmentUrl: pdfUrl,
+                                      billingNotes: log.saleData?.billingNotes || log.billingNotes,
+                                      billingInfo: log.billingInfo,
+                                    });
+                                  }
+                                  toast({ title: 'E-mail preparado', description: 'Cliente de e-mail aberto para reenvio sem alterar saldos.' });
+                                }}
+                              >
+                                <Mail className="h-3.5 w-3.5 mr-1" /> Reenviar
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
                     })}
                     {sortedFilteredBillingHistory.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center py-6 text-muted-foreground">
-                          Nenhum registro de faturamento encontrado.
+                        <TableCell colSpan={13} className="text-center py-6 text-muted-foreground">
+                          Nenhum registro de faturamento ou medição encontrado.
                         </TableCell>
                       </TableRow>
                     )}
@@ -1877,8 +2163,26 @@ export default function FaturamentoPage() {
 
         <TabsContent value="measurement" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Dados da Medição</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  Dados da Medição
+                  {selectedMeasurementId ? (
+                    <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 border-amber-300">
+                      Editando Medição Existente
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      Novo Formulário
+                    </Badge>
+                  )}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedMeasurementId 
+                    ? "Esta medição foi carregada do histórico. Ao salvar, ela será atualizada no banco." 
+                    : "Preencha os campos para salvar uma nova medição. O formulário será limpo automaticamente após salvar."}
+                </p>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -2331,11 +2635,36 @@ export default function FaturamentoPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t mt-6">
-                {!isReader && <Button type="button" variant="outline" onClick={handleNewMeasurement}>Nova Medição</Button>}
-                <Button type="button" variant="outline" onClick={() => setIsMeasurementHistoryModalOpen(true)}>Mostrar histórico</Button>
-                <Button type="button" variant="secondary" onClick={handlePrintMeasurementPdf}>Gerar PDF</Button>
                 {!isReader && (
-                  <Button type="button" onClick={handleSaveMeasurement} disabled={isSavingMeasurement}>
+                  <Button type="button" variant="outline" onClick={handleNewMeasurement} disabled={isSavingMeasurement}>
+                    <RotateCcw className="h-4 w-4 mr-1.5" /> Limpar / Nova Medição
+                  </Button>
+                )}
+                <Button type="button" variant="outline" onClick={() => setIsMeasurementHistoryModalOpen(true)}>
+                  Mostrar histórico
+                </Button>
+                {!isReader && (
+                  <Button 
+                    type="button" 
+                    variant="secondary" 
+                    onClick={() => handleSaveMeasurement({ andPrint: true })} 
+                    disabled={isSavingMeasurement}
+                    title="Salva no banco de dados, gera o PDF para impressão e limpa o formulário"
+                  >
+                    {isSavingMeasurement ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...</>
+                    ) : (
+                      <><Printer className="mr-1.5 h-4 w-4" /> Salvar & Gerar PDF</>
+                    )}
+                  </Button>
+                )}
+                {!isReader && (
+                  <Button 
+                    type="button" 
+                    onClick={() => handleSaveMeasurement()} 
+                    disabled={isSavingMeasurement}
+                    title="Salva a medição no banco de dados e limpa a tela para a próxima"
+                  >
                     {isSavingMeasurement ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
                     ) : (
@@ -2490,10 +2819,12 @@ export default function FaturamentoPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-primary" /> Solicitar Faturamento
+              <Receipt className="h-5 w-5 text-primary" /> {editingBillingLog ? "Editar Solicitação de Faturamento" : "Solicitar Faturamento"}
             </DialogTitle>
             <DialogDescription>
-              Preencha os dados abaixo para registrar a solicitação de faturamento para esta venda.
+              {editingBillingLog 
+                ? "Edite os dados desta solicitação de faturamento. Caso aumente o valor faturado, o acréscimo será computado na venda e Dashboard." 
+                : "Preencha os dados abaixo para registrar a solicitação de faturamento para esta venda."}
             </DialogDescription>
           </DialogHeader>
 
@@ -2503,17 +2834,48 @@ export default function FaturamentoPage() {
                 <div><span className="text-muted-foreground">Projeto:</span> <strong>{selectedSale.project}</strong></div>
                 <div><span className="text-muted-foreground">O.S.:</span> <strong>{selectedSale.os || '—'}</strong></div>
                 <div><span className="text-muted-foreground">Cliente:</span> <strong>{selectedSale.clientService}</strong></div>
-                <div><span className="text-muted-foreground">Saldo Pendente:</span> <strong className="text-primary">{(selectedSale.salesValue - selectedSale.payment).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+                <div><span className="text-muted-foreground">Valor Venda:</span> <strong className="text-primary">{selectedSale.salesValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="billing-amount">Valor a Faturar</Label>
+                <Label htmlFor="billing-amount">Valor a Faturar (R$)</Label>
                 <Input
                   id="billing-amount"
                   type="number"
                   value={billingAmount}
                   onChange={e => setBillingAmount(e.target.value)}
                   placeholder="0.00"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Razão Social (NF)</Label>
+                  <Input
+                    value={billingClientName}
+                    onChange={e => setBillingClientName(e.target.value)}
+                    placeholder="Se diferente da venda"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CNPJ/CPF (NF)</Label>
+                  <Input
+                    value={billingClientTaxId}
+                    onChange={e => setBillingClientTaxId(e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Endereço de Faturamento</Label>
+                <Input
+                  value={billingClientAddress}
+                  onChange={e => setBillingClientAddress(e.target.value)}
+                  placeholder="Rua, número, bairro, cidade - UF, CEP"
+                  className="h-8 text-xs"
                 />
               </div>
 
@@ -2536,24 +2898,28 @@ export default function FaturamentoPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="billing-notes">Observações</Label>
+                <Label htmlFor="billing-notes">Observações / Instruções</Label>
                 <Textarea
                   id="billing-notes"
                   value={billingInfo}
                   onChange={e => setBillingInfo(e.target.value)}
                   placeholder="Instruções adicionais de faturamento..."
-                  rows={3}
+                  rows={2}
                 />
               </div>
             </div>
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsBillingModalOpen(false)}>
+            <Button variant="outline" onClick={() => { setIsBillingModalOpen(false); setEditingBillingLog(null); }}>
               Cancelar
             </Button>
             <Button onClick={handleSendEmail} disabled={isSubmitting || !selectedSale}>
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Enviar Solicitação
+              {isSubmitting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
+              ) : (
+                editingBillingLog ? "Salvar Alterações" : <><Send className="mr-2 h-4 w-4" /> Enviar Solicitação</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
