@@ -700,7 +700,7 @@ export default function FaturamentoPage() {
     toast({ title: 'Nova Medição', description: 'Formulário limpo para nova medição.' });
   };
 
-  const handleSaveMeasurement = async (options?: { andPrint?: boolean }) => {
+  const handleSaveMeasurement = async (options?: { andPrint?: boolean; targetWindow?: Window | null }) => {
     if (isReader) {
       toast({ title: 'Acesso Restrito', description: 'Usuários com perfil de Leitor não podem salvar medições.', variant: 'destructive' });
       return;
@@ -786,31 +786,11 @@ export default function FaturamentoPage() {
         }
       }
 
-      // Reenvio/Envio do e-mail de faturamento com dados do boletim de medição (ação separada, sem impacto financeiro)
-      try {
-        handleResendBillingEmail({
-          company: measurementSale?.company || measurementCompanyKey,
-          project: measurementWork,
-          os: measurementContractRef,
-          billingAmount: measurementTotalPeriod,
-          clientService: measurementClient,
-          seller: measurementSale?.seller || measurementResponsible,
-          billingClientName: billingClientName,
-          billingClientTaxId: billingClientTaxId,
-          billingClientAddress: billingClientAddress,
-          billingNotes: billingNotes,
-          isMeasurement: true,
-          measurementNumber: measurementNumber,
-          date: measurementDate ? format(parseISO(measurementDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy'),
-          summary: `Boletim de Medição Nº ${measurementNumber} (${measurementRevision.toUpperCase()})`,
-        });
-      } catch (err) {
-        console.error('Falha ao disparar mailto de medição:', err);
-      }
-
-      // Se solicitado impressão em PDF ao salvar, dispara o relatório do boletim
+      // Se solicitado impressão em PDF ao salvar, dispara o relatório do boletim com a janela já aberta
       if (options?.andPrint) {
-        handlePrintMeasurementPdf();
+        handlePrintMeasurementPdf(options?.targetWindow);
+      } else if (options?.targetWindow) {
+        try { options.targetWindow.close(); } catch (_) {}
       }
 
       // Limpa os campos após salvar com sucesso, liberando a tela para uma nova medição
@@ -843,65 +823,140 @@ export default function FaturamentoPage() {
       setBillingNotes('');
     } catch (e: any) {
       console.error(e);
+      if (options?.targetWindow) { try { options.targetWindow.close(); } catch (_) {} }
       toast({ title: 'Erro', description: 'Falha ao salvar a medição.', variant: 'destructive' });
     } finally {
       setIsSavingMeasurement(false);
     }
   };
 
-  const handlePrintMeasurementPdf = () => {
-    const w = window.open('', '_blank', 'width=1024,height=768');
+  const handlePrintMeasurementPdf = (targetWindow?: Window | null, data?: Partial<Measurement>) => {
+    let w = targetWindow;
+    if (!w || w.closed) {
+      w = window.open('', '_blank', 'width=1024,height=768');
+    }
     if (!w) return;
 
-    const rawRevision = measurementRevision ? measurementRevision.toUpperCase() : 'REV0';
-    const cleanClient = measurementClient ? measurementClient.replace(/[^a-zA-Z0-9]/g, '_') : 'CLIENTE';
-    const cleanProject = measurementProject ? measurementProject.replace(/[^a-zA-Z0-9]/g, '_') : 'PROJETO';
-    const pdfFilename = `Medicao_${cleanClient}_${cleanProject}_${rawRevision}_${format(parseISO(measurementEndDate), 'dd-MM-yyyy')}`;
+    // Se fornecido 'data' (ex: ao clicar no historico ou passar medicao pronta), usamos 'data', caso contrario os estados do formulario
+    const rawNumber = data?.number || measurementNumber || '01';
+    const rawRev = (data?.revision || measurementRevision || 'rev0').toUpperCase();
+    const effectiveClient = data?.client || measurementClient || 'CLIENTE';
+    const effectiveProject = data?.work || measurementProject || 'PROJETO';
+    const effectiveContractRef = data?.contractRef || measurementContractRef || '';
+    const effectiveService = data?.service || measurementService || '';
+    const effectiveQuantity = data?.quantity || measurementQuantity || '';
+    const effectiveContractValue = Number(data?.contractValue ?? measurementContractValue ?? 0);
+    const effectiveExecPercent = Number(data?.execPercent ?? measurementExecPercent ?? 100);
+    const effectivePrevPercent = Number(data?.prevPercent ?? measurementPrevPercent ?? 0);
+    const effectiveAccumulatedPercent = Math.max(0, Math.min(100, effectivePrevPercent + effectiveExecPercent));
+    const effectiveServicePeriodValue = Math.max(0, effectiveContractValue * (effectiveExecPercent / 100));
 
-    const materialRowsHtml = hasMaterials
-      ? materialRows
-          .filter((row) => row.docNumber || row.description || row.value > 0)
+    const effectiveBillingClientName = data?.billingClientName || billingClientName || '';
+    const effectiveBillingClientTaxId = data?.billingClientTaxId || billingClientTaxId || '';
+    const effectiveBillingClientAddress = data?.billingClientAddress || billingClientAddress || '';
+    const effectiveBillingNotes = data?.billingNotes || billingNotes || '';
+
+    const effectiveResponsible = (data?.responsible || measurementResponsible) === 'RODRIGO' ? 'RODRIGO' : 'SERGIO';
+    const effResponsibleContact = MEASUREMENT_RESPONSIBLE[effectiveResponsible];
+
+    // Sale associada para dados da empresa
+    const saleId = data?.saleId || measurementSaleId || measurementSale?.id;
+    const effSale = sales.find(s => s.id === saleId) || measurementSale;
+    const effCompanyKey: 'ENGEAR' | 'CLIMAZONE' = (effSale?.company === 'CLIMAZONE' || (data as any)?.company === 'CLIMAZONE') ? 'CLIMAZONE' : 'ENGEAR';
+    const effCompany = COMPANY_PROFILE[effCompanyKey];
+    const effCompanyAddress = data?.companyAddress || companyAddress || effCompany.address;
+    const effCompanyBankData = data?.companyBankData || companyBankData || effCompany.bankData;
+
+    // Tratamento seguro de datas contra valores vazios ou invalidos
+    const safeFormatDate = (val?: string, fmt = 'dd/MM/yyyy') => {
+      if (!val) return '';
+      try {
+        return format(parseISO(val), fmt);
+      } catch (_) {
+        return val;
+      }
+    };
+
+    const effectiveStartDate = data?.startDate || measurementStartDate;
+    const effectiveEndDate = data?.endDate || measurementEndDate || new Date().toISOString().slice(0, 10);
+    const effectiveDate = data?.date || measurementDate;
+
+    const cleanClient = effectiveClient.replace(/[^a-zA-Z0-9]/g, '_');
+    const cleanProject = effectiveProject.replace(/[^a-zA-Z0-9]/g, '_');
+    const formattedEndForFile = safeFormatDate(effectiveEndDate, 'dd-MM-yyyy') || format(new Date(), 'dd-MM-yyyy');
+    const pdfFilename = `Medicao_${cleanClient}_${cleanProject}_${rawRev}_${formattedEndForFile}`;
+
+    const effHasMaterials = data?.hasMaterials !== undefined ? data.hasMaterials : hasMaterials;
+    const effMaterialRows = data?.materialRows || materialRows;
+    const materialRowsHtml = effHasMaterials
+      ? (effMaterialRows || [])
+          .filter((row) => row.docNumber || row.description || (row.value || 0) > 0)
           .map((row) => `
             <tr>
               <td><span class="tag-badge deduction">${row.docNumber || '-'}</span></td>
               <td>${row.description || '-'}</td>
-              <td style="text-align:right; color:#691E33; font-weight:600;">- ${row.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+              <td style="text-align:right; color:#691E33; font-weight:600;">- ${(row.value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
             </tr>
           `)
           .join('')
       : '';
 
-    const complementaryRowsHtml = hasComplementary
-      ? complementaryRows
-          .filter((row) => row.description || row.totalValue > 0)
+    const effHasComplementary = data?.hasComplementary !== undefined ? data.hasComplementary : hasComplementary;
+    const effComplementaryRows = data?.complementaryRows || complementaryRows;
+    const complementaryRowsHtml = effHasComplementary
+      ? (effComplementaryRows || [])
+          .filter((row) => row.description || (row.totalValue || 0) > 0)
           .map((row) => `
             <tr>
               <td>${row.description || '-'}</td>
-              <td style="text-align:right;">${row.unitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-              <td style="text-align:center;">${row.quantity}</td>
-              <td style="text-align:right; font-weight:600;">${row.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+              <td style="text-align:right;">${(row.unitValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+              <td style="text-align:center;">${row.quantity || 1}</td>
+              <td style="text-align:right; font-weight:600;">${(row.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
             </tr>
           `)
           .join('')
       : '';
 
-    const additiveRowsHtml = hasAdditives
-      ? additiveRows
-          .filter((row) => row.description || row.totalValue > 0)
+    const effHasAdditives = data?.hasAdditives !== undefined ? data.hasAdditives : hasAdditives;
+    const effAdditiveRows = data?.additiveRows || additiveRows;
+    const additiveRowsHtml = effHasAdditives
+      ? (effAdditiveRows || [])
+          .filter((row) => row.description || (row.totalValue || 0) > 0)
           .map((row) => `
             <tr>
               <td><span class="tag-badge additive">${row.refNumber || 'ADT'}</span></td>
               <td>${row.description || '-'}</td>
-              <td style="text-align:right;">${row.unitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-              <td style="text-align:center;">${row.quantity}</td>
-              <td style="text-align:right; font-weight:600;">${row.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+              <td style="text-align:right;">${(row.unitValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+              <td style="text-align:center;">${row.quantity || 1}</td>
+              <td style="text-align:right; font-weight:600;">${(row.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
             </tr>
           `)
           .join('')
       : '';
 
-    const periodDatesText = `${format(parseISO(measurementStartDate), 'dd/MM/yyyy')} a ${format(parseISO(measurementEndDate), 'dd/MM/yyyy')}`;
-    const emissionDateText = measurementDate ? format(parseISO(measurementDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy');
+    const startFmt = safeFormatDate(effectiveStartDate) || 'Início';
+    const endFmt = safeFormatDate(effectiveEndDate) || 'Término';
+    const periodDatesText = `${startFmt} a ${endFmt}`;
+    const emissionDateText = safeFormatDate(effectiveDate) || format(new Date(), 'dd/MM/yyyy');
+
+    const effDeductionPeriod = (effHasMaterials && effMaterialRows)
+      ? effMaterialRows.reduce((sum, r) => sum + Math.max(0, r.value || 0), 0)
+      : 0;
+
+    const effComplementaryTotal = (effHasComplementary && effComplementaryRows)
+      ? effComplementaryRows.reduce((sum, r) => sum + Math.max(0, r.totalValue || 0), 0)
+      : 0;
+
+    const effAdditiveTotal = (effHasAdditives && effAdditiveRows)
+      ? effAdditiveRows.reduce((sum, r) => sum + Math.max(0, r.totalValue || 0), 0)
+      : 0;
+
+    const effDiscountValue = Math.max(0, Number((data?.discountValue !== undefined ? data.discountValue : discountValue) || 0));
+
+    const effTotalPeriod = Math.max(
+      0,
+      (effectiveServicePeriodValue - effDeductionPeriod) + effComplementaryTotal + effAdditiveTotal - effDiscountValue
+    );
 
     const html = `
       <!DOCTYPE html>
@@ -1218,7 +1273,7 @@ export default function FaturamentoPage() {
               <div class="doc-title-block">
                 <h1>Boletim de Medição</h1>
                 <div class="doc-meta">
-                  <span>Revisão: <strong>${rawRevision}</strong></span>
+                  <span>Revisão: <strong>${rawRev}</strong></span>
                   <span>Período: <strong>${periodDatesText}</strong></span>
                 </div>
               </div>
@@ -1228,21 +1283,21 @@ export default function FaturamentoPage() {
               <div class="card-info">
                 <div class="card-info-header accent">Dados da Obra & Contrato</div>
                 <div class="card-info-body">
-                  <div class="info-line"><span class="info-lbl">Cliente:</span><span class="info-val">${measurementClient || '-'}</span></div>
-                  <div class="info-line"><span class="info-lbl">Obra / Local:</span><span class="info-val">${measurementWork || '-'}</span></div>
-                  <div class="info-line"><span class="info-lbl">Contrato / O.S:</span><span class="info-val">${measurementContractRef || '-'}</span></div>
-                  <div class="info-line"><span class="info-lbl">Serviço:</span><span class="info-val">${measurementService || '-'}</span></div>
-                  <div class="info-line"><span class="info-lbl">Quantitativo:</span><span class="info-val">${measurementQuantity || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Cliente:</span><span class="info-val">${effectiveClient || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Obra / Local:</span><span class="info-val">${effectiveProject || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Contrato / O.S:</span><span class="info-val">${effectiveContractRef || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Serviço:</span><span class="info-val">${effectiveService || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Quantitativo:</span><span class="info-val">${effectiveQuantity || '-'}</span></div>
                 </div>
               </div>
 
               <div class="card-info">
                 <div class="card-info-header accent">Dados para Emissão da Nota Fiscal</div>
                 <div class="card-info-body">
-                  <div class="info-line"><span class="info-lbl">Razão Social:</span><span class="info-val">${billingClientName || measurementClient || '-'}</span></div>
-                  <div class="info-line"><span class="info-lbl">CNPJ / CPF:</span><span class="info-val">${billingClientTaxId || '-'}</span></div>
-                  <div class="info-line"><span class="info-lbl">Endereço NF:</span><span class="info-val">${billingClientAddress ? billingClientAddress.replace(/\n/g, ' ') : '-'}</span></div>
-                  ${billingNotes ? `<div class="info-line"><span class="info-lbl">Obs. na Nota:</span><span class="info-val" style="font-weight:normal; color:#52525b;">${billingNotes}</span></div>` : ''}
+                  <div class="info-line"><span class="info-lbl">Razão Social:</span><span class="info-val">${effectiveBillingClientName || effectiveClient || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">CNPJ / CPF:</span><span class="info-val">${effectiveBillingClientTaxId || '-'}</span></div>
+                  <div class="info-line"><span class="info-lbl">Endereço NF:</span><span class="info-val">${effectiveBillingClientAddress ? effectiveBillingClientAddress.replace(/\n/g, ' ') : '-'}</span></div>
+                  ${effectiveBillingNotes ? `<div class="info-line"><span class="info-lbl">Obs. na Nota:</span><span class="info-val" style="font-weight:normal; color:#52525b;">${effectiveBillingNotes}</span></div>` : ''}
                 </div>
               </div>
             </div>
@@ -1251,21 +1306,21 @@ export default function FaturamentoPage() {
               <div class="card-info">
                 <div class="card-info-header">Empresa Executora / Responsável</div>
                 <div class="card-info-body">
-                  <div class="info-line"><span class="info-lbl">Razão Social:</span><span class="info-val">${measurementCompany.legalName}</span></div>
-                  <div class="info-line"><span class="info-lbl">CNPJ:</span><span class="info-val">${measurementCompany.taxId}</span></div>
-                  <div class="info-line"><span class="info-lbl">Endereço:</span><span class="info-val">${companyAddress.replace(/\n/g, ' ')}</span></div>
+                  <div class="info-line"><span class="info-lbl">Razão Social:</span><span class="info-val">${effCompany.legalName}</span></div>
+                  <div class="info-line"><span class="info-lbl">CNPJ:</span><span class="info-val">${effCompany.taxId}</span></div>
+                  <div class="info-line"><span class="info-lbl">Endereço:</span><span class="info-val">${effCompanyAddress.replace(/\n/g, ' ')}</span></div>
                   <div class="info-line" style="border-top:1px dashed #E3E3E3; margin-top:3px; padding-top:3px;">
                     <span class="info-lbl">Emissão/Resp.:</span>
-                    <span class="info-val">${responsibleContact.name} | ${responsibleContact.email} | ${responsibleContact.phone}</span>
+                    <span class="info-val">${effResponsibleContact.name} | ${effResponsibleContact.email} | ${effResponsibleContact.phone}</span>
                   </div>
-                  <div class="info-line"><span class="info-lbl">Referência:</span><span class="info-val">Medição ${measurementNumber} (${rawRevision}) — Emissão: ${emissionDateText}</span></div>
+                  <div class="info-line"><span class="info-lbl">Referência:</span><span class="info-val">Medição ${rawNumber} (${rawRev}) — Emissão: ${emissionDateText}</span></div>
                 </div>
               </div>
 
               <div class="card-info">
                 <div class="card-info-header">Dados para Pagamento</div>
                 <div class="card-info-body">
-                  <div class="info-line"><span class="info-lbl">Dados Bancários:</span><span class="info-val">${companyBankData.replace(/\n/g, ' | ')}</span></div>
+                  <div class="info-line"><span class="info-lbl">Dados Bancários:</span><span class="info-val">${effCompanyBankData.replace(/\n/g, ' | ')}</span></div>
                 </div>
               </div>
             </div>
@@ -1284,17 +1339,17 @@ export default function FaturamentoPage() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td style="text-align: center; font-weight: 500;">${measurementPrevPercent.toFixed(2)}%</td>
-                    <td style="text-align: center; font-weight: 600; color: #691E33;">${measurementExecPercent.toFixed(2)}%</td>
-                    <td style="text-align: center; font-weight: 700; color: #874B5C;">${measurementAccumulatedPercent.toFixed(2)}%</td>
-                    <td style="text-align: right;">${measurementUnitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                    <td style="text-align: right; font-weight: 700; color: #691E33;">${measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td style="text-align: center; font-weight: 500;">${effectivePrevPercent.toFixed(2)}%</td>
+                    <td style="text-align: center; font-weight: 600; color: #691E33;">${effectiveExecPercent.toFixed(2)}%</td>
+                    <td style="text-align: center; font-weight: 700; color: #874B5C;">${effectiveAccumulatedPercent.toFixed(2)}%</td>
+                    <td style="text-align: right;">${effectiveContractValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td style="text-align: right; font-weight: 700; color: #691E33;">${effectiveServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            ${hasAdditives && additiveRowsHtml.trim() ? `
+            ${effHasAdditives && additiveRowsHtml.trim() ? `
             <div class="section-wrap">
               <div class="section-header-title">2. Aditivos Contratuais</div>
               <table class="modern-table">
@@ -1314,9 +1369,9 @@ export default function FaturamentoPage() {
             </div>
             ` : ''}
 
-            ${hasMaterials && materialRowsHtml.trim() ? `
+            ${effHasMaterials && materialRowsHtml.trim() ? `
             <div class="section-wrap">
-              <div class="section-header-title">${hasAdditives && additiveRowsHtml.trim() ? '3' : '2'}. Abatimentos e Materiais Fornecidos</div>
+              <div class="section-header-title">${effHasAdditives && additiveRowsHtml.trim() ? '3' : '2'}. Abatimentos e Materiais Fornecidos</div>
               <table class="modern-table">
                 <thead>
                   <tr>
@@ -1332,7 +1387,7 @@ export default function FaturamentoPage() {
             </div>
             ` : ''}
 
-            ${hasComplementary && complementaryRowsHtml.trim() ? `
+            ${effHasComplementary && complementaryRowsHtml.trim() ? `
             <div class="section-wrap">
               <div class="section-header-title">Serviços Complementares</div>
               <table class="modern-table">
@@ -1355,35 +1410,35 @@ export default function FaturamentoPage() {
               <div class="totals-card">
                 <div class="totals-row">
                   <span>Subtotal Serviços (Período)</span>
-                  <span style="font-weight: 600;">${measurementServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  <span style="font-weight: 600;">${effectiveServicePeriodValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
-                ${hasAdditives && measurementAdditiveTotal > 0 ? `
+                ${effHasAdditives && effAdditiveTotal > 0 ? `
                 <div class="totals-row plus">
                   <span>(+) Aditivos Contratuais</span>
-                  <span style="font-weight: 600;">+ ${measurementAdditiveTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  <span style="font-weight: 600;">+ ${effAdditiveTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
                 ` : ''}
-                ${hasMaterials && measurementDeductionPeriod > 0 ? `
+                ${effHasMaterials && effDeductionPeriod > 0 ? `
                 <div class="totals-row minus">
                   <span>(-) Abatimento de Materiais</span>
-                  <span style="font-weight: 600;">- ${measurementDeductionPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  <span style="font-weight: 600;">- ${effDeductionPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
                 ` : ''}
-                ${hasComplementary && measurementComplementaryTotal > 0 ? `
+                ${effHasComplementary && effComplementaryTotal > 0 ? `
                 <div class="totals-row plus">
                   <span>(+) Serviços Complementares</span>
-                  <span style="font-weight: 600;">+ ${measurementComplementaryTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  <span style="font-weight: 600;">+ ${effComplementaryTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
                 ` : ''}
-                ${safeDiscountValue > 0 ? `
+                ${effDiscountValue > 0 ? `
                 <div class="totals-row minus" style="background: #FAF3F5;">
                   <span>(-) Desconto Concedido</span>
-                  <span style="font-weight: 600;">- ${safeDiscountValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  <span style="font-weight: 600;">- ${effDiscountValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
                 ` : ''}
                 <div class="totals-row final">
                   <span>TOTAL LÍQUIDO DA MEDIÇÃO</span>
-                  <span>${measurementTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  <span>${effTotalPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
               </div>
             </div>
@@ -1401,7 +1456,7 @@ export default function FaturamentoPage() {
                   <p class="signature-role">Responsável</p>
                 </div>
                 <div class="signature-card">
-                  <p class="signature-name">${measurementClient || 'CONTRATANTE'}</p>
+                  <p class="signature-name">${effectiveClient || 'CONTRATANTE'}</p>
                   <p class="signature-role">Fiscal / Contratante (De acordo)</p>
                 </div>
               </div>
@@ -2045,8 +2100,8 @@ export default function FaturamentoPage() {
                                 className="h-7 w-7 text-blue-700 hover:text-blue-800"
                                 title="Ver / Imprimir Boletim de Medição em PDF"
                                 onClick={() => {
-                                  loadMeasurement(item.rawMeasurement!);
-                                  setTimeout(() => handlePrintMeasurementPdf(), 100);
+                                  const targetWin = window.open('', '_blank', 'width=1024,height=768');
+                                  handlePrintMeasurementPdf(targetWin, item.rawMeasurement);
                                 }}
                               >
                                 <Printer className="h-3.5 w-3.5" />
@@ -2647,7 +2702,10 @@ export default function FaturamentoPage() {
                   <Button 
                     type="button" 
                     variant="secondary" 
-                    onClick={() => handleSaveMeasurement({ andPrint: true })} 
+                    onClick={() => {
+                      const targetWin = window.open('', '_blank', 'width=1024,height=768');
+                      handleSaveMeasurement({ andPrint: true, targetWindow: targetWin });
+                    }} 
                     disabled={isSavingMeasurement}
                     title="Salva no banco de dados, gera o PDF para impressão e limpa o formulário"
                   >
@@ -3021,7 +3079,7 @@ export default function FaturamentoPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => loadMeasurement(m)}>Carregar</Button>
-                      <Button variant="outline" size="sm" onClick={() => { loadMeasurement(m); setTimeout(handlePrintMeasurementPdf, 100); }}>Reimprimir</Button>
+                      <Button variant="outline" size="sm" onClick={() => { const targetWin = window.open('', '_blank', 'width=1024,height=768'); handlePrintMeasurementPdf(targetWin, m); }}>Reimprimir</Button>
                       <Button
                         variant="outline"
                         size="sm"
